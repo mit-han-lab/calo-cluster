@@ -1,1 +1,4 @@
 .vscode/
+*.pyc
+modules.sh
+*/__pycache__/*
