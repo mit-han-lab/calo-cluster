@@ -1,0 +1,4 @@
+# @package _group_
+name: lambda_lr
+num_epochs: ${hydra:train.num_epochs}
+batch_size: ${hydra:train.batch_size}

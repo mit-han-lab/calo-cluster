@@ -4,7 +4,9 @@ import os
 import random
 import shutil
 
+import hydra
 import torch
+from omegaconf import DictConfig
 
 from utils.comm import *
 
@@ -76,8 +78,13 @@ def prepare():
 
     return configs
 
+@hydra.main(config_path="configs", config_name="config")
+def hydra_main(cfg: DictConfig) -> None:
+    print(cfg.pretty())
+    model = hydra.utils.instantiate(cfg.model)
+    print(model)
 
-def main():
+def main(cfg: DictConfig) -> None:
     configs = prepare()
 
     from utils.common import get_best_arch
@@ -350,4 +357,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    hydra_main() # pylint: disable=no-value-for-parameter

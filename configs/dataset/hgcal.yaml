@@ -1,0 +1,6 @@
+# @package _group_
+num_workers: 8
+num_classes: 4
+root: /dataset/hgcal/
+num_points: 80000
+voxel_size: 1.0

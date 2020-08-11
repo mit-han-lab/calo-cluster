@@ -1,0 +1,9 @@
+train:
+  batch_size: 2
+  num_epochs: 15
+  metrics: [iou, class]
+defaults:
+  - dataset: hgcal
+  - optimizer: sgd
+  - scheduler: lambda_lr
+  - model: spvcnn

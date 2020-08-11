@@ -1,0 +1,5 @@
+# @package _group_
+lr: 0.24
+weight_decay: 1e-4
+momentum: 0.9
+nesterov: True
