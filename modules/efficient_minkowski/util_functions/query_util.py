@@ -4,7 +4,6 @@ import torch.nn as nn
 import sys
 from torch.utils.cpp_extension import load
 import time
-import ipdb
 import os
 pd = os.path.dirname(__file__)
 load_list = [os.path.join(pd, '../others', 'query.cpp'), os.path.join(pd, '../hashmap', 'hashmap.cu')]
@@ -26,7 +25,6 @@ class SparseQuery(Function):
                 
         
         idx_target = torch.arange(len(hash_target)).to(hash_query.device).long()
-        #ipdb.set_trace()
         out, key_buf, val_buf, key = query.forward(hash_query.view(-1).contiguous(), hash_target.contiguous(), idx_target)
         if C > 1:
             out = out.view(-1, C)

@@ -6,7 +6,6 @@ import torch
 import numpy as np
 import sys
 import h5py
-from collections import Sequence
 
                 
 

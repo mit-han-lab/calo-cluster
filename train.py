@@ -10,7 +10,6 @@ from omegaconf import DictConfig
 
 from utils.comm import *
 
-
 def prepare():
     from utils.common import get_save_path
     from utils.config import configs
@@ -82,7 +81,6 @@ def prepare():
 def hydra_main(cfg: DictConfig) -> None:
     print(cfg.pretty())
     model = hydra.utils.instantiate(cfg.model)
-    print(model)
 
 def main(cfg: DictConfig) -> None:
     configs = prepare()
