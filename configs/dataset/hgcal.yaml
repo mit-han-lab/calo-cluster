@@ -1,6 +1,14 @@
 # @package _group_
-num_workers: 8
+target: datasets.hgcal.HGCalDataModule
 num_classes: 4
-root: /dataset/hgcal/
-num_points: 80000
-voxel_size: 1.0
+params:
+  label_type: class
+  data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hgcal
+  num_events: 12
+  num_train_events: 10
+  num_test_events: 1
+  force_download: False
+  num_workers: 8
+  voxel_size: 1.0
+  num_epochs: ${train.num_epochs}
+  batch_size: ${train.batch_size}

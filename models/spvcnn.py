@@ -1,16 +1,15 @@
 import time
 from collections import OrderedDict
+from typing import Callable, List
 
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from pytorch_lightning.metrics import Metric
 
 from modules.efficient_minkowski.functionals import *
 from modules.efficient_minkowski.point_tensor import *
 from modules.efficient_minkowski.sparse_tensor import *
-
-from typing import List
-
-__all__ = ['SPVCNN']
 
 
 # z: PointTensor
@@ -170,13 +169,17 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class SPVCNN(nn.Module):
-    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int):
+class SPVCNN(pl.LightningModule):
+    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int, optimizer_factory: Callable, scheduler_factory: Callable, criterion, metrics: List[Metric]):
         super().__init__()
 
         cs = [int(cr * x) for x in cs]
         self.pres = pres
         self.vres = vres
+        self.optimizer_factory = optimizer_factory
+        self.scheduler_factory = scheduler_factory
+        self.criterion = criterion
+        self.metrics = metrics
 
         self.stem = nn.Sequential(
             MinkowskiConvolution(5, cs[0], kernel_size=3, stride=1),
@@ -321,3 +324,43 @@ class SPVCNN(nn.Module):
 
         out = self.classifier(z3.F)
         return out
+
+    def configure_optimizers(self):
+        optimizer = self.optimizer_factory(self.parameters())
+        if self.scheduler_factory is not None:
+            scheduler = self.scheduler_factory(optimizer)
+            return [optimizer], [scheduler]
+        else:
+            return optimizer
+
+    def step(self, batch, batch_idx, split):
+        (locs, feats, targets), all_labels, invs = batch
+        # TODO: Confirm how to handle device in this case with pytorch-lightning.
+        # Theory: Since SparseTensor just wraps feats and coords Tensors, no new Tensor is actually created.
+        # Therefore, no interference with device is needed, as pl should already place those Tensors on the correct device.
+        inputs = SparseTensor(feats, coords=locs)
+        targets = targets.long()
+        outputs = self(inputs)
+
+        if isinstance(outputs, SparseTensor):
+            outputs = outputs.F
+
+        loss = self.criterion(outputs, targets)
+        if split == 'train':
+            result = pl.TrainResult(loss)
+        else:
+            result = pl.EvalResult()
+        result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True)
+        for metric in self.metrics:
+            # TODO: change default ddp aggregation of mean for metrics for which this doesn't make sense.
+            result.log(f'{split}_{metric.name}', metric(outputs, targets), sync_ddp=True, on_step=False, on_epoch=True)
+        return result
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, split='train')
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, split='val')
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, split='test')

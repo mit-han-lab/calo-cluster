@@ -1,0 +1,4 @@
+# @package _group_
+target: torch.nn.CrossEntropyLoss
+params:
+  ignore_index: 255

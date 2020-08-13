@@ -1,4 +1,6 @@
 # @package _group_
-name: lambda_lr
-num_epochs: ${hydra:train.num_epochs}
-batch_size: ${hydra:train.batch_size}
+target: training.schedulers.lambda_lr_factory
+params:
+  num_epochs: ${train.num_epochs}
+  batch_size: ${train.batch_size}
+  num_train_samples: ${dataset.params.num_train_events}

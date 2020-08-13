@@ -408,7 +408,7 @@ class ResidualBlock(nn.Module):
         self.downsample = downsample
         self.relu = MinkowskiReLU(True)
 
-    def forward(self, inputs):
+    def forward(self, x):
         out = self.relu(self.net(x) + self.downsample(x))
         return out
 

@@ -1,0 +1,4 @@
+# @package _group_
+target: models.minkunet.MinkUNet
+params:
+  num_classes: ${dataset.num_classes}

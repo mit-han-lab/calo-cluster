@@ -1,0 +1,5 @@
+# @package _group_
+target: training.metrics.create_metrics
+params:
+  names: [iou, confusion_matrix, precision_recall]
+  num_classes: ${dataset.num_classes}
