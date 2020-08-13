@@ -27,9 +27,8 @@ def hydra_main(cfg: DictConfig) -> None:
 
     wandb.init(project="hgcal-spvcnn", config=cfg._content)
     wandb_logger = pl.loggers.WandbLogger(save_dir=os.getcwd())
-    trainer = pl.Trainer(gpus=1, logger=wandb_logger, weights_save_path=os.getcwd())
+    trainer = pl.Trainer(gpus=1, logger=wandb_logger, weights_save_path=os.getcwd(), max_epochs=cfg.train.num_epochs)
     trainer.fit(model=model, datamodule=datamodule)
-
 
 if __name__ == '__main__':
     hydra_main()  # pylint: disable=no-value-for-parameter

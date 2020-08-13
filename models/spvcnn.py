@@ -351,9 +351,9 @@ class SPVCNN(pl.LightningModule):
         else:
             result = pl.EvalResult()
         result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True)
-        for metric in self.metrics:
+        # for metric in self.metrics:
             # TODO: change default ddp aggregation of mean for metrics for which this doesn't make sense.
-            result.log(f'{split}_{metric.name}', metric(outputs, targets), sync_ddp=True, on_step=False, on_epoch=True)
+            # result.log(f'{split}_{metric.name}', metric(outputs, targets), sync_ddp=True, on_step=False, on_epoch=True)
         return result
 
     def training_step(self, batch, batch_idx):
