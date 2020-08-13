@@ -349,7 +349,7 @@ class SPVCNN(pl.LightningModule):
         if split == 'train':
             result = pl.TrainResult(loss)
         else:
-            result = pl.EvalResult()
+            result = pl.EvalResult(checkpoint_on=loss)
         result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True)
         # for metric in self.metrics:
             # TODO: change default ddp aggregation of mean for metrics for which this doesn't make sense.

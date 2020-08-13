@@ -24,10 +24,13 @@ def hydra_main(cfg: DictConfig) -> None:
     criterion = hydra.utils.instantiate(cfg.criterion)
     model = hydra.utils.instantiate(cfg.model, optimizer_factory=optimizer_factory,
                                     scheduler_factory=scheduler_factory, criterion=criterion, metrics=metrics)
-
-    wandb.init(project="hgcal-spvcnn", config=cfg._content)
-    wandb_logger = pl.loggers.WandbLogger(save_dir=os.getcwd())
-    trainer = pl.Trainer(gpus=1, logger=wandb_logger, weights_save_path=os.getcwd(), max_epochs=cfg.train.num_epochs)
+    checkpoint_callback = hydra.utils.instantiate(
+        cfg.train.checkpoint, filepath=os.getcwd())
+    wandb_logger = pl.loggers.WandbLogger(
+        project="hgcal-spvcnn", save_dir=os.getcwd())
+    wandb.config = cfg._content
+    trainer = pl.Trainer(gpus=1, logger=wandb_logger, weights_save_path=os.getcwd(
+    ), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback)
     trainer.fit(model=model, datamodule=datamodule)
 
 if __name__ == '__main__':
