@@ -14,4 +14,4 @@ export PYTHONFAULTHANDLER=1
 
 module load esslurm pytorch/v1.5.0-gpu cmake
 
-srun python train.py train=slurm dataset.params.force_download=True
+srun python train.py train=slurm

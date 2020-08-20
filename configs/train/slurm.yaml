@@ -4,6 +4,8 @@ batch_size: 8
 num_epochs: 15
 gpus: 1
 slurm:
-  per_experiment_nb_cpus: 10
-  per_experiment_nb_gpus: ${train.gpus}
-  job_time: 00:05:00
+  time: 0-00:10:00
+  cpus_per_task: 4
+  gpus_per_node: ${train.gpus}
+  nodes: 1
+  account: m1759
