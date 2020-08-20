@@ -53,18 +53,6 @@ def hydra_main(cfg: DictConfig) -> None:
     logger = logging.getLogger()
     logger.setLevel(cfg.log_level)
     logging.info(cfg.pretty())
-    if 'slurm' in cfg.train:
-        slurm_dir = Path.cwd() / 'slurm'
-        slurm_dir.mkdir()
-        cluster = SlurmCluster(log_path=slurm_dir, python_cmd='python')
-        cluster.per_experiment_nb_cpus = cfg.train.slurm.per_experiment_nb_cpus
-        cluster.per_experiment_nb_gpus = cfg.train.slurm.per_experiment_nb_gpus
-        cluster.per_experiment_nb_nodes = 1
-        cluster.minutes_to_checkpoint_before_walltime = 1
-        cluster.job_time = cfg.train.slurm.job_time
-        cluster.load_modules(['esslurm', 'pytorch/v1.5.0-gpu', 'cmake'])
-        cluster.optimize_parallel_cluster_gpu(
-            train, nb_trials=1, job_name='pl-slurm', job_display_name='pl-slurm')
     # Workaround to fix hydra + pytorch-lightning (see https://github.com/PyTorchLightning/pytorch-lightning/issues/2727)
     if cfg.train.distributed_backend == 'ddp':
         cwd = os.getcwd()
