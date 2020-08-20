@@ -11,6 +11,7 @@ from modules.efficient_minkowski.functionals import *
 from modules.efficient_minkowski.point_tensor import *
 from modules.efficient_minkowski.sparse_tensor import *
 
+import hydra
 
 # z: PointTensor
 # return: SparseTensor
@@ -170,16 +171,17 @@ class ResidualBlock(nn.Module):
 
 
 class SPVCNN(pl.LightningModule):
-    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int, optimizer_factory: Callable, scheduler_factory: Callable, criterion, metrics: List[Metric]):
+    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int, metrics_cfg: dict, optimizer_cfg: dict, scheduler_cfg: dict, criterion_cfg: dict):
         super().__init__()
 
         cs = [int(cr * x) for x in cs]
         self.pres = pres
         self.vres = vres
-        self.optimizer_factory = optimizer_factory
-        self.scheduler_factory = scheduler_factory
-        self.criterion = criterion
-        self.metrics = metrics
+        self.save_hyperparameters()
+        self.metrics = hydra.utils.call(metrics_cfg)
+        self.optimizer_factory = hydra.utils.instantiate(optimizer_cfg)
+        self.scheduler_factory = hydra.utils.instantiate(scheduler_cfg)
+        self.criterion = hydra.utils.instantiate(criterion_cfg)
 
         self.stem = nn.Sequential(
             MinkowskiConvolution(5, cs[0], kernel_size=3, stride=1),

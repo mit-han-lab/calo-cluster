@@ -1,0 +1,5 @@
+# @package _group_
+distributed_backend: null
+batch_size: 1
+num_epochs: 100
+gpus: 1

@@ -1,37 +1,84 @@
 import argparse
 import copy
+import logging
 import os
 import random
 import shutil
+import sys
 from pathlib import Path
 
 import hydra
 import pytorch_lightning as pl
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
+from test_tube.hpc import SlurmCluster
 
 import wandb
 from utils.comm import *
 
 
+def train(cfg: DictConfig) -> None:
+    datamodule = hydra.utils.instantiate(cfg.dataset)
+    # Instantiate the model (pass configs to avoid pickle issues in checkpointing).
+    model = hydra.utils.instantiate(cfg.model, optimizer_cfg=cfg.optimizer,
+                                    scheduler_cfg=cfg.scheduler, criterion_cfg=cfg.criterion, metrics_cfg=cfg.metrics)
+
+    # Set up checkpointing.
+    if cfg.init_ckpt is not None:
+        logging.info(f'Loading checkpoint={cfg.init_ckpt}')
+        resume_from_checkpoint = cfg.init_ckpt
+    else:
+        resume_from_checkpoint = None
+    checkpoint_callback = hydra.utils.instantiate(
+        cfg.checkpoint, filepath=f'{os.getcwd()}/{{epoch:02d}}')
+
+    # Set up wandb logging.
+    if cfg.wandb.active:
+        logger = pl.loggers.WandbLogger(
+            project=cfg.wandb.project, save_dir=os.getcwd())
+    else:
+        logger = True
+
+    # train
+    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, weights_save_path=os.getcwd(
+    ), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint)
+    if cfg.wandb.active:
+        trainer.logger.experiment.config.update(cfg._content)
+    trainer.fit(model=model, datamodule=datamodule)
+
+
 @hydra.main(config_path="configs", config_name="config")
 def hydra_main(cfg: DictConfig) -> None:
-    print(cfg.pretty())
-    datamodule = hydra.utils.instantiate(cfg.dataset)
-    metrics = hydra.utils.call(cfg.metrics)
-    optimizer_factory = hydra.utils.instantiate(cfg.optimizer)
-    scheduler_factory = hydra.utils.instantiate(cfg.scheduler)
-    criterion = hydra.utils.instantiate(cfg.criterion)
-    model = hydra.utils.instantiate(cfg.model, optimizer_factory=optimizer_factory,
-                                    scheduler_factory=scheduler_factory, criterion=criterion, metrics=metrics)
-    checkpoint_callback = hydra.utils.instantiate(
-        cfg.train.checkpoint, filepath=os.getcwd())
-    wandb_logger = pl.loggers.WandbLogger(
-        project="hgcal-spvcnn", save_dir=os.getcwd())
-    wandb.config = cfg._content
-    trainer = pl.Trainer(gpus=1, logger=wandb_logger, weights_save_path=os.getcwd(
-    ), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback)
-    trainer.fit(model=model, datamodule=datamodule)
+    # Set up python logging. 
+    logger = logging.getLogger()
+    logger.setLevel(cfg.log_level)
+    logging.info(cfg.pretty())
+    if 'slurm' in cfg.train:
+        slurm_dir = Path.cwd() / 'slurm'
+        slurm_dir.mkdir()
+        cluster = SlurmCluster(log_path=slurm_dir, python_cmd='python')
+        cluster.per_experiment_nb_cpus = cfg.train.slurm.per_experiment_nb_cpus
+        cluster.per_experiment_nb_gpus = cfg.train.slurm.per_experiment_nb_gpus
+        cluster.per_experiment_nb_nodes = 1
+        cluster.minutes_to_checkpoint_before_walltime = 1
+        cluster.job_time = cfg.train.slurm.job_time
+        cluster.load_modules(['esslurm', 'pytorch/v1.5.0-gpu', 'cmake'])
+        cluster.optimize_parallel_cluster_gpu(
+            train, nb_trials=1, job_name='pl-slurm', job_display_name='pl-slurm')
+    # Workaround to fix hydra + pytorch-lightning (see https://github.com/PyTorchLightning/pytorch-lightning/issues/2727)
+    if cfg.train.distributed_backend == 'ddp':
+        cwd = os.getcwd()
+        sys.argv = sys.argv[:1]
+        sys.argv.extend([
+            f"hydra.run.dir={cwd}",
+            "hydra/hydra_logging=disabled",
+            "hydra/job_logging=disabled",
+        ])
+        overrides = OmegaConf.load('.hydra/overrides.yaml')
+        sys.argv.extend(
+            (o for o in overrides if not 'hydra/sweeper' in o and not 'hydra/launcher' in o))
+    train(cfg)
+
 
 if __name__ == '__main__':
     hydra_main()  # pylint: disable=no-value-for-parameter

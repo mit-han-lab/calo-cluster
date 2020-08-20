@@ -1,0 +1,5 @@
+# @package _group_
+distributed_backend: ddp
+batch_size: 2
+num_epochs: 15
+gpus: 4

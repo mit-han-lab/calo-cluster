@@ -1,0 +1,9 @@
+# @package _group_
+distributed_backend: ddp
+batch_size: 8
+num_epochs: 15
+gpus: 1
+slurm:
+  per_experiment_nb_cpus: 10
+  per_experiment_nb_gpus: ${train.gpus}
+  job_time: 00:05:00

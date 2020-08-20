@@ -114,6 +114,7 @@ class HGCalDataModule(pl.LightningDataModule):
         if self.seed is None:
             self.seed = torch.initial_seed() % (2**32 - 1)
         self.seed = self.seed + get_rank() * self.num_workers * self.num_epochs
+        logging.debug(f'setting seed={self.seed}')
         random.seed(self.seed)
         np.random.seed(self.seed)
         torch.manual_seed(self.seed)
@@ -125,12 +126,15 @@ class HGCalDataModule(pl.LightningDataModule):
             self.events = self.events[:self.num_events]
         if stage == 'fit' or stage is None:
             train_events = self.events[:self.num_train_events]
+            logging.debug(f'num training events={len(train_events)}')
             val_events = self.events[self.num_train_events:-
                                      self.num_test_events]
+            logging.debug(f'num val events={len(val_events)}')
             self.train_dataset = HGCalDataset(self.voxel_size, train_events, self.label_type)
             self.val_dataset = HGCalDataset(self.voxel_size, val_events, self.label_type)
         if stage == 'test' or stage is None:
             test_events = self.events[-self.num_test_events:]
+            logging.debug(f'num test events={len(test_events)}')
             self.test_dataset = HGCalDataset(self.voxel_size, test_events, self.label_type)
 
     def dataloader(self, dataset: HGCalDataset) -> DataLoader:

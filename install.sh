@@ -1,1 +1,1 @@
-pip install hydra pytorch-lightning wandb
+pip install hydra pytorch-lightning wandb test-tube

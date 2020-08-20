@@ -1,19 +1,15 @@
 seed: 1588147245
 deterministic: False
-train:
-  batch_size: 2
-  num_epochs: 15
-  checkpoint:
-    target: pytorch_lightning.callbacks.ModelCheckpoint
-    params:
-      verbose: True
-      mode: min
-      save_top_k: 1
-
+init_ckpt: null
+log_level: DEBUG
 defaults:
+  - train: single_gpu
   - dataset: hgcal
   - metrics: semantic
   - optimizer: sgd
   - criterion: cross_entropy_loss
   - scheduler: lambda_lr
   - model: spvcnn
+  - wandb: active
+  - checkpoint: top_1
+  
