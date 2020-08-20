@@ -4,3 +4,4 @@ modules.sh
 */__pycache__/*
 outputs/*
 wandb
+*.out
