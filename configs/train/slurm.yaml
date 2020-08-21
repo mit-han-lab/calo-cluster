@@ -2,9 +2,9 @@
 distributed_backend: ddp
 batch_size: 8
 num_epochs: 15
-gpus: 1
+gpus: 2
 slurm:
-  time: 0-00:10:00
+  time: 0-2:00:00
   cpus_per_task: 4
   gpus_per_node: ${train.gpus}
   nodes: 1

@@ -35,7 +35,9 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
 
     # Set up wandb logging.
     if cfg.wandb.active:
-        wandb_id = (output_dir.parent.name + output_dir.name).replace('-', '')
+        wandb_id = cfg.wandb.id
+        if wandb_id is None:
+            wandb_id = (output_dir.parent.name + output_dir.name).replace('-', '')
         logger = pl.loggers.WandbLogger(
             project=cfg.wandb.project, save_dir=str(output_dir), id=wandb_id)
     else:
@@ -72,9 +74,10 @@ def hydra_main(cfg: DictConfig) -> None:
         slurm_dir.mkdir()
         executor = submitit.AutoExecutor(slurm_dir)
         executor.update_parameters(slurm_gpus_per_node=cfg.train.slurm.gpus_per_node, slurm_nodes=cfg.train.slurm.nodes, slurm_ntasks_per_node=cfg.train.slurm.gpus_per_node,
-                                   slurm_cpus_per_task=cfg.train.slurm.cpus_per_task, slurm_time=cfg.train.slurm.time, additional_parameters={'constraint': 'gpu', 'account': cfg.train.slurm.account})
+                                   slurm_cpus_per_task=cfg.train.slurm.cpus_per_task, slurm_time=cfg.train.slurm.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.train.slurm.account})
         executor.submit(train, cfg=cfg, output_dir=Path.cwd())
-    train(cfg, output_dir=Path.cwd())
+    else:
+        train(cfg, output_dir=Path.cwd())
 
 
 if __name__ == '__main__':

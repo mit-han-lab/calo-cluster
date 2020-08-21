@@ -337,9 +337,6 @@ class SPVCNN(pl.LightningModule):
 
     def step(self, batch, batch_idx, split):
         (locs, feats, targets), all_labels, invs = batch
-        # TODO: Confirm how to handle device in this case with pytorch-lightning.
-        # Theory: Since SparseTensor just wraps feats and coords Tensors, no new Tensor is actually created.
-        # Therefore, no interference with device is needed, as pl should already place those Tensors on the correct device.
         inputs = SparseTensor(feats, coords=locs)
         targets = targets.long()
         outputs = self(inputs)
@@ -352,7 +349,7 @@ class SPVCNN(pl.LightningModule):
             result = pl.TrainResult(loss)
         else:
             result = pl.EvalResult(checkpoint_on=loss)
-        result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True)
+        result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True, on_epoch=True)
         # for metric in self.metrics:
             # TODO: change default ddp aggregation of mean for metrics for which this doesn't make sense.
             # result.log(f'{split}_{metric.name}', metric(outputs, targets), sync_ddp=True, on_step=False, on_epoch=True)
