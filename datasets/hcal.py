@@ -17,7 +17,7 @@ from modules.efficient_minkowski import sparse_collate, sparse_quantize
 from utils.comm import get_rank
 
 
-class HGCalDataset(Dataset):
+class HCalDataset(Dataset):
     def __init__(self, voxel_size, events, label_type):
         self.voxel_size = voxel_size
         self.events = events
@@ -142,23 +142,23 @@ class HGCalDataModule(pl.LightningDataModule):
             val_events = self.events[self.num_train_events:-
                                      self.num_test_events]
             logging.debug(f'num val events={len(val_events)}')
-            self.train_dataset = HGCalDataset(
+            self.train_dataset = HCalDataset(
                 self.voxel_size, train_events, self.label_type)
-            self.val_dataset = HGCalDataset(
+            self.val_dataset = HCalDataset(
                 self.voxel_size, val_events, self.label_type)
         if stage == 'test' or stage is None:
             test_events = self.events[-self.num_test_events:]
             logging.debug(f'num test events={len(test_events)}')
-            self.test_dataset = HGCalDataset(
+            self.test_dataset = HCalDataset(
                 self.voxel_size, test_events, self.label_type)
 
-    def dataloader(self, dataset: HGCalDataset) -> DataLoader:
+    def dataloader(self, dataset: HCalDataset) -> DataLoader:
         return DataLoader(
             dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            collate_fn=HGCalDataset.collate_fn,
+            collate_fn=HCalDataset.collate_fn,
             worker_init_fn=lambda worker_id: np.random.seed(self.seed + worker_id))
 
     def train_dataloader(self) -> DataLoader:

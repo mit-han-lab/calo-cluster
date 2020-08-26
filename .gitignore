@@ -5,3 +5,5 @@ modules.sh
 outputs/*
 wandb
 *.out
+lightning_logs
+*-checkpoint.ipynb

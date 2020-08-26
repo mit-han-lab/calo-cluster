@@ -39,13 +39,13 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
         if wandb_id is None:
             wandb_id = (output_dir.parent.name + output_dir.name).replace('-', '')
         logger = pl.loggers.WandbLogger(
-            project=cfg.wandb.project, save_dir=str(output_dir), id=wandb_id)
+            project=cfg.wandb.project, save_dir=str(output_dir), id=wandb_id, entity=cfg.wandb.entity)
     else:
         logger = True
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, weights_save_path=str(
-        output_dir), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint)
+        output_dir), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint, deterministic=True)
     if cfg.wandb.active:
         trainer.logger.experiment.config.update(cfg._content)
     trainer.fit(model=model, datamodule=datamodule)

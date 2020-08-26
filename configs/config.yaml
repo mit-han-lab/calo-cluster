@@ -1,7 +1,7 @@
 seed: 1588147245
 deterministic: False
 init_ckpt: null
-log_level: DEBUG
+log_level: INFO
 defaults:
   - train: single_gpu
   - dataset: hgcal

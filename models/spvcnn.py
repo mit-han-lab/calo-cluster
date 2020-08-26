@@ -340,7 +340,6 @@ class SPVCNN(pl.LightningModule):
         inputs = SparseTensor(feats, coords=locs)
         targets = targets.long()
         outputs = self(inputs)
-
         if isinstance(outputs, SparseTensor):
             outputs = outputs.F
 
@@ -350,6 +349,17 @@ class SPVCNN(pl.LightningModule):
         else:
             result = pl.EvalResult(checkpoint_on=loss)
         result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True, on_epoch=True)
+        # Hack to record 
+        if split == 'test':
+            if batch_idx == 0:
+                self.predictions = []
+                self.locs = []
+                self.feats = []
+                self.targets = []
+            self.predictions.append(outputs.cpu().numpy())
+            self.locs.append(locs.cpu().numpy())
+            self.feats.append(feats.cpu().numpy())
+            self.targets.append(targets.cpu().numpy())
         # for metric in self.metrics:
             # TODO: change default ddp aggregation of mean for metrics for which this doesn't make sense.
             # result.log(f'{split}_{metric.name}', metric(outputs, targets), sync_ddp=True, on_step=False, on_epoch=True)
