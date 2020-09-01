@@ -2,13 +2,14 @@ import logging
 import os
 import os.path as osp
 import random
-import tarfile
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
 import requests
 import torch
+import uproot
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
@@ -27,19 +28,20 @@ class HCalDataset(Dataset):
         return len(self.events)
 
     def _get_pc_feat_labels(self, index):
-        event = np.load(self.events[index])
+        feature_names = ['x', 'y', 'z', 'time', 'energy']
+        event = pd.read_pickle(self.events[index])
         if self.label_type == 'instance_and_class':
-            block, labels_ = event['x'], event['y']
+            raise NotImplementedError()
         elif self.label_type == 'class':
-            block, labels_ = event['x'], event['y'][:, 0]
+            block, labels_ = event[feature_names], event['hit'].values
         elif self.label_type == 'instance':
-            block, labels_ = event['x'], event['y'][:, 1]
+            raise NotImplementedError()
         else:
             raise RuntimeError(f'Unknown label_type = "{self.label_type}"')
-        pc_ = np.round(block[:, :3] / self.voxel_size)
+        pc_ = np.round(block[['x', 'y', 'z']].values / self.voxel_size)
         pc_ -= pc_.min(0, keepdims=1)
 
-        feat_ = block
+        feat_ = block.values
         return pc_, feat_, labels_
 
     def __getitem__(self, index):
@@ -70,8 +72,8 @@ class HCalDataset(Dataset):
         return sparse_collate(locs, feats, labels), block_labels, invs
 
 
-class HGCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_train_events: int, num_test_events: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', force_download: bool = False, seed: int = None, num_events: int = -1, label_type: str = 'class'):
+class HCalDataModule(pl.LightningDataModule):
+    def __init__(self, batch_size: int, num_train_events: int, num_test_events: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://drive.google.com/u/1/uc?id=1om4ROZzppm-cXx3uj4hqej04qp25z2Nl&export=download', force_download: bool = False, seed: int = None, num_events: int = -1, label_type: str = 'class'):
         super().__init__()
         self.batch_size = batch_size
         self.num_train_events = num_train_events
@@ -81,6 +83,7 @@ class HGCalDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.voxel_size = voxel_size
         self.data_dir = Path(data_dir)
+        self.root_data_path = self.data_dir / 'data.root'
         self.data_url = data_url
         self.force_download = force_download
         self.seed = seed
@@ -92,26 +95,42 @@ class HGCalDataModule(pl.LightningDataModule):
     def data_exists(self) -> bool:
         return len(set(self.data_dir.glob('*'))) != 0
 
-    def download(self) -> Path:
-        logging.info(
-            f'Downloading data to {self.data_dir} (this may take a few minutes).')
-        with requests.get(self.data_url, allow_redirects=True, stream=True) as r:
-            r.raise_for_status()
-            compressed_data_path = self.data_dir / 'data.tar.gz'
-            with compressed_data_path.open(mode='wb') as f:
-                pbar = tqdm(total=int(r.headers['Content-Length']))
-                for chunk in r.iter_content(chunk_size=1024**2):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(len(chunk))
-        logging.info('download complete.')
-        return compressed_data_path
+    def extracted_data_exists(self) -> bool:
+        return len(set(self.raw_data_dir.glob('*'))) != 0
 
-    def extract(self, compressed_data_path: Path) -> None:
+    def download(self):
+        try:
+            logging.info(
+                f'Downloading data to {self.data_dir} (this may take a few minutes).')
+            with requests.get(self.data_url, allow_redirects=True, stream=True) as r:
+                r.raise_for_status()
+                with self.root_data_path.open(mode='wb') as f:
+                    pbar = tqdm(total=int(r.headers['Content-Length']))
+                    for chunk in r.iter_content(chunk_size=1024**2):
+                        if chunk:
+                            f.write(chunk)
+                            pbar.update(len(chunk))
+            logging.info('download complete.')
+        except Exception:
+            logging.error(f'Unable to download dataset; please download manually to {self.data_dir}')
+
+    def extract(self) -> None:
         logging.info(f'Extracting data to {self.raw_data_dir}.')
-        tar = tarfile.open(compressed_data_path, "r:gz")
-        tar.extractall(path=self.data_dir)
-        tar.close()
+        self.raw_data_dir.mkdir(parents=True, exist_ok=True)
+        root_dir = uproot.rootio.open(self.root_data_path)
+        root_events = root_dir.get('Events;1')
+
+        df = pd.DataFrame()
+        for k, v in root_events[b'HcalRecHit'].items():
+            df[k.decode('ascii').split('.')[1]] = v.array()
+
+        for n in tqdm(range(df.shape[0])):
+            jagged_event = df.loc[n]
+            df_dict = {k: jagged_event[k] for k in jagged_event.keys()}
+            flat_event = pd.DataFrame(df_dict)
+            flat_event.astype({'hit': int})
+            flat_event.to_pickle(self.raw_data_dir / f'event_{n:05}.pkl')
+        
 
     def prepare_data(self) -> None:
         if self.force_download or not self.data_exists():
@@ -119,8 +138,11 @@ class HGCalDataModule(pl.LightningDataModule):
                 logging.info(f'force-download set!')
             else:
                 logging.info(f'Data not found at {self.data_dir}.')
-            compressed_data_path = self.download()
-            self.extract(compressed_data_path)
+            self.download()
+        if self.force_download or not self.extracted_data_exists():
+            if not self.force_download:
+                logging.info(f'Data not found at {self.raw_data_dir}.')
+            self.extract()
 
     def setup(self, stage=None) -> None:
         if self.seed is None:
@@ -132,7 +154,7 @@ class HGCalDataModule(pl.LightningDataModule):
         torch.manual_seed(self.seed)
 
         self.events = []
-        for event in sorted(self.raw_data_dir.glob('*.npz')):
+        for event in sorted(self.raw_data_dir.glob('*.pkl')):
             self.events.append(event)
         if self.num_events != -1:
             self.events = self.events[:self.num_events]
@@ -169,3 +191,12 @@ class HGCalDataModule(pl.LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:
         return self.dataloader(self.test_dataset)
+
+
+if __name__ == '__main__':
+    data_module = HCalDataModule(1, 1, 1, 1, 1, 1.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hcal')
+    data_module.prepare_data()
+    data_module.setup('fit')
+    dataloader = data_module.train_dataloader()
+    breakpoint()
+    event_0 = dataloader.dataset[0]

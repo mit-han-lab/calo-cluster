@@ -169,3 +169,12 @@ class HGCalDataModule(pl.LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:
         return self.dataloader(self.test_dataset)
+
+
+if __name__ == '__main__':
+    data_module = HGCalDataModule(1, 1, 1, 1, 1, 1.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hgcal')
+    data_module.prepare_data()
+    data_module.setup('fit')
+    dataloader = data_module.train_dataloader()
+    breakpoint()
+    event_0 = dataloader.dataset[0]
