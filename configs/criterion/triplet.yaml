@@ -1,0 +1,2 @@
+# @package _group_
+target: pytorch_metric_learning.training.criterion.TripletLoss

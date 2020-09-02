@@ -33,15 +33,15 @@ class HCalDataset(Dataset):
         if self.label_type == 'instance_and_class':
             raise NotImplementedError()
         elif self.label_type == 'class':
-            block, labels_ = event[feature_names], event['hit'].values
+            block, labels_ = event[feature_names], event['hit'].to_numpy()
         elif self.label_type == 'instance':
             raise NotImplementedError()
         else:
             raise RuntimeError(f'Unknown label_type = "{self.label_type}"')
-        pc_ = np.round(block[['x', 'y', 'z']].values / self.voxel_size)
+        pc_ = np.round(block[['x', 'y', 'z']].to_numpy() / self.voxel_size)
         pc_ -= pc_.min(0, keepdims=1)
 
-        feat_ = block.values
+        feat_ = block.to_numpy()
         return pc_, feat_, labels_
 
     def __getitem__(self, index):
@@ -194,7 +194,7 @@ class HCalDataModule(pl.LightningDataModule):
 
 
 if __name__ == '__main__':
-    data_module = HCalDataModule(1, 1, 1, 1, 1, 1.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hcal')
+    data_module = HCalDataModule(1, 1, 1, 1, 1, 10.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hcal')
     data_module.prepare_data()
     data_module.setup('fit')
     dataloader = data_module.train_dataloader()

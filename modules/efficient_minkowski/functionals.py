@@ -42,7 +42,6 @@ class MinkowskiConvolution(nn.Module):
     def forward(self, inputs):
         # inputs: SparseTensor
         # outputs: SparseTensor
-        
         features = inputs.F
         coords = inputs.C
         cur_stride = inputs.s

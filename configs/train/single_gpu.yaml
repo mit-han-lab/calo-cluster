@@ -1,5 +1,5 @@
 # @package _group_
 distributed_backend: null
 batch_size: 8
-num_epochs: 10
+num_epochs: 15
 gpus: 1

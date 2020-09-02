@@ -51,8 +51,7 @@ def save_predictions(model, datamodule, output_dir: Path):
         event_name = event_path.stem
         output_path = output_dir / event_name
         prediction = predictions[index:index+n, :]
-        inds = dataset.get_inds(i)
-        labels = dataset[i][2]
+        inds, labels = dataset.get_inds_labels(i)
         np.savez_compressed(output_path, prediction=prediction, inds=inds, labels=labels)
         index += n
     assert index == predictions.shape[0]
