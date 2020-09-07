@@ -1,14 +1,13 @@
 # @package _group_
-target: datasets.hcal.HCalDataModule
+_target_: datasets.hcal.HCalDataModule
 num_classes: 2
-params:
-  label_type: class
-  data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hcal
-  num_events: 10000
-  num_train_events: 8000
-  num_test_events: 1000
-  force_download: False
-  num_workers: 8
-  voxel_size: 10.0
-  num_epochs: ${train.num_epochs}
-  batch_size: ${train.batch_size}
+label_type: class
+data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hcal
+num_events: 10000
+num_train_events: 8000
+num_test_events: 1000
+force_download: False
+num_workers: 8
+voxel_size: 10.0
+num_epochs: ${train.num_epochs}
+batch_size: ${train.batch_size}

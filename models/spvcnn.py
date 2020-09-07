@@ -171,17 +171,21 @@ class ResidualBlock(nn.Module):
 
 
 class SPVCNN(pl.LightningModule):
-    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int, metrics_cfg: dict, optimizer_cfg: dict, scheduler_cfg: dict, criterion_cfg: dict):
+    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int, embed_dim: int, metrics_cfg: dict, optimizer_cfg: dict, scheduler_cfg: dict, embed_criterion_cfg: dict, semantic_criterion_cfg: dict, head: str):
         super().__init__()
-
+        assert head in ('instance', 'class', 'class_and_instance')
         cs = [int(cr * x) for x in cs]
         self.pres = pres
         self.vres = vres
+        self.head = head
         self.save_hyperparameters()
         self.metrics = hydra.utils.call(metrics_cfg)
         self.optimizer_factory = hydra.utils.instantiate(optimizer_cfg)
         self.scheduler_factory = hydra.utils.instantiate(scheduler_cfg)
-        self.criterion = hydra.utils.instantiate(criterion_cfg)
+        if head == 'instance' or head == 'class_and_instance':
+            self.embed_criterion = hydra.utils.instantiate(embed_criterion_cfg)
+        if head == 'class' or head == 'class_and_instance':
+            self.semantic_criterion = hydra.utils.instantiate(semantic_criterion_cfg)
 
         self.stem = nn.Sequential(
             MinkowskiConvolution(5, cs[0], kernel_size=3, stride=1),
@@ -249,8 +253,12 @@ class SPVCNN(pl.LightningModule):
             )
         ])
 
-        self.classifier = nn.Sequential(nn.Linear(cs[8],
-                                                  num_classes))
+        if head == 'class' or head == 'class_and_instance':
+            self.classifier = nn.Sequential(nn.Linear(cs[8],
+                                                    num_classes))
+        if head == 'instance' or head == 'class_and_instance':
+            self.embedder = nn.Sequential(nn.Linear(cs[8],
+                                                embed_dim))
 
         self.point_transforms = nn.ModuleList([
             nn.Sequential(
@@ -323,7 +331,13 @@ class SPVCNN(pl.LightningModule):
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)
 
-        out = self.classifier(z3.F)
+        if self.head == 'class':
+            out = self.classifier(z3.F)
+        elif self.head == 'instance':
+            out = self.embedder(z3.F)
+        elif self.head == 'class_and_instance':
+            out = (self.classifier(z3.F), self.embedder(z3.F))
+        
         return out
 
     def configure_optimizers(self):
@@ -341,27 +355,41 @@ class SPVCNN(pl.LightningModule):
         outputs = self(inputs)
         if isinstance(outputs, SparseTensor):
             outputs = outputs.F
-
-        loss = self.criterion(outputs, targets)
+        if self.head == 'class':
+            loss = self.semantic_criterion(outputs, targets)
+        elif self.head == 'instance':
+            loss = self.embed_criterion(outputs, targets)
+        elif self.head == 'class_and_instance':
+            class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
+            embed_loss = self.embed_criterion(outputs[1], targets[:, 1])
+            loss = class_loss + embed_loss
         if split == 'train':
             result = pl.TrainResult(loss)
         else:
             result = pl.EvalResult(checkpoint_on=loss)
-        result.log(f'{split}_loss', loss, prog_bar=True, sync_ddp=True, on_epoch=True)
+        result.log(f'{split}_loss', loss, prog_bar=True, sync_dist=True, on_epoch=True)
+        if self.head == 'class_and_instance':
+            result.log(f'{split}_class_loss', class_loss, sync_dist=True, on_epoch=True, on_step=False)
+            result.log(f'{split}_embed_loss', embed_loss, sync_dist=True, on_epoch=True, on_step=False)
         # Hack to record 
         if split == 'test':
             if batch_idx == 0:
-                self.predictions = []
+                if self.head == 'class_and_instance':
+                    self.class_predictions = []
+                    self.embed_predictions = []
+                else:
+                    self.predictions = []
                 self.locs = []
                 self.feats = []
                 self.targets = []
-            self.predictions.append(outputs.cpu().numpy())
+            if self.head == 'class_and_instance':
+                self.class_predictions.append(outputs[0].cpu().numpy())
+                self.embed_predictions.append(outputs[1].cpu().numpy())
+            else:
+                self.predictions.append(outputs.cpu().numpy())
             self.locs.append(locs.cpu().numpy())
             self.feats.append(feats.cpu().numpy())
             self.targets.append(targets.cpu().numpy())
-        # for metric in self.metrics:
-            # TODO: change default ddp aggregation of mean for metrics for which this doesn't make sense.
-            # result.log(f'{split}_{metric.name}', metric(outputs, targets), sync_ddp=True, on_step=False, on_epoch=True)
         return result
 
     def training_step(self, batch, batch_idx):

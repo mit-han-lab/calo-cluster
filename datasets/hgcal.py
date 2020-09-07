@@ -28,7 +28,7 @@ class HGCalDataset(Dataset):
 
     def _get_pc_feat_labels(self, index):
         event = np.load(self.events[index])
-        if self.label_type == 'instance_and_class':
+        if self.label_type == 'class_and_instance':
             block, labels_ = event['x'], event['y']
         elif self.label_type == 'class':
             block, labels_ = event['x'], event['y'][:, 0]
@@ -71,8 +71,9 @@ class HGCalDataset(Dataset):
 
 
 class HGCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_train_events: int, num_test_events: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', force_download: bool = False, seed: int = None, num_events: int = -1, label_type: str = 'class'):
+    def __init__(self, batch_size: int, num_train_events: int, num_test_events: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', force_download: bool = False, seed: int = None, num_events: int = -1, label_type: str = 'class', num_classes: int = 4):
         super().__init__()
+        self.num_classes = num_classes
         self.batch_size = batch_size
         self.num_train_events = num_train_events
         self.num_test_events = num_test_events

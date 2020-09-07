@@ -1,7 +1,6 @@
 # @package _group_
-target: training.optimizers.sgd_factory
-params:
-  lr: 0.24
-  weight_decay: 1e-4
-  momentum: 0.9
-  nesterov: True
+_target_: training.optimizers.sgd_factory
+lr: 0.24
+weight_decay: 1e-4
+momentum: 0.9
+nesterov: True

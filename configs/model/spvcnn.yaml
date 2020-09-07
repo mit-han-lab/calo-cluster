@@ -1,8 +1,7 @@
 # @package _group_
-target: models.spvcnn.SPVCNN
-params:
-  pres: 1.0
-  vres: 1.0
-  cr: 1.0
-  cs: [32, 32, 64, 128, 256, 256, 128, 96, 96]
-  num_classes: ${dataset.num_classes}
+_target_: models.spvcnn.SPVCNN
+pres: 1.0
+vres: 1.0
+cr: 1.0
+cs: [32, 32, 64, 128, 256, 256, 128, 96, 96]
+num_classes: ${dataset.num_classes}
