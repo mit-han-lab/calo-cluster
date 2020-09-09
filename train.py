@@ -24,6 +24,8 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
     embed_criterion_cfg = None
     if 'semantic' in cfg.criterion:
         semantic_criterion_cfg = cfg.criterion.semantic
+    if 'embed' in cfg.criterion:
+        embed_criterion_cfg = cfg.criterion.embed
     model = hydra.utils.instantiate(cfg.model, optimizer_cfg=cfg.optimizer,
                                     scheduler_cfg=cfg.scheduler, semantic_criterion_cfg=semantic_criterion_cfg, embed_criterion_cfg=embed_criterion_cfg, metrics_cfg=cfg.metrics)
 

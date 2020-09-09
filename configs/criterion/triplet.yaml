@@ -1,3 +1,4 @@
 # @package _group_
 embed:
-  _target_: pytorch_metric_learning.training.criterion.TripletLoss
+  _target_: pytorch_metric_learning.losses.TripletMarginLoss
+  triplets_per_anchor: 1

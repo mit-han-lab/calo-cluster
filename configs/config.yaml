@@ -7,7 +7,7 @@ defaults:
   - dataset: hgcal
   - metrics: semantic
   - optimizer: sgd
-  - criterion: cross_entropy_loss
+  - criterion: joint
   - scheduler: lambda_lr
   - model: spvcnn
   - wandb: active

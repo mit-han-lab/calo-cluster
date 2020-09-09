@@ -3,11 +3,12 @@ _target_: datasets.hgcal.HGCalDataModule
 num_classes: 4
 label_type: class_and_instance
 data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hgcal
-num_events: 1000
-num_train_events: 800
-num_test_events: 100
-force_download: False
+num_events: 10000
+num_train_events: 8000
+num_test_events: 1000
+download: False
 num_workers: 8
 voxel_size: 1.0
 num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
+noise_level: 0.0

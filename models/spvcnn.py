@@ -361,7 +361,7 @@ class SPVCNN(pl.LightningModule):
             loss = self.embed_criterion(outputs, targets)
         elif self.head == 'class_and_instance':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
-            embed_loss = self.embed_criterion(outputs[1], targets[:, 1])
+            embed_loss = 10 * self.embed_criterion(outputs[1], targets[:, 1])
             loss = class_loss + embed_loss
         if split == 'train':
             result = pl.TrainResult(loss)
