@@ -78,7 +78,8 @@ class Event():
 
     @staticmethod
     def plot_roc(events):
-        all_predictions = np.concatenate([e.prediction_proba[:, 1] for e in events])
+        all_predictions = np.concatenate(
+            [e.prediction_proba[:, 1] for e in events])
         all_labels = np.concatenate([e.df['labels'].values for e in events])
         fpr, tpr, thresholds = roc_curve(
             all_labels, all_predictions)
@@ -110,11 +111,12 @@ class Event():
         else:
             z = confusion_matrix(all_labels, all_predictions)
             z_text = [[str(y) for y in x] for x in z]
-        
+
         x = ['noise', 'hit']
         y = ['noise', 'hit']
 
-        fig = ff.create_annotated_heatmap(z, x=x, y=y, annotation_text=z_text, colorscale='Inferno')
+        fig = ff.create_annotated_heatmap(
+            z, x=x, y=y, annotation_text=z_text, colorscale='Inferno')
         fig.update_layout(title_text='<i><b>Confusion matrix</b></i>')
         fig.add_annotation(dict(font=dict(color="black", size=14),
                                 x=0.5,

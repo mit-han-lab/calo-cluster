@@ -7,3 +7,4 @@ wandb
 *.out
 lightning_logs
 *-checkpoint.ipynb
+hgcal_dev.egg-info

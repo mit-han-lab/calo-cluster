@@ -14,8 +14,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 
-from modules.efficient_minkowski import sparse_collate, sparse_quantize
-from utils.comm import get_rank
+from ..modules.efficient_minkowski import sparse_collate, sparse_quantize
+from ..utils.comm import get_rank
 
 
 class HCalDataset(Dataset):
@@ -112,7 +112,8 @@ class HCalDataModule(pl.LightningDataModule):
                             pbar.update(len(chunk))
             logging.info('download complete.')
         except Exception:
-            logging.error(f'Unable to download dataset; please download manually to {self.data_dir}')
+            logging.error(
+                f'Unable to download dataset; please download manually to {self.data_dir}')
 
     def extract(self) -> None:
         logging.info(f'Extracting data to {self.raw_data_dir}.')
@@ -130,7 +131,6 @@ class HCalDataModule(pl.LightningDataModule):
             flat_event = pd.DataFrame(df_dict)
             flat_event.astype({'hit': int})
             flat_event.to_pickle(self.raw_data_dir / f'event_{n:05}.pkl')
-        
 
     def prepare_data(self) -> None:
         if self.force_download or not self.data_exists():
@@ -194,7 +194,8 @@ class HCalDataModule(pl.LightningDataModule):
 
 
 if __name__ == '__main__':
-    data_module = HCalDataModule(1, 1, 1, 1, 1, 10.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hcal')
+    data_module = HCalDataModule(
+        1, 1, 1, 1, 1, 10.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hcal')
     data_module.prepare_data()
     data_module.setup('fit')
     dataloader = data_module.train_dataloader()

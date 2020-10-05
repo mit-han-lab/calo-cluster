@@ -13,8 +13,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 
-from modules.efficient_minkowski import sparse_collate, sparse_quantize
-from utils.comm import get_rank
+from ..modules.efficient_minkowski import sparse_collate, sparse_quantize
+from ..utils.comm import get_rank
 
 
 class HGCalDataset(Dataset):
@@ -113,7 +113,6 @@ class HGCalDataModule(pl.LightningDataModule):
             self._events = []
             self._events.extend(sorted(self.noisy_data_dir.glob('*.npz')))
         return self._events
-
 
     def is_downloaded(self) -> bool:
         return len(set(self.data_dir.glob('data.tar.gz'))) != 0

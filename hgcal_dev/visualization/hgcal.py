@@ -20,7 +20,8 @@ class Event():
         self._load()
 
     def _load(self):
-        input_event = pd.DataFrame(data=np.load(self.input_path)['x'], columns=['x', 'y', 'z', 'time', 'energy'])
+        input_event = pd.DataFrame(data=np.load(self.input_path)['x'], columns=[
+                                   'x', 'y', 'z', 'time', 'energy'])
         event_prediction = np.load(self.pred_path)
         self.inds = event_prediction['inds']
         self.df = input_event.loc[self.inds].reset_index(drop=True)
@@ -75,7 +76,8 @@ class Event():
         hits.loc[labels == 0, 'type'] = 'Noise'
         hits.loc[labels == 1, 'type'] = 'Hadronic'
         hits.loc[labels == 2, 'type'] = 'EM'
-        color_discrete_map = {'Noise': 'blue', 'Hadronic': 'red', 'EM': 'green', 'MIP': 'yellow'}
+        color_discrete_map = {'Noise': 'blue',
+                              'Hadronic': 'red', 'EM': 'green', 'MIP': 'yellow'}
         fig = px.scatter_3d(hits, x='x', y='y', z='z',
                             color='type', size='energy', color_discrete_map=color_discrete_map)
         return fig
@@ -92,11 +94,12 @@ class Event():
         else:
             z = confusion_matrix(all_labels, all_predictions)
             z_text = [[str(y) for y in x] for x in z]
-        
+
         x = ['noise', 'had', 'em', 'mips']
         y = ['noise', 'had', 'em', 'mips']
 
-        fig = ff.create_annotated_heatmap(z, x=x, y=y, annotation_text=z_text, colorscale='Inferno')
+        fig = ff.create_annotated_heatmap(
+            z, x=x, y=y, annotation_text=z_text, colorscale='Inferno')
         fig.update_layout(title_text='<i><b>Confusion matrix</b></i>')
         fig.add_annotation(dict(font=dict(color="black", size=14),
                                 x=0.5,

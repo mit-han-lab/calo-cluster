@@ -4,9 +4,9 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from modules.efficient_minkowski.functionals import *
-from modules.efficient_minkowski.point_tensor import *
-from modules.efficient_minkowski.sparse_tensor import *
+from ..modules.efficient_minkowski.functionals import *
+from ..modules.efficient_minkowski.point_tensor import *
+from ..modules.efficient_minkowski.sparse_tensor import *
 
 __all__ = ['MinkUNet']
 

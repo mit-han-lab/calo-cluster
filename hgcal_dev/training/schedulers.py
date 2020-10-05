@@ -1,6 +1,6 @@
 from torch.optim.lr_scheduler import LambdaLR
 import functools
-from utils.comm import get_world_size
+from ..utils.comm import get_world_size
 import numpy as np
 
 def lr_lambda(k, num_epochs, batch_size):

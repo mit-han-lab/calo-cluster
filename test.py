@@ -14,7 +14,7 @@ import yaml
 from omegaconf import OmegaConf
 
 import wandb
-from modules.efficient_minkowski.sparse_tensor import *
+from hgcal_dev.modules.efficient_minkowski.sparse_tensor import *
 
 
 def load_from_run(run_dir: str):
@@ -24,7 +24,7 @@ def load_from_run(run_dir: str):
     checkpoint = str([p for p in sorted(run_dir.glob('*.ckpt'))][-1])
     model = config['model']['target']
     if model == 'models.spvcnn.SPVCNN':
-        from models.spvcnn import SPVCNN
+        from hgcal_dev.models.spvcnn import SPVCNN
         model = SPVCNN
     else:
         raise NotImplementedError()
