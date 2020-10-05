@@ -140,7 +140,9 @@ class HGCalDataModule(pl.LightningDataModule):
     def extract(self) -> None:
         logging.info(f'Extracting data to {self.raw_data_dir}.')
         tar = tarfile.open(self.compressed_data_path, "r:gz")
-        tar.extractall(path=self.data_dir)
+        for member in tqdm(tar.getmembers()):
+            member.name = os.path.basename(member.name)
+            tar.extract(member, self.raw_data_dir)
         tar.close()
 
     def make_noisy_data(self) -> None:
