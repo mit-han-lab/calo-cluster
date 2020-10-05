@@ -148,7 +148,7 @@ class HGCalDataModule(pl.LightningDataModule):
         if self.noise_level == 1.0:
             return
         logging.info(f'Saving noisy data to {self.noisy_data_dir}.')
-        for event_path in tqdm(self.events):
+        for event_path in tqdm(self.raw_events):
             event = np.load(event_path)
             x, y = event['x'], event['y']
             non_noise_indices = np.where(y[:, 0] != 0)[0]
@@ -158,10 +158,10 @@ class HGCalDataModule(pl.LightningDataModule):
                 noise_indices, size=int(noise_indices.shape[0]*self.noise_level))
             selected_indices = np.concatenate(
                 (non_noise_indices, selected_noise_indices))
-            x_selected = x[selected_indices]
-            y_selected = y[selected_indices]
-            noisy_event_path = self.noisy_data_dir / event_path.stem
-            if x.shape[0] > 0:
+            if selected_indices.shape[0] > 0:
+                x_selected = x[selected_indices]
+                y_selected = y[selected_indices]
+                noisy_event_path = self.noisy_data_dir / event_path.stem
                 np.savez(noisy_event_path, x=x_selected, y=y_selected)
 
     def prepare_data(self) -> None:
@@ -229,7 +229,12 @@ class HGCalDataModule(pl.LightningDataModule):
 
 if __name__ == '__main__':
     data_module = HGCalDataModule(
-        1, 1, 1, 1, 1, 1.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hgcal', noise_level=0.0)
-    breakpoint()
+        1, 10000, 1000, 15, 8, 1.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hgcal', noise_level=0.0)
     data_module.prepare_data()
+    data_module.setup('fit')
+    dataloader = data_module.train_dataloader()
+    print(dataloader.dataset.events[2168])
     breakpoint()
+    dataloader.dataset[2168]
+    for i, data in enumerate(tqdm(dataloader)):
+        pass

@@ -17,7 +17,11 @@ import wandb
 from utils.comm import *
 
 
+def add(a, b):
+    return a + b
+
 def train(cfg: DictConfig, output_dir: Path) -> None:
+    logging.info('Beginning training...')
     datamodule = hydra.utils.instantiate(cfg.dataset)
     # Instantiate the model (pass configs to avoid pickle issues in checkpointing).
     semantic_criterion_cfg = None
@@ -68,7 +72,8 @@ def hydra_main(cfg: DictConfig) -> None:
         executor = submitit.AutoExecutor(slurm_dir)
         executor.update_parameters(slurm_gpus_per_node=cfg.train.slurm.gpus_per_node, slurm_nodes=cfg.train.slurm.nodes, slurm_ntasks_per_node=cfg.train.slurm.gpus_per_node,
                                    slurm_cpus_per_task=cfg.train.slurm.cpus_per_task, slurm_time=cfg.train.slurm.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.train.slurm.account})
-        executor.submit(train, cfg=cfg, output_dir=Path.cwd())
+        job = executor.submit(train, cfg=cfg, output_dir=Path.cwd())
+        logging.info(f'submitted job {job.job_id}.')
     else:
         train(cfg, output_dir=Path.cwd())
 
