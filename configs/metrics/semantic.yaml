@@ -1,4 +1,4 @@
 # @package _group_
-_target_: training.metrics.create_metrics
+_target_: hgcal_dev.training.metrics.create_metrics
 names: [iou, confusion_matrix, precision_recall]
 num_classes: ${dataset.num_classes}

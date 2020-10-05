@@ -44,21 +44,17 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
         cfg.checkpoint, filepath=f'{str(output_dir)}/{{epoch:02d}}')
 
     # Set up wandb logging.
-    if cfg.wandb.active:
-        wandb_id = cfg.wandb.id
-        if wandb_id is None:
-            wandb_id = (output_dir.parent.name +
-                        output_dir.name).replace('-', '')
-        logger = pl.loggers.WandbLogger(
-            project=cfg.wandb.project, save_dir=str(output_dir), id=wandb_id, name=cfg.wandb.name, entity=cfg.wandb.entity)
-    else:
-        logger = True
+    wandb_id = cfg.wandb.id
+    if wandb_id is None:
+        wandb_id = (output_dir.parent.name +
+                    output_dir.name).replace('-', '')
+    logger = hydra.utils.instantiate(
+        cfg.wandb, save_dir=str(output_dir), id=wandb_id)
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, weights_save_path=str(
         output_dir), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend)
-    if cfg.wandb.active:
-        trainer.logger.log_hyperparams(cfg._content) # pylint: disable=no-member
+    trainer.logger.log_hyperparams(cfg._content) # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
 
 

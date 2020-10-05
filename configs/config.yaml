@@ -10,6 +10,5 @@ defaults:
   - criterion: joint
   - scheduler: lambda_lr
   - model: spvcnn
-  - wandb: active
+  - wandb: upload
   - checkpoint: top_1
-  

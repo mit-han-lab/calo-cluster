@@ -3,7 +3,7 @@
 modules.sh
 */__pycache__/*
 outputs/*
-wandb
+/wandb
 *.out
 lightning_logs
 *-checkpoint.ipynb

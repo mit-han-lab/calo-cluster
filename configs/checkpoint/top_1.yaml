@@ -3,3 +3,4 @@
   verbose: False
   mode: min
   save_top_k: 1
+  monitor: val_loss

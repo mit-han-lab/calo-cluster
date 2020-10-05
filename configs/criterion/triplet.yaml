@@ -1,4 +1,4 @@
 # @package _group_
 embed:
   _target_: pytorch_metric_learning.losses.TripletMarginLoss
-  triplets_per_anchor: 1
+  triplets_per_anchor: 100
