@@ -1,11 +1,10 @@
 # @package _group_
 _target_: hgcal_dev.datasets.hcal.HCalDataModule
-num_classes: 2
-label_type: class
-data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hcal
-num_events: 10000
-num_train_events: 8000
-num_test_events: 1000
+label_type: class_and_instance
+data_dir: /home/alexjschuy/data/hcal
+event_frac: 1.0
+train_frac: 0.8
+test_frac: 0.1
 force_download: False
 num_workers: 8
 voxel_size: 10.0

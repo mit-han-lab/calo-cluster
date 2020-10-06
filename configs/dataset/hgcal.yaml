@@ -3,9 +3,9 @@ _target_: hgcal_dev.datasets.hgcal.HGCalDataModule
 num_classes: 4
 label_type: class_and_instance
 data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hgcal
-num_events: 10000
-num_train_events: 8000
-num_test_events: 1000
+event_frac: 1.0
+train_frac: 0.8
+test_frac: 0.1
 download: True
 num_workers: 8
 voxel_size: 1.0

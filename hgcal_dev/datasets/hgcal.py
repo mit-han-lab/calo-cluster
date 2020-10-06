@@ -152,8 +152,7 @@ class HGCalDataModule(pl.LightningDataModule):
             f'Downloading data to {self.data_dir} (this may take a few minutes).')
         with requests.get(self.data_url, allow_redirects=True, stream=True) as r:
             r.raise_for_status()
-            compressed_data_path = self.data_dir / 'data.tar.gz'
-            with compressed_data_path.open(mode='wb') as f:
+            with self.compressed_data_path.open(mode='wb') as f:
                 pbar = tqdm(total=int(r.headers['Content-Length']))
                 for chunk in r.iter_content(chunk_size=1024**2):
                     if chunk:
