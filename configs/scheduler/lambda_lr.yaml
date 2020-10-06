@@ -2,4 +2,3 @@
 _target_: hgcal_dev.training.schedulers.lambda_lr_factory
 num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
-num_train_samples: ${dataset.num_train_events}

@@ -1,5 +1,6 @@
 # @package _group_
 _target_: hgcal_dev.datasets.hcal.HCalDataModule
+num_classes: 2
 label_type: class_and_instance
 data_dir: /home/alexjschuy/data/hcal
 event_frac: 1.0

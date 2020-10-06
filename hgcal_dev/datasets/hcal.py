@@ -31,11 +31,11 @@ class HCalDataset(Dataset):
         feature_names = ['x', 'y', 'z', 'time', 'energy']
         event = pd.read_pickle(self.events[index])
         if self.label_type == 'class_and_instance':
-            raise NotImplementedError()
+            block, labels_ = event[feature_names], event[['hit', 'RHClusterMatch']].to_numpy()
         elif self.label_type == 'class':
             block, labels_ = event[feature_names], event['hit'].to_numpy()
         elif self.label_type == 'instance':
-            raise NotImplementedError()
+            block, labels_ = event[feature_names], event['RHClusterMatch'].to_numpy()
         else:
             raise RuntimeError(f'Unknown label_type = "{self.label_type}"')
         pc_ = np.round(block[['x', 'y', 'z']].to_numpy() / self.voxel_size)
@@ -73,7 +73,7 @@ class HCalDataset(Dataset):
 
 
 class HCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', force_download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, label_type: str = 'class'):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', force_download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, label_type: str = 'class', num_classes: int = 2):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -207,7 +207,7 @@ class HCalDataModule(pl.LightningDataModule):
 
 if __name__ == '__main__':
     data_module = HCalDataModule(
-        1, 1, 1, 1, 1, 10.0, '/global/cscratch1/sd/schuya/hgcal-dev/data/hcal')
+        1, 1, 1, 1, 1, 10.0, '/home/alexjschuy/data/hcal')
     data_module.prepare_data()
     data_module.setup('fit')
     dataloader = data_module.train_dataloader()

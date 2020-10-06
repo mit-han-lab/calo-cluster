@@ -19,15 +19,7 @@ def lr_lambda(k, num_epochs, batch_size):
                                  (num_epochs * iter_per_epoch)))
 
 
-def lambda_lr_factory(num_train_samples, num_epochs, batch_size):
-    world_size = get_world_size()
-    iter_per_epoch = (num_train_samples + batch_size * world_size
-                      - 1) // (batch_size * world_size)
-    #TODO: Add last_epoch handling back in when model loading is added.
-    #if last_epoch > -1:
-    #    last_epoch = (last_epoch + 1) * iter_per_epoch
-    #else:
-    #    last_epoch = -1
+def lambda_lr_factory(num_epochs, batch_size):
     last_epoch = -1
     _lr_lambda = functools.partial(lr_lambda, num_epochs=num_epochs, batch_size=batch_size)
     return lambda optimizer: LambdaLR(optimizer, _lr_lambda, last_epoch)

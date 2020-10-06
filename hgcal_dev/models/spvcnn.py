@@ -355,42 +355,20 @@ class SPVCNN(pl.LightningModule):
         outputs = self(inputs)
         if isinstance(outputs, SparseTensor):
             outputs = outputs.F
+
         if self.head == 'class':
             loss = self.semantic_criterion(outputs, targets)
         elif self.head == 'instance':
             loss = self.embed_criterion(outputs, targets)
         elif self.head == 'class_and_instance':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
+            self.log(f'{split}_class_loss', class_loss)
             embed_loss = 10 * self.embed_criterion(outputs[1], targets[:, 1])
+            self.log(f'{split}_embed_loss', embed_loss)
             loss = class_loss + embed_loss
-        if split == 'train':
-            result = pl.TrainResult(loss)
-        else:
-            result = pl.EvalResult(checkpoint_on=loss)
-        result.log(f'{split}_loss', loss, prog_bar=True, sync_dist=True, on_epoch=True)
-        if self.head == 'class_and_instance':
-            result.log(f'{split}_class_loss', class_loss, sync_dist=True, on_epoch=True, on_step=False)
-            result.log(f'{split}_embed_loss', embed_loss, sync_dist=True, on_epoch=True, on_step=False)
-        # Hack to record 
-        if split == 'test':
-            if batch_idx == 0:
-                if self.head == 'class_and_instance':
-                    self.class_predictions = []
-                    self.embed_predictions = []
-                else:
-                    self.predictions = []
-                self.locs = []
-                self.feats = []
-                self.targets = []
-            if self.head == 'class_and_instance':
-                self.class_predictions.append(outputs[0].cpu().numpy())
-                self.embed_predictions.append(outputs[1].cpu().numpy())
-            else:
-                self.predictions.append(outputs.cpu().numpy())
-            self.locs.append(locs.cpu().numpy())
-            self.feats.append(feats.cpu().numpy())
-            self.targets.append(targets.cpu().numpy())
-        return result
+        self.log(f'{split}_loss', loss)
+        
+        return loss
 
     def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, split='train')
