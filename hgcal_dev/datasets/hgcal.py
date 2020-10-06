@@ -71,23 +71,29 @@ class HGCalDataset(Dataset):
 
 
 class HGCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_train_events: int, num_test_events: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', download: bool = False, seed: int = None, num_events: int = -1, label_type: str = 'class', num_classes: int = 4, noise_level: float = 1.0, noise_seed: int = 31):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, label_type: str = 'class', num_classes: int = 4, noise_level: float = 1.0, noise_seed: int = 31):
         super().__init__()
-        self.num_classes = num_classes
+
         self.batch_size = batch_size
-        self.num_train_events = num_train_events
-        self.num_test_events = num_test_events
-        self.num_events = num_events
+        self.seed = seed
         self.num_epochs = num_epochs
         self.num_workers = num_workers
         self.voxel_size = voxel_size
+
+        self.num_classes = num_classes
+        self.label_type = label_type
+
+        self._validate_fracs(event_frac, train_frac, test_frac)
+        self.event_frac = event_frac
+        self.train_frac = train_frac
+        self.test_frac = test_frac
+
         self.data_dir = Path(data_dir)
         self.data_url = data_url
         self._download = download
-        self.seed = seed
         self.raw_data_dir = self.data_dir / '1.0_noise'
         self.compressed_data_path = self.data_dir / 'data.tar.gz'
-        self.label_type = label_type
+
         assert 0.0 <= noise_level <= 1.0
         self.noise_seed = noise_seed
         self.noise_level = noise_level
@@ -113,6 +119,24 @@ class HGCalDataModule(pl.LightningDataModule):
             self._events = []
             self._events.extend(sorted(self.noisy_data_dir.glob('*.npz')))
         return self._events
+
+    def _validate_fracs(self, event_frac, train_frac, test_frac):
+        fracs = [event_frac, train_frac, test_frac]
+        assert all(0.0 <= f <= 1.0 for f in fracs)
+        assert train_frac + test_frac <= 1.0
+
+    def train_val_test_split(self, events):
+        num_events = int(self.event_frac * len(events))
+        events = events[:num_events]
+        num_train_events = int(self.train_frac * num_events)
+        num_test_events = int(self.test_frac * num_events)
+        num_val_events = num_events - num_train_events - num_test_events
+
+        train_events = events[:num_train_events]
+        val_events = events[num_train_events:-num_test_events]
+        test_events = events[-num_test_events:]
+
+        return train_events, val_events, test_events
 
     def is_downloaded(self) -> bool:
         return len(set(self.data_dir.glob('data.tar.gz'))) != 0
@@ -186,26 +210,15 @@ class HGCalDataModule(pl.LightningDataModule):
             self.seed = torch.initial_seed() % (2**32 - 1)
         self.seed = self.seed + get_rank() * self.num_workers * self.num_epochs
         logging.debug(f'setting seed={self.seed}')
-        random.seed(self.seed)
-        np.random.seed(self.seed)
-        torch.manual_seed(self.seed)
+        pl.seed_everything(self.seed)
 
-        events = self.events
-        if self.num_events != -1:
-            events = events[:self.num_events]
+        train_events, val_events, test_events = self.train_val_test_split(self.events)
         if stage == 'fit' or stage is None:
-            train_events = events[:self.num_train_events]
-            logging.debug(f'num training events={len(train_events)}')
-            val_events = events[self.num_train_events:-
-                                self.num_test_events]
-            logging.debug(f'num val events={len(val_events)}')
             self.train_dataset = HGCalDataset(
                 self.voxel_size, train_events, self.label_type)
             self.val_dataset = HGCalDataset(
                 self.voxel_size, val_events, self.label_type)
         if stage == 'test' or stage is None:
-            test_events = events[-self.num_test_events:]
-            logging.debug(f'num test events={len(test_events)}')
             self.test_dataset = HGCalDataset(
                 self.voxel_size, test_events, self.label_type)
 
