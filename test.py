@@ -22,8 +22,8 @@ def load_from_run(run_dir: str):
     config_path = run_dir / '.hydra' / 'config.yaml'
     config = OmegaConf.load(config_path)
     checkpoint = str([p for p in sorted(run_dir.glob('*.ckpt'))][-1])
-    model = config['model']['target']
-    if model == 'models.spvcnn.SPVCNN':
+    model = config['model']['_target_']
+    if model == 'hgcal_dev.models.spvcnn.SPVCNN':
         from hgcal_dev.models.spvcnn import SPVCNN
         model = SPVCNN
     else:
@@ -38,23 +38,26 @@ def load_from_run(run_dir: str):
 
 
 def save_predictions(model, datamodule, output_dir: Path):
-    batch_size = datamodule.batch_size
+    torch.cuda.set_device(0)
+    model.cuda(0)
+    model.zero_grad()
+    torch.set_grad_enabled(False)
+
     datamodule.setup(stage='test')
     test_loader = datamodule.test_dataloader()
     dataset = test_loader.dataset
-    trainer = pl.Trainer(gpus=1)
-    trainer.test(model=model, datamodule=datamodule)
-    predictions = np.concatenate(trainer.model.predictions)
-    index = 0
-    for i, event_path in enumerate(dataset.events):
-        n = dataset[i][0].shape[0]
+
+    for i, (data, event_path) in enumerate(zip(dataset, dataset.events)):
+        locs, feats, _, _, _ = data
+        feats = torch.as_tensor(feats).to(model.device)
+        locs = torch.as_tensor(locs).to(model.device)
+        inputs = SparseTensor(feats, coords=locs)
+        prediction = model(inputs).cpu()
+
         event_name = event_path.stem
         output_path = output_dir / event_name
-        prediction = predictions[index:index+n, :]
         inds, labels = dataset.get_inds_labels(i)
         np.savez_compressed(output_path, prediction=prediction, inds=inds, labels=labels)
-        index += n
-    assert index == predictions.shape[0]
 
 
 def main() -> None:
