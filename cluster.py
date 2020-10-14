@@ -48,13 +48,18 @@ def eval_preds(prediction_dir, input_dir):
         x = x.loc[event_prediction['inds']].reset_index(drop=True)
 
         y_pred = clusterer.cluster(event_prediction['prediction'])
+        y_random = clusterer.cluster(np.random.rand(event_prediction['prediction'].shape[0], event_prediction['prediction'].shape[1]))
         y_true = event_prediction['labels']
 
         eff, p = cluster_metrics(x, y_true, y_pred)
+        eff_rand, p_rand = cluster_metrics(x, y_true, y_random)
         effs.append(eff)
         ps.append(p)
         print(f'eff = {eff}')
         print(f'purity = {p}')
+
+        print(f'random eff = {eff_rand}')
+        print(f'random purity = {p_rand}')
 
     print(f'mean efficiency = {sum(effs) / len(effs)}')
     print(f'mean purity = {sum(ps) / len(ps)}')

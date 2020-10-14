@@ -349,6 +349,7 @@ class SPVCNN(pl.LightningModule):
             return optimizer
 
     def step(self, batch, batch_idx, split):
+        breakpoint()
         (locs, feats, targets), all_labels, invs = batch
         inputs = SparseTensor(feats, coords=locs)
         targets = targets.long()

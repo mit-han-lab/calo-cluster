@@ -1,6 +1,8 @@
+from pytorch_metric_learning.distances import LpDistance
+from pytorch_metric_learning.losses import TripletMarginLoss
 from torch import nn
 from torch.nn import CrossEntropyLoss
-from pytorch_metric_learning.losses import TripletMarginLoss
+
 
 class JointLoss(nn.Module):
     def __init__(self, ignore_index: int = 255, alpha: float = 1.0):
@@ -14,92 +16,7 @@ class JointLoss(nn.Module):
         return self.alpha * self.instance_loss(embeddings, instance_labels) + self.class_loss(class_out, class_labels)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
+def triplet_margin_loss_factory(triplets_per_anchor, dist_cfg):
+    criterion = TripletMarginLoss(
+        triplets_per_anchor=1000, distance=LpDistance(normalize_embeddings=False, p=2))
+    return criterion

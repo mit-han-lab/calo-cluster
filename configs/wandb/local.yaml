@@ -3,5 +3,5 @@ _target_: pytorch_lightning.loggers.WandbLogger
 project: hgcal-spvcnn
 entity: uw-hgcal
 id: null
-name: ${dataset_criterion}-${model}
+name: ${criterion}-${model}
 log_model: false

@@ -2,7 +2,7 @@
 _target_: hgcal_dev.datasets.hgcal.HGCalDataModule
 num_classes: 4
 label_type: class_and_instance
-data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hgcal
+data_dir: /home/alexjschuy/data/hgcal-dev
 event_frac: 1.0
 train_frac: 0.8
 test_frac: 0.1
