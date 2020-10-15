@@ -4,7 +4,7 @@ batch_size: 8
 num_epochs: 15
 gpus: 1
 slurm:
-  time: 4:00:00
+  time: '4:00:00'
   cpus_per_task: 8
   gpus_per_node: ${train.gpus}
   nodes: 1

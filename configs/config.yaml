@@ -3,7 +3,7 @@ deterministic: False
 init_ckpt: null
 log_level: INFO
 defaults:
-  - train: single_gpu
+  - train: slurm
   - dataset: hgcal
   - metrics: semantic
   - optimizer: sgd

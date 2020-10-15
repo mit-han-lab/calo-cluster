@@ -16,7 +16,7 @@ class JointLoss(nn.Module):
         return self.alpha * self.instance_loss(embeddings, instance_labels) + self.class_loss(class_out, class_labels)
 
 
-def triplet_margin_loss_factory(triplets_per_anchor, dist_cfg):
+def triplet_margin_loss_factory(triplets_per_anchor, normalize_embeddings, p):
     criterion = TripletMarginLoss(
-        triplets_per_anchor=1000, distance=LpDistance(normalize_embeddings=False, p=2))
+        triplets_per_anchor=triplets_per_anchor, distance=LpDistance(normalize_embeddings=normalize_embeddings, p=p))
     return criterion
