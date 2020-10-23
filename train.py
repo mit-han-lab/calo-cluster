@@ -11,10 +11,9 @@ import hydra
 import pytorch_lightning as pl
 import submitit
 import torch
-import wandb
 from omegaconf import DictConfig, OmegaConf
 
-from hgcal_dev.utils.comm import *
+import wandb
 
 
 def add(a, b):
@@ -23,16 +22,9 @@ def add(a, b):
 
 def train(cfg: DictConfig, output_dir: Path) -> None:
     logging.info('Beginning training...')
+    
     datamodule = hydra.utils.instantiate(cfg.dataset)
-    # Instantiate the model (pass configs to avoid pickle issues in checkpointing).
-    semantic_criterion_cfg = None
-    embed_criterion_cfg = None
-    if 'semantic' in cfg.criterion:
-        semantic_criterion_cfg = cfg.criterion.semantic
-    if 'embed' in cfg.criterion:
-        embed_criterion_cfg = cfg.criterion.embed
-    model = hydra.utils.instantiate(cfg.model, optimizer_cfg=cfg.optimizer,
-                                    scheduler_cfg=cfg.scheduler, semantic_criterion_cfg=semantic_criterion_cfg, embed_criterion_cfg=embed_criterion_cfg, metrics_cfg=cfg.metrics)
+    model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
 
     # Set up checkpointing.
     if cfg.init_ckpt is not None:
@@ -54,12 +46,13 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, weights_save_path=str(
         output_dir), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend)
-    trainer.logger.log_hyperparams(cfg._content) # pylint: disable=no-member
+    trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
 
 
 @hydra.main(config_path="configs", config_name="config")
 def hydra_main(cfg: DictConfig) -> None:
+
     # Set up python logging.
     logger = logging.getLogger()
     logger.setLevel(cfg.log_level)

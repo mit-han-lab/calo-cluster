@@ -4,8 +4,7 @@ init_ckpt: null
 log_level: INFO
 defaults:
   - train: slurm
-  - dataset: hgcal
-  - metrics: semantic
+  - dataset: hcal
   - optimizer: sgd
   - criterion: joint
   - scheduler: lambda_lr

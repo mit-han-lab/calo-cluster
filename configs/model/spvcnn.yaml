@@ -1,5 +1,6 @@
 # @package _group_
-_target_: hgcal_dev.models.spvcnn.SPVCNN
+target:
+  _target_: hgcal_dev.models.spvcnn.SPVCNN
 pres: 1.0
 vres: 1.0
 cr: 1.0

@@ -31,11 +31,13 @@ class HCalDataset(Dataset):
         feature_names = ['x', 'y', 'z', 'time', 'energy']
         event = pd.read_pickle(self.events[index])
         if self.label_type == 'class_and_instance':
-            block, labels_ = event[feature_names], event[['hit', 'RHClusterMatch']].to_numpy()
+            block, labels_ = event[feature_names], event[[
+                'hit', 'RHClusterMatch']].to_numpy()
         elif self.label_type == 'class':
             block, labels_ = event[feature_names], event['hit'].to_numpy()
         elif self.label_type == 'instance':
-            block, labels_ = event[feature_names], event['RHClusterMatch'].to_numpy()
+            block, labels_ = event[feature_names], event['RHClusterMatch'].to_numpy(
+            )
         else:
             raise RuntimeError(f'Unknown label_type = "{self.label_type}"')
         pc_ = np.round(block[['x', 'y', 'z']].to_numpy() / self.voxel_size)
@@ -203,13 +205,3 @@ class HCalDataModule(pl.LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:
         return self.dataloader(self.test_dataset)
-
-
-if __name__ == '__main__':
-    data_module = HCalDataModule(
-        1, 1, 1, 1, 1, 10.0, '/home/alexjschuy/data/hcal')
-    data_module.prepare_data()
-    data_module.setup('fit')
-    dataloader = data_module.train_dataloader()
-    breakpoint()
-    event_0 = dataloader.dataset[0]

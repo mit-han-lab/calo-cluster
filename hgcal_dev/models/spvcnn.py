@@ -5,13 +5,13 @@ from typing import Callable, List
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from pytorch_lightning.metrics import Metric
 
 from ..modules.efficient_minkowski.functionals import *
 from ..modules.efficient_minkowski.point_tensor import *
 from ..modules.efficient_minkowski.sparse_tensor import *
 
 import hydra
+from omegaconf import OmegaConf
 
 # z: PointTensor
 # return: SparseTensor
@@ -171,21 +171,22 @@ class ResidualBlock(nn.Module):
 
 
 class SPVCNN(pl.LightningModule):
-    def __init__(self, cr: float, cs: List[int], pres: float, vres: float, num_classes: int, embed_dim: int, metrics_cfg: dict, optimizer_cfg: dict, scheduler_cfg: dict, embed_criterion_cfg: dict, semantic_criterion_cfg: dict, head: str):
+    def __init__(self, cfg: OmegaConf):
         super().__init__()
+        self.hparams = cfg
+        self.save_hyperparameters(cfg)
+        
+        self.optimizer_factory = hydra.utils.instantiate(self.hparams.optimizer)
+        self.scheduler_factory = hydra.utils.instantiate(self.hparams.scheduler)
+
+        head = self.hparams.model.head
         assert head in ('instance', 'class', 'class_and_instance')
-        cs = [int(cr * x) for x in cs]
-        self.pres = pres
-        self.vres = vres
-        self.head = head
-        self.save_hyperparameters()
-        self.metrics = hydra.utils.call(metrics_cfg)
-        self.optimizer_factory = hydra.utils.instantiate(optimizer_cfg)
-        self.scheduler_factory = hydra.utils.instantiate(scheduler_cfg)
         if head == 'instance' or head == 'class_and_instance':
-            self.embed_criterion = hydra.utils.instantiate(embed_criterion_cfg)
+            self.embed_criterion = hydra.utils.instantiate(self.hparams.criterion.embed)
         if head == 'class' or head == 'class_and_instance':
-            self.semantic_criterion = hydra.utils.instantiate(semantic_criterion_cfg)
+            self.semantic_criterion = hydra.utils.instantiate(self.hparams.criterion.semantic)
+
+        cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
 
         self.stem = nn.Sequential(
             MinkowskiConvolution(5, cs[0], kernel_size=3, stride=1),
@@ -255,10 +256,10 @@ class SPVCNN(pl.LightningModule):
 
         if head == 'class' or head == 'class_and_instance':
             self.classifier = nn.Sequential(nn.Linear(cs[8],
-                                                    num_classes))
+                                                    self.hparams.model.num_classes))
         if head == 'instance' or head == 'class_and_instance':
             self.embedder = nn.Sequential(nn.Linear(cs[8],
-                                                embed_dim))
+                                                self.hparams.model.embed_dim))
 
         self.point_transforms = nn.ModuleList([
             nn.Sequential(
@@ -292,7 +293,7 @@ class SPVCNN(pl.LightningModule):
         # x: SparseTensor z: PointTensor
         z = PointTensor(x.F, x.C.float())
 
-        x0 = initial_voxelize(z, self.pres, self.vres)
+        x0 = initial_voxelize(z, self.hparams.model.pres, self.hparams.model.vres)
         x0 = self.stem(x0)
         z0 = voxel_to_point(x0, z, nearest=False)
         z0.F = z0.F  # + self.point_transforms[0](z.F)
@@ -331,6 +332,7 @@ class SPVCNN(pl.LightningModule):
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)
 
+        head = self.hparams['head']
         if self.head == 'class':
             out = self.classifier(z3.F)
         elif self.head == 'instance':
@@ -349,7 +351,6 @@ class SPVCNN(pl.LightningModule):
             return optimizer
 
     def step(self, batch, batch_idx, split):
-        breakpoint()
         (locs, feats, targets), all_labels, invs = batch
         inputs = SparseTensor(feats, coords=locs)
         targets = targets.long()
