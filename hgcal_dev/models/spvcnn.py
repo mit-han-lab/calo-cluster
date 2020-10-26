@@ -179,11 +179,11 @@ class SPVCNN(pl.LightningModule):
         self.optimizer_factory = hydra.utils.instantiate(self.hparams.optimizer)
         self.scheduler_factory = hydra.utils.instantiate(self.hparams.scheduler)
 
-        head = self.hparams.model.head
-        assert head in ('instance', 'class', 'class_and_instance')
-        if head == 'instance' or head == 'class_and_instance':
+        task = self.hparams.dataset.task
+        assert task in ('instance', 'semantic', 'panoptic')
+        if task == 'instance' or task == 'panoptic':
             self.embed_criterion = hydra.utils.instantiate(self.hparams.criterion.embed)
-        if head == 'class' or head == 'class_and_instance':
+        if task == 'semantic' or task == 'panoptic':
             self.semantic_criterion = hydra.utils.instantiate(self.hparams.criterion.semantic)
 
         cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
@@ -254,10 +254,10 @@ class SPVCNN(pl.LightningModule):
             )
         ])
 
-        if head == 'class' or head == 'class_and_instance':
+        if task == 'semantic' or task == 'panoptic':
             self.classifier = nn.Sequential(nn.Linear(cs[8],
-                                                    self.hparams.model.num_classes))
-        if head == 'instance' or head == 'class_and_instance':
+                                                    self.hparams.dataset.num_classes))
+        if task == 'instance' or task == 'panoptic':
             self.embedder = nn.Sequential(nn.Linear(cs[8],
                                                 self.hparams.model.embed_dim))
 
@@ -332,12 +332,12 @@ class SPVCNN(pl.LightningModule):
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)
 
-        head = self.hparams['head']
-        if self.head == 'class':
+        task = self.hparams['task']
+        if self.task == 'semantic':
             out = self.classifier(z3.F)
-        elif self.head == 'instance':
+        elif self.task == 'instance':
             out = self.embedder(z3.F)
-        elif self.head == 'class_and_instance':
+        elif self.task == 'panoptic':
             out = (self.classifier(z3.F), self.embedder(z3.F))
         
         return out
@@ -358,11 +358,11 @@ class SPVCNN(pl.LightningModule):
         if isinstance(outputs, SparseTensor):
             outputs = outputs.F
 
-        if self.head == 'class':
+        if self.task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
-        elif self.head == 'instance':
+        elif self.task == 'instance':
             loss = self.embed_criterion(outputs, targets)
-        elif self.head == 'class_and_instance':
+        elif self.task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss)
             embed_loss = 10 * self.embed_criterion(outputs[1], targets[:, 1])
