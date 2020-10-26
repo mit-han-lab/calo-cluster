@@ -11,78 +11,30 @@ import requests
 import torch
 import uproot
 from torch.utils.data import DataLoader
-from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
 
 from ..modules.efficient_minkowski import sparse_collate, sparse_quantize
 from ..utils.comm import get_rank
+from .base import BaseDataset
 
 
-class HCalDataset(Dataset):
-    def __init__(self, voxel_size, events, label_type):
-        self.voxel_size = voxel_size
-        self.events = events
-        self.label_type = label_type
-
-    def __len__(self):
-        return len(self.events)
-
-    def _get_pc_feat_labels(self, index):
-        feature_names = ['x', 'y', 'z', 'time', 'energy']
-        event = pd.read_pickle(self.events[index])
-        if self.label_type == 'class_and_instance':
-            block, labels_ = event[feature_names], event[[
-                'hit', 'RHClusterMatch']].to_numpy()
-        elif self.label_type == 'class':
-            block, labels_ = event[feature_names], event['hit'].to_numpy()
-        elif self.label_type == 'instance':
-            block, labels_ = event[feature_names], event['RHClusterMatch'].to_numpy(
-            )
-        else:
-            raise RuntimeError(f'Unknown label_type = "{self.label_type}"')
-        pc_ = np.round(block[['x', 'y', 'z']].to_numpy() / self.voxel_size)
-        pc_ -= pc_.min(0, keepdims=1)
-
-        feat_ = block.to_numpy()
-        return pc_, feat_, labels_
-
-    def __getitem__(self, index):
-        pc_, feat_, labels_ = self._get_pc_feat_labels(index)
-        inds, labels, inverse_map = sparse_quantize(pc_,
-                                                    feat_,
-                                                    labels_,
-                                                    return_index=True,
-                                                    return_invs=True)
-
-        pc = pc_[inds]
-        feat = feat_[inds]
-        labels = labels_[inds]
-        return pc, feat, labels, labels_, inverse_map
-
-    def get_inds_labels(self, index):
-        pc_, feat_, labels_ = self._get_pc_feat_labels(index)
-        inds, labels, inverse_map = sparse_quantize(pc_,
-                                                    feat_,
-                                                    labels_,
-                                                    return_index=True,
-                                                    return_invs=True)
-        return inds, labels
-
-    @staticmethod
-    def collate_fn(tbl):
-        locs, feats, labels, block_labels, invs = zip(*tbl)
-        return sparse_collate(locs, feats, labels), block_labels, invs
+class HCalDataset(BaseDataset):
+    def __init__(self, voxel_size, events, task):
+        feats = ['x', 'y', 'z', 'time', 'energy']
+        coords = ['x', 'y', 'z']
+        super().__init__(voxel_size, events, task, feats=feats, coords=coords,
+                         class_label='hit', instance_label='RHClusterMatch')
 
 
 class HCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', force_download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, label_type: str = 'class', num_classes: int = 2):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', force_download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.num_epochs = num_epochs
         self.voxel_size = voxel_size
         self.seed = seed
-        self.label_type = label_type
+        self.task = task
 
         self._validate_fracs(event_frac, train_frac, test_frac)
         self.event_frac = event_frac
@@ -181,12 +133,12 @@ class HCalDataModule(pl.LightningDataModule):
 
         if stage == 'fit' or stage is None:
             self.train_dataset = HCalDataset(
-                self.voxel_size, train_events, self.label_type)
+                self.voxel_size, train_events, self.task)
             self.val_dataset = HCalDataset(
-                self.voxel_size, val_events, self.label_type)
+                self.voxel_size, val_events, self.task)
         if stage == 'test' or stage is None:
             self.test_dataset = HCalDataset(
-                self.voxel_size, test_events, self.label_type)
+                self.voxel_size, test_events, self.task)
 
     def dataloader(self, dataset: HCalDataset) -> DataLoader:
         return DataLoader(
