@@ -5,6 +5,4 @@ pres: 1.0
 vres: 1.0
 cr: 1.0
 cs: [32, 32, 64, 128, 256, 256, 128, 96, 96]
-num_classes: ${dataset.num_classes}
 embed_dim: 8
-task: ${dataset.task}

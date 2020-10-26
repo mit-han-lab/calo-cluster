@@ -332,12 +332,12 @@ class SPVCNN(pl.LightningModule):
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)
 
-        task = self.hparams['task']
-        if self.task == 'semantic':
+        task = self.hparams.dataset.task
+        if task == 'semantic':
             out = self.classifier(z3.F)
-        elif self.task == 'instance':
+        elif task == 'instance':
             out = self.embedder(z3.F)
-        elif self.task == 'panoptic':
+        elif task == 'panoptic':
             out = (self.classifier(z3.F), self.embedder(z3.F))
         
         return out
@@ -358,11 +358,12 @@ class SPVCNN(pl.LightningModule):
         if isinstance(outputs, SparseTensor):
             outputs = outputs.F
 
-        if self.task == 'semantic':
+        task = self.hparams.dataset.task
+        if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
-        elif self.task == 'instance':
+        elif task == 'instance':
             loss = self.embed_criterion(outputs, targets)
-        elif self.task == 'panoptic':
+        elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss)
             embed_loss = 10 * self.embed_criterion(outputs[1], targets[:, 1])
