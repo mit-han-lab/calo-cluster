@@ -1,0 +1,11 @@
+.vscode/
+*.pyc
+modules.sh
+*/__pycache__/*
+outputs/*
+/wandb
+*.out
+lightning_logs
+*-checkpoint.ipynb
+hgcal_dev.egg-info
+test_simple_dataset.py

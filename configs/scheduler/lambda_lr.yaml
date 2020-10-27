@@ -1,0 +1,4 @@
+# @package _group_
+_target_: hgcal_dev.training.schedulers.lambda_lr_factory
+num_epochs: ${train.num_epochs}
+batch_size: ${train.batch_size}
