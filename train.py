@@ -22,7 +22,7 @@ def add(a, b):
 
 def train(cfg: DictConfig, output_dir: Path) -> None:
     logging.info('Beginning training...')
-    
+
     datamodule = hydra.utils.instantiate(cfg.dataset)
     model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
 
@@ -32,16 +32,12 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
         resume_from_checkpoint = cfg.init_ckpt
     else:
         resume_from_checkpoint = None
-    checkpoint_callback = hydra.utils.instantiate(
-        cfg.checkpoint, filepath=f'{str(output_dir)}/{{epoch:02d}}')
+    checkpoint_callback = hydra.utils.instantiate(cfg.checkpoint)
 
     # Set up wandb logging.
     wandb_id = cfg.wandb.id
-    if wandb_id is None:
-        wandb_id = (output_dir.parent.name +
-                    output_dir.name).replace('-', '')
     logger = hydra.utils.instantiate(
-        cfg.wandb, save_dir=str(output_dir), id=wandb_id)
+        cfg.wandb, save_dir=cfg.output_dir, id=wandb_id)
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, weights_save_path=str(

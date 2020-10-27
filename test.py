@@ -22,7 +22,7 @@ def load_from_run(run_dir: str):
     config_path = run_dir / '.hydra' / 'config.yaml'
     config = OmegaConf.load(config_path)
     checkpoint = str([p for p in sorted(run_dir.glob('*.ckpt'))][-1])
-    model = config['model']['_target_']
+    model = config.model.target._target_
     if model == 'hgcal_dev.models.spvcnn.SPVCNN':
         from hgcal_dev.models.spvcnn import SPVCNN
         model = SPVCNN
@@ -46,7 +46,7 @@ def save_predictions(model, datamodule, output_dir: Path):
     datamodule.setup(stage='test')
     test_loader = datamodule.test_dataloader()
     dataset = test_loader.dataset
-
+    
     for i, (data, event_path) in enumerate(zip(dataset, dataset.events)):
         locs, feats, _, _, _ = data
         feats = torch.as_tensor(feats).to(model.device)

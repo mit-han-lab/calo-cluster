@@ -8,3 +8,4 @@ outputs/*
 lightning_logs
 *-checkpoint.ipynb
 hgcal_dev.egg-info
+test_simple_dataset.py
