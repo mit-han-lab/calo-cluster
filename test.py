@@ -54,7 +54,7 @@ def save_predictions(experiment, datamodule):
                 breakpoint()
             (locs, feats, targets), all_labels, invs = batch
             inputs = SparseTensor(feats, coords=locs).to(model.device)
-            prediction = model(inputs)
+            prediction = model(inputs).cpu()
 
             event_name = event_path.stem
             output_path = experiment.run_prediction_dir / event_name

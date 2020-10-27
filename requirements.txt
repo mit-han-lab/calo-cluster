@@ -1,139 +1,160 @@
-absl-py==0.10.0
+absl-py==0.9.0
 aiohttp==3.6.2
 antlr4-python3-runtime==4.8
-argon2-cffi @ file:///tmp/build/80754af9/argon2-cffi_1596828452693/work
-astroid @ file:///tmp/build/80754af9/astroid_1592495881661/work
-async-generator==1.10
+argon2-cffi @ file:///home/conda/feedstock_root/build_artifacts/argon2-cffi_1590329924553/work
+ase==3.19.2
+astroid==2.4.2
 async-timeout==3.0.1
-attrs @ file:///tmp/build/80754af9/attrs_1600298409949/work
-autopep8 @ file:///tmp/build/80754af9/autopep8_1596578164842/work
+attrs==19.3.0
+autopep8==1.5.4
 awkward==0.13.0
 backcall==0.2.0
-bleach @ file:///tmp/build/80754af9/bleach_1600439572647/work
+beautifulsoup4==4.9.1
+bleach @ file:///home/conda/feedstock_root/build_artifacts/bleach_1588608214987/work
+blessings==1.7
 cachetools==4.1.1
 certifi==2020.6.20
-cffi @ file:///tmp/build/80754af9/cffi_1600699180754/work
+cffi==1.14.0
 chardet==3.0.4
 click==7.1.2
 cloudpickle==1.6.0
+colorama==0.4.3
 configparser==5.0.0
 cycler==0.10.0
 decorator==4.4.2
 defusedxml==0.6.0
 docker-pycreds==0.4.0
 entrypoints==0.3
-fsspec==0.8.3
+filelock==3.0.12
+fsspec==0.8.2
 future==0.18.2
 gitdb==4.0.5
-GitPython==3.1.9
-google-auth==1.22.0
+GitPython==3.1.7
+google==3.0.0
+google-auth==1.20.0
 google-auth-oauthlib==0.4.1
-grpcio==1.32.0
--e git+git@github.com:mit-han-lab/hgcal-dev.git@2cc4940fbb695c29d93afba154982219af1386a2#egg=hgcal_dev
-hydra-core==1.0.3
+googledrivedownloader==0.4
+gpustat==0.6.0
+gql==0.2.0
+graphql-core==1.1
+grpcio==1.30.0
+h5py @ file:///tmp/build/80754af9/h5py_1593454119955/work
+-e git+https://github.com/AlexSchuy/hgcal-dev.git@b0549f6593a229289c2817c069479b8af9bd53dc#egg=hgcal_dev
+hydra-core==1.0.0
 idna==2.10
-importlib-metadata @ file:///tmp/build/80754af9/importlib-metadata_1593446408836/work
+importlib-metadata @ file:///home/conda/feedstock_root/build_artifacts/importlib-metadata_1593211369179/work
 importlib-resources==3.0.0
 ipykernel @ file:///tmp/build/80754af9/ipykernel_1596206598566/work/dist/ipykernel-5.3.4-py3-none-any.whl
-ipython @ file:///tmp/build/80754af9/ipython_1598883837425/work
+ipympl==0.5.6
+ipython @ file:///tmp/build/80754af9/ipython_1593447368578/work
 ipython-genutils==0.2.0
-ipywidgets @ file:///tmp/build/80754af9/ipywidgets_1601490159889/work
-isort @ file:///tmp/build/80754af9/isort_1601490204941/work
-jedi @ file:///tmp/build/80754af9/jedi_1596490743326/work
+ipywidgets==7.5.1
+isodate==0.6.0
+isort==5.5.2
+jedi @ file:///tmp/build/80754af9/jedi_1592841891421/work
 Jinja2==2.11.2
-joblib==0.17.0
-jsonschema @ file:///tmp/build/80754af9/jsonschema_1594363551272/work
-jupyter==1.0.0
-jupyter-client @ file:///tmp/build/80754af9/jupyter_client_1601311786391/work
-jupyter-console @ file:///tmp/build/80754af9/jupyter_console_1598884538475/work
+joblib @ file:///tmp/build/80754af9/joblib_1594236160679/work
+jsonschema==3.2.0
+jupyter-client @ file:///tmp/build/80754af9/jupyter_client_1594826976318/work
 jupyter-core==4.6.3
-jupyterlab-pygments @ file:///tmp/build/80754af9/jupyterlab_pygments_1601490720602/work
 kiwisolver==1.2.0
 lazy-object-proxy==1.4.3
+llvmlite==0.33.0
 Markdown==3.2.2
-MarkupSafe @ file:///tmp/build/80754af9/markupsafe_1594371495811/work
-matplotlib @ file:///tmp/build/80754af9/matplotlib-base_1597876320876/work
+MarkupSafe==1.1.1
+matplotlib @ file:///tmp/build/80754af9/matplotlib-base_1592846017414/work
 mccabe==0.6.1
-mistune @ file:///tmp/build/80754af9/mistune_1594373098390/work
-mkl-fft==1.2.0
+mistune==0.8.4
+mkl-fft==1.1.0
 mkl-random==1.1.1
 mkl-service==2.3.0
+mpi4py==3.0.3
+msgpack==1.0.0
 multidict==4.7.6
-nbclient @ file:///tmp/build/80754af9/nbclient_1601059699549/work
-nbconvert @ file:///tmp/build/80754af9/nbconvert_1601069133048/work
-nbformat==5.0.7
-nest-asyncio @ file:///tmp/build/80754af9/nest-asyncio_1601499549014/work
-notebook @ file:///tmp/build/80754af9/notebook_1601501580008/work
+nbconvert==5.6.1
+nbformat @ file:///home/conda/feedstock_root/build_artifacts/nbformat_1594060262917/work
+networkx==2.4
+notebook @ file:///home/conda/feedstock_root/build_artifacts/notebook_1596502478505/work
+numba==0.50.1
 numpy @ file:///tmp/build/80754af9/numpy_and_numpy_base_1596233707986/work
+nvidia-ml-py3==7.352.0
 oauthlib==3.1.0
 olefile==0.46
-omegaconf==2.1.0.dev7
-packaging==20.4
-pandas @ file:///tmp/build/80754af9/pandas_1601567284208/work
+omegaconf==2.0.2rc1
+packaging @ file:///home/conda/feedstock_root/build_artifacts/packaging_1589925210001/work
+pandas==1.1.2
 pandocfilters==1.4.2
 parso==0.7.0
 pathtools==0.1.2
 pexpect @ file:///tmp/build/80754af9/pexpect_1594383317248/work
 pickleshare @ file:///tmp/build/80754af9/pickleshare_1594384075987/work
 Pillow @ file:///tmp/build/80754af9/pillow_1594307325547/work
-plotly @ file:///tmp/build/80754af9/plotly_1601587622649/work
-prometheus-client==0.8.0
+plotly==4.10.0
+pprofile==2.0.5
+prometheus-client @ file:///home/conda/feedstock_root/build_artifacts/prometheus_client_1590412252446/work
 promise==2.3
-prompt-toolkit @ file:///tmp/build/80754af9/prompt-toolkit_1598885458782/work
-protobuf==3.13.0
+prompt-toolkit==3.0.5
+protobuf==3.12.4
 psutil==5.7.2
 ptyprocess==0.6.0
+py-spy==0.3.3
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycodestyle==2.6.0
 pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
-Pygments @ file:///tmp/build/80754af9/pygments_1600458456400/work
-pylint @ file:///tmp/build/80754af9/pylint_1598624038450/work
+Pygments==2.6.1
+pylint==2.6.0
 pyparsing==2.4.7
-pyrsistent @ file:///tmp/build/80754af9/pyrsistent_1600141707582/work
+pyrsistent==0.16.0
 python-dateutil==2.8.1
-pytorch-lightning==0.10.0rc1
-pytorch-metric-learning==0.9.93.dev0
+pytorch-lightning==1.0.4rc1
+pytorch-metric-learning==0.9.94.dev2
 pytz==2020.1
 PyYAML==5.3.1
-pyzmq==19.0.2
-qtconsole @ file:///tmp/build/80754af9/qtconsole_1600870028330/work
-QtPy==1.9.0
+pyzmq==19.0.1
+ray==0.8.6
+rdflib==5.0.0
+redis==3.4.1
 requests==2.24.0
 requests-oauthlib==1.3.0
 retrying==1.3.3
 rsa==4.6
-scikit-learn==0.23.2
-scipy==1.5.2
+scikit-learn @ file:///tmp/build/80754af9/scikit-learn_1592502882224/work
+scipy @ file:///tmp/build/80754af9/scipy_1592930510235/work
 Send2Trash==1.5.0
-sentry-sdk==0.18.0
+sentry-sdk==0.16.3
 shortuuid==1.0.1
 six==1.15.0
 smmap==3.0.4
+soupsieve==2.0.1
 submitit==1.1.1
 subprocess32==3.5.4
-tensorboard==2.3.0
+tensorboard==2.2.0
 tensorboard-plugin-wit==1.7.0
 terminado==0.8.3
 testpath==0.4.4
-threadpoolctl==2.1.0
-toml @ file:///tmp/build/80754af9/toml_1592853716807/work
+threadpoolctl @ file:///tmp/tmp9twdgx9k/threadpoolctl-2.1.0-py3-none-any.whl
+toml==0.10.1
 torch==1.6.0
-torchvision==0.7.0
+torch-cluster==1.5.6
+torch-geometric==1.6.0
+torch-scatter==2.0.5
+torch-sparse==0.6.6
+torchvision==0.7.0a0+78ed10c
 tornado==6.0.4
-tqdm==4.50.0
-traitlets @ file:///tmp/build/80754af9/traitlets_1600712679583/work
+tqdm==4.48.2
+traitlets==4.3.3
 typed-ast==1.4.1
-typing-extensions==3.7.4.3
+typing-extensions==3.7.4.2
 uproot==3.12.0
 uproot-methods==0.7.4
 urllib3==1.25.10
-wandb==0.10.4
+wandb==0.10.7
 watchdog==0.10.3
 wcwidth @ file:///tmp/build/80754af9/wcwidth_1593447189090/work
 webencodings==0.5.1
 Werkzeug==1.0.1
-widgetsnbextension==3.5.1
-wrapt==1.11.2
-yarl==1.6.0
+widgetsnbextension @ file:///home/conda/feedstock_root/build_artifacts/widgetsnbextension_1594164347302/work
+wrapt==1.12.1
+yarl==1.5.1
 zipp==3.1.0
