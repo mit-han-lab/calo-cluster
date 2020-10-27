@@ -366,11 +366,11 @@ class SPVCNN(pl.LightningModule):
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss)
-            embed_loss = 10 * self.embed_criterion(outputs[1], targets[:, 1])
+            embed_loss = self.embed_criterion(outputs[1], targets[:, 1])
             self.log(f'{split}_embed_loss', embed_loss)
-            loss = class_loss + embed_loss
+            loss = class_loss + self.hparams.criterion.alpha * embed_loss
         self.log(f'{split}_loss', loss)
-        
+
         return loss
 
     def training_step(self, batch, batch_idx):

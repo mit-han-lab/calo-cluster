@@ -20,7 +20,7 @@ def add(a, b):
     return a + b
 
 
-def train(cfg: DictConfig, output_dir: Path) -> None:
+def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')
 
     datamodule = hydra.utils.instantiate(cfg.dataset)
@@ -37,18 +37,16 @@ def train(cfg: DictConfig, output_dir: Path) -> None:
     # Set up wandb logging.
     wandb_id = cfg.wandb.id
     logger = hydra.utils.instantiate(
-        cfg.wandb, save_dir=cfg.output_dir, id=wandb_id)
+        cfg.wandb, save_dir=cfg.outputs_dir, id=wandb_id, group=cfg.wandb.name)
 
     # train
-    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, weights_save_path=str(
-        output_dir), max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend)
+    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend)
     trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
 
 
 @hydra.main(config_path="configs", config_name="config")
 def hydra_main(cfg: DictConfig) -> None:
-
     # Set up python logging.
     logger = logging.getLogger()
     logger.setLevel(cfg.log_level)
@@ -62,7 +60,7 @@ def hydra_main(cfg: DictConfig) -> None:
         job = executor.submit(train, cfg=cfg, output_dir=Path.cwd())
         logging.info(f'submitted job {job.job_id}.')
     else:
-        train(cfg, output_dir=Path.cwd())
+        train(cfg)
 
 
 if __name__ == '__main__':

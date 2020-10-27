@@ -1,5 +1,6 @@
 # @package _group_
 task: panoptic
+alpha: 10.0
 semantic:
   _target_: torch.nn.CrossEntropyLoss
   ignore_index: 255

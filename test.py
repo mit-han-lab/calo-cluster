@@ -11,10 +11,12 @@ import hydra
 import pytorch_lightning as pl
 import torch
 import yaml
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 
 import wandb
 from hgcal_dev.modules.efficient_minkowski.sparse_tensor import *
+from hgcal_dev.utils.experiment import Experiment
+from tqdm import tqdm
 
 
 def load_from_run(run_dir: str):
@@ -37,41 +39,36 @@ def load_from_run(run_dir: str):
     return model, checkpoint, project, wandb_id, datamodule
 
 
-def save_predictions(model, datamodule, output_dir: Path):
-    torch.cuda.set_device(0)
+def save_predictions(experiment, datamodule):
+    model = experiment.model
     model.cuda(0)
-    model.zero_grad()
-    torch.set_grad_enabled(False)
+    model.eval()
 
-    datamodule.setup(stage='test')
-    test_loader = datamodule.test_dataloader()
-    dataset = test_loader.dataset
-    
-    for i, (data, event_path) in enumerate(zip(dataset, dataset.events)):
-        locs, feats, _, _, _ = data
-        feats = torch.as_tensor(feats).to(model.device)
-        locs = torch.as_tensor(locs).to(model.device)
-        inputs = SparseTensor(feats, coords=locs)
-        prediction = model(inputs).cpu()
+    datamodule.batch_size = 1
+    datamodule.prepare_data()
+    datamodule.setup(stage='fit')
+    dataloader = datamodule.val_dataloader()
+    with torch.no_grad():
+        for i, (batch, event_path) in tqdm(enumerate(zip(dataloader, dataloader.dataset.events))):
+            if i == 5:
+                breakpoint()
+            (locs, feats, targets), all_labels, invs = batch
+            inputs = SparseTensor(feats, coords=locs).to(model.device)
+            prediction = model(inputs)
 
-        event_name = event_path.stem
-        output_path = output_dir / event_name
-        inds, labels = dataset.get_inds_labels(i)
-        np.savez_compressed(output_path, prediction=prediction, inds=inds, labels=labels)
+            event_name = event_path.stem
+            output_path = experiment.run_prediction_dir / event_name
+            inds, labels = dataloader.dataset.get_inds_labels(i)
+            np.savez_compressed(
+                output_path, prediction=prediction, inds=inds, labels=labels)
 
 
-def main() -> None:
-    from argparse import ArgumentParser
-    parser = ArgumentParser()
-    parser.add_argument('run_dir')
-    parser.add_argument('output_dir')
-    args = parser.parse_args()
-    model, checkpoint, project, wandb_id, datamodule = load_from_run(
-        args.run_dir)
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True, parents=True)
-    save_predictions(model, datamodule, output_dir)
-
+@hydra.main(config_path="configs", config_name="config")
+def hydra_main(cfg: DictConfig) -> None:
+    experiment = Experiment(Path(cfg.outputs_dir), Path(cfg.predictions_dir), entity=cfg.wandb.entity, project=cfg.wandb.project, version=cfg.wandb.version)
+    datamodule = hydra.utils.instantiate(cfg.dataset)
+    save_predictions(experiment, datamodule)
+    #trainer = pl.Trainer()
 
 if __name__ == '__main__':
-    main()
+    hydra_main()  # pylint: disable=no-value-for-parameter

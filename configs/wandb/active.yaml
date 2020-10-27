@@ -1,6 +1,0 @@
-# @package _group_
-active: true
-project: hgcal-spvcnn
-entity: uw-hgcal
-id: null
-name: ${dataset}-${model}

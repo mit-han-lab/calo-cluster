@@ -1,7 +1,8 @@
-output_dir: /global/cscratch1/sd/schuya/hgcal-dev/outputs
+outputs_dir: /global/cscratch1/sd/schuya/hgcal-dev/outputs
+predictions_dir: /global/cscratch1/sd/schuya/hgcal-dev/predictions
 hydra:
   run:
-    dir: ${output_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
 seed: 1588147245
 deterministic: False
 init_ckpt: null
