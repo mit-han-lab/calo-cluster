@@ -6,6 +6,7 @@ hydra:
 seed: 1588147245
 deterministic: False
 init_ckpt: null
+overfit: False
 log_level: INFO
 defaults:
   - train: slurm

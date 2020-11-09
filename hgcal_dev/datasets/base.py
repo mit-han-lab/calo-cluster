@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 from torch.utils.data.dataset import Dataset
-
-from ..modules.efficient_minkowski import sparse_collate, sparse_quantize
-
+from torchsparse.utils import sparse_collate_fn, sparse_quantize
+from torchsparse import SparseTensor
 
 class BaseDataset(Dataset):
     def __init__(self, voxel_size, events, task, feats=None, coords=None, class_label='class', instance_label='instance'):
@@ -48,7 +47,11 @@ class BaseDataset(Dataset):
         pc = pc_[inds]
         feat = feat_[inds]
         labels = labels_[inds]
-        return pc, feat, labels, labels_, inverse_map
+        features = SparseTensor(feat, pc)
+        labels = SparseTensor(labels, pc)
+        labels_ = SparseTensor(labels_, pc_)
+        inverse_map = SparseTensor(inverse_map, pc_)
+        return {'features': features, 'labels': labels, 'labels_mapped': labels_, 'inverse_map': inverse_map}
 
     def get_inds_labels(self, index):
         pc_, feat_, labels_ = self._get_pc_feat_labels(index)
@@ -60,6 +63,5 @@ class BaseDataset(Dataset):
         return inds, labels
 
     @staticmethod
-    def collate_fn(tbl):
-        locs, feats, labels, block_labels, invs = zip(*tbl)
-        return sparse_collate(locs, feats, labels), block_labels, invs
+    def collate_fn(inputs):
+        return sparse_collate_fn(inputs)

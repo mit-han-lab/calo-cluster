@@ -23,6 +23,12 @@ def add(a, b):
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')
 
+    if cfg.overfit:
+        overfit_batches = 1
+        cfg.train.batch_size = 1
+    else:
+        overfit_batches = 0.0
+
     datamodule = hydra.utils.instantiate(cfg.dataset)
     model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
 
@@ -35,12 +41,15 @@ def train(cfg: DictConfig) -> None:
     checkpoint_callback = hydra.utils.instantiate(cfg.checkpoint)
 
     # Set up wandb logging.
-    wandb_id = cfg.wandb.id
     logger = hydra.utils.instantiate(
-        cfg.wandb, save_dir=cfg.outputs_dir, id=wandb_id, group=cfg.wandb.name)
-
+        cfg.wandb, save_dir=cfg.outputs_dir, version=cfg.wandb.version, group=cfg.wandb.name)
+    shutil.copytree(Path.cwd() / '.hydra',
+                    Path(logger.experiment.dir) / '.hydra')
+    cfg.wandb.version = logger.version
     # train
-    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend)
+
+    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
+                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches)
     trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
 
@@ -57,7 +66,7 @@ def hydra_main(cfg: DictConfig) -> None:
         executor = submitit.AutoExecutor(slurm_dir)
         executor.update_parameters(slurm_gpus_per_node=cfg.train.slurm.gpus_per_node, slurm_nodes=cfg.train.slurm.nodes, slurm_ntasks_per_node=cfg.train.slurm.gpus_per_node,
                                    slurm_cpus_per_task=cfg.train.slurm.cpus_per_task, slurm_time=cfg.train.slurm.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.train.slurm.account})
-        job = executor.submit(train, cfg=cfg, output_dir=Path.cwd())
+        job = executor.submit(train, cfg=cfg)
         logging.info(f'submitted job {job.job_id}.')
     else:
         train(cfg)

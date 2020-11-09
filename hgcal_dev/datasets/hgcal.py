@@ -13,7 +13,6 @@ from torch.utils.data import DataLoader
 from .base import BaseDataset
 from tqdm import tqdm
 
-from ..modules.efficient_minkowski import sparse_collate, sparse_quantize
 from ..utils.comm import get_rank
 
 
@@ -39,7 +38,7 @@ class HGCalDataset(BaseDataset):
 
 
 class HGCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 4, noise_level: float = 1.0, noise_seed: int = 31):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download', download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 4, noise_level: float = 1.0, noise_seed: int = 31, num_features: int = 5):
         super().__init__()
 
         self.batch_size = batch_size

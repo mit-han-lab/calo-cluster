@@ -24,7 +24,7 @@ class SimpleDataset(BaseDataset):
 
 
 class SimpleDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
