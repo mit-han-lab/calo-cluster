@@ -7,13 +7,13 @@ import shutil
 import sys
 from pathlib import Path
 
+import torch
+
 import hydra
 import pytorch_lightning as pl
 import submitit
-import torch
-from omegaconf import DictConfig, OmegaConf
-
 import wandb
+from omegaconf import DictConfig, OmegaConf
 
 
 def add(a, b):
@@ -29,9 +29,6 @@ def train(cfg: DictConfig) -> None:
     else:
         overfit_batches = 0.0
 
-    datamodule = hydra.utils.instantiate(cfg.dataset)
-    model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
-
     # Set up checkpointing.
     if cfg.init_ckpt is not None:
         logging.info(f'Loading checkpoint={cfg.init_ckpt}')
@@ -46,7 +43,10 @@ def train(cfg: DictConfig) -> None:
     shutil.copytree(Path.cwd() / '.hydra',
                     Path(logger.experiment.dir) / '.hydra')
     cfg.wandb.version = logger.version
-    
+
+    datamodule = hydra.utils.instantiate(cfg.dataset)
+    model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
+
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
                          resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches)

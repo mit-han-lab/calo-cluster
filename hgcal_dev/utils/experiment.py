@@ -12,7 +12,7 @@ class Experiment():
         cfg_path = run_path / 'files' / '.hydra' / 'config.yaml'
         self.cfg = OmegaConf.load(cfg_path)
 
-        self.run_prediction_dir = self.cfg.predictions_dir / self.cfg.wandb.version
+        self.run_prediction_dir = Path(self.cfg.predictions_dir) / self.cfg.wandb.version
         self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
 
         ckpt_dir = run_path / 'files' / self.cfg.wandb.project / \
