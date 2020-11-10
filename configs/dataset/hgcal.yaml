@@ -1,0 +1,15 @@
+# @package _group_
+_target_: hgcal_dev.datasets.hgcal.HGCalDataModule
+num_classes: 4
+task: ${criterion.task}
+data_dir: /global/cscratch1/sd/schuya/hgcal-dev/data/hgcal
+event_frac: 1.0
+train_frac: 0.8
+test_frac: 0.1
+download: True
+num_workers: 8
+voxel_size: 1.0
+num_epochs: ${train.num_epochs}
+batch_size: ${train.batch_size}
+noise_level: 0.0
+num_features: 5

@@ -1,0 +1,7 @@
+# @package _group_
+task: instance
+embed:
+  _target_: hgcal_dev.training.criterion.triplet_margin_loss_factory
+  triplets_per_anchor: 1000
+  normalize_embeddings: False
+  p: 2

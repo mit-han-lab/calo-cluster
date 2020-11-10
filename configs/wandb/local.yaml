@@ -1,0 +1,7 @@
+# @package _group_
+_target_: pytorch_lightning.loggers.WandbLogger
+project: hgcal-spvcnn
+entity: uw-hgcal
+version: null
+name: ${criterion}-${model}
+log_model: false
