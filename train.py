@@ -46,8 +46,8 @@ def train(cfg: DictConfig) -> None:
     shutil.copytree(Path.cwd() / '.hydra',
                     Path(logger.experiment.dir) / '.hydra')
     cfg.wandb.version = logger.version
+    
     # train
-
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
                          resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches)
     trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member

@@ -2,7 +2,8 @@ from pytorch_lightning.metrics.functional.classification import average_precisio
 import torch
 
 
-def match_instances(pred, target)
+def match_instances(pred, target):
+    pass
 
 def mAP(pred, target):
     classes = torch.unique(target)
