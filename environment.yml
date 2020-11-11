@@ -23,9 +23,9 @@ dependencies:
   - blinker=1.4=py_1
   - brotlipy=0.7.0=py38h8df0ef7_1001
   - c-ares=1.16.1=h516909a_3
-  - ca-certificates=2020.10.14=0
+  - ca-certificates=2020.11.8=ha878542_0
   - cachetools=4.1.1=py_0
-  - certifi=2020.6.20=pyhd3eb1b0_3
+  - certifi=2020.6.20=py38h924ce5b_2
   - cffi=1.14.3=py38he30daa8_0
   - chardet=3.0.4=py38h924ce5b_1008
   - click=7.1.2=pyh9f0ad1d_0
@@ -54,6 +54,7 @@ dependencies:
   - gst-plugins-base=1.14.0=hbbd80ab_1
   - gstreamer=1.14.0=hb31296c_0
   - h5py=2.10.0=py38hd6299e0_1
+  - hdbscan=0.8.26=py38h0b5ebd8_3
   - hdf5=1.10.6=hb1b8bf9_0
   - hydra-core=1.0.3=pyhd8ed1ab_0
   - icu=58.2=he6710b0_3
@@ -122,7 +123,7 @@ dependencies:
   - oauthlib=3.0.1=py_0
   - olefile=0.46=py_0
   - omegaconf=2.0.3=py38h32f6830_0
-  - openssl=1.1.1h=h7b6447c_0
+  - openssl=1.1.1h=h516909a_0
   - packaging=20.4=py_0
   - pandas=1.1.3=py38he6710b0_0
   - pandoc=2.11=hb0f4dca_0
