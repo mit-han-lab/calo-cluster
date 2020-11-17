@@ -148,7 +148,7 @@ class HCalDataModule(pl.LightningDataModule):
                 (non_noise_indices, selected_noise_indices))
             if selected_indices.shape[0] > 0:
                 selected = event.iloc[selected_indices]
-                noisy_event_path = self.noisy_data_dir / event_path.stem
+                noisy_event_path = self.noisy_data_dir / f'{event_path.stem}.pkl'
                 selected.to_pickle(noisy_event_path)
 
     def prepare_data(self) -> None:
@@ -168,9 +168,6 @@ class HCalDataModule(pl.LightningDataModule):
         logging.debug(f'setting seed={self.seed}')
         pl.seed_everything(self.seed)
 
-        self.events = []
-        for event in sorted(self.raw_data_dir.glob('*.pkl')):
-            self.events.append(event)
         train_events, val_events, test_events = self.train_val_test_split(
             self.events)
 
