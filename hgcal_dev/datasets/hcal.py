@@ -6,12 +6,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pytorch_lightning as pl
 import requests
 import torch
-import uproot
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+import pytorch_lightning as pl
+import uproot
 
 from ..utils.comm import get_rank
 from .base import BaseDataset
@@ -26,7 +27,7 @@ class HCalDataset(BaseDataset):
 
 
 class HCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', force_download: bool = False, seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5, noise_level: float = 1.0, noise_seed: int = 31):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -43,9 +44,33 @@ class HCalDataModule(pl.LightningDataModule):
         self.data_dir = Path(data_dir)
         self.root_data_path = self.data_dir / 'data.root'
         self.data_url = data_url
-        self.force_download = force_download
-        self.raw_data_dir = self.data_dir / 'rawpointclouds'
+        self.raw_data_dir = self.data_dir / '1.0_noise'
+
+        assert 0.0 <= noise_level <= 1.0
+        self.noise_seed = noise_seed
+        self.noise_level = noise_level
+        self.noisy_data_dir = self.data_dir / f'{noise_level}_noise'
+
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.raw_data_dir.mkdir(parents=True, exist_ok=True)
+        self.noisy_data_dir.mkdir(parents=True, exist_ok=True)
+
+        self._raw_events = None
+        self._events = None
+
+    @property
+    def raw_events(self) -> list:
+        if self._raw_events is None:
+            self._raw_events = []
+            self._raw_events.extend(sorted(self.raw_data_dir.glob('*.pkl')))
+        return self._raw_events
+
+    @property
+    def events(self) -> list:
+        if self._events is None:
+            self._events = []
+            self._events.extend(sorted(self.noisy_data_dir.glob('*.pkl')))
+        return self._events
 
     def _validate_fracs(self, event_frac, train_frac, test_frac):
         fracs = [event_frac, train_frac, test_frac]
@@ -66,15 +91,18 @@ class HCalDataModule(pl.LightningDataModule):
         return train_events, val_events, test_events
 
     def data_exists(self) -> bool:
-        return len(set(self.data_dir.glob('*'))) != 0
+        return len(set(self.data_dir.glob('*.root'))) != 0
 
     def extracted_data_exists(self) -> bool:
         return len(set(self.raw_data_dir.glob('*'))) != 0
 
+    def noisy_data_exists(self) -> bool:
+        return len(set(self.noisy_data_dir.glob('*'))) != 0
+
     def download(self):
         try:
             logging.info(
-                f'Downloading data to {self.data_dir} (this may take a few minutes).')
+                f'Downloading data to {self.root_data_path} (this may take a few minutes).')
             with requests.get(self.data_url, allow_redirects=True, stream=True) as r:
                 r.raise_for_status()
                 with self.root_data_path.open(mode='wb') as f:
@@ -86,7 +114,7 @@ class HCalDataModule(pl.LightningDataModule):
             logging.info('download complete.')
         except Exception:
             logging.error(
-                f'Unable to download dataset; please download manually to {self.data_dir}')
+                f'Unable to download dataset; please download manually to {self.root_data_path}')
 
     def extract(self) -> None:
         logging.info(f'Extracting data to {self.raw_data_dir}.')
@@ -105,17 +133,33 @@ class HCalDataModule(pl.LightningDataModule):
             flat_event.astype({'hit': int})
             flat_event.to_pickle(self.raw_data_dir / f'event_{n:05}.pkl')
 
+    def make_noisy_data(self) -> None:
+        if self.noise_level == 1.0:
+            return
+        logging.info(f'Saving noisy data to {self.noisy_data_dir}.')
+        for event_path in tqdm(self.raw_events):
+            event = pd.read_pickle(event_path)
+            non_noise_indices = np.where(event['hit'].values != 0)[0]
+            noise_indices = ~non_noise_indices
+            np.random.seed(self.noise_seed)
+            selected_noise_indices = np.random.choice(
+                noise_indices, size=int(noise_indices.shape[0]*self.noise_level))
+            selected_indices = np.concatenate(
+                (non_noise_indices, selected_noise_indices))
+            if selected_indices.shape[0] > 0:
+                selected = event.iloc[selected_indices]
+                noisy_event_path = self.noisy_data_dir / event_path.stem
+                selected.to_pickle(noisy_event_path)
+
     def prepare_data(self) -> None:
-        if self.force_download or not self.data_exists():
-            if self.force_download:
-                logging.info(f'force-download set!')
-            else:
-                logging.info(f'Data not found at {self.data_dir}.')
-            self.download()
-        if self.force_download or not self.extracted_data_exists():
-            if not self.force_download:
-                logging.info(f'Data not found at {self.raw_data_dir}.')
-            self.extract()
+        if not self.noisy_data_exists():
+            logging.info(f'Noisy dataset not found at {self.noisy_data_dir}.')
+            if not self.extracted_data_exists():
+                logging.info(f'Raw dataset not found at {self.raw_data_dir}.')
+                if not self.data_exists():
+                    self.download()
+                self.extract()
+            self.make_noisy_data()
 
     def setup(self, stage=None) -> None:
         if self.seed is None:
