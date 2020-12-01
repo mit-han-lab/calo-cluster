@@ -17,3 +17,4 @@ defaults:
   - model: spvcnn
   - wandb: upload
   - checkpoint: top_1
+  - clusterer: hdbscan

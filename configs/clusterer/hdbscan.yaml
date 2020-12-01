@@ -1,0 +1,3 @@
+# @package _group_
+_target_: hdbscan.HDBSCAN
+min_cluster_size: 5

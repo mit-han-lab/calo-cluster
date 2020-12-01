@@ -59,7 +59,7 @@ def hydra_main(cfg: DictConfig) -> None:
     # Set up python logging.
     logger = logging.getLogger()
     logger.setLevel(cfg.log_level)
-    logging.info(cfg.pretty())
+    logging.info(OmegaConf.to_yaml(cfg))
     if 'slurm' in cfg.train:
         slurm_dir = Path.cwd() / 'slurm'
         slurm_dir.mkdir()

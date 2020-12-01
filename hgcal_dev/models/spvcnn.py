@@ -15,9 +15,8 @@ from torchsparse.sparse_tensor import SparseTensor
 from torchsparse.utils.helpers import *
 from torchsparse.utils.kernel_region import *
 
-from ..clustering.meanshift import MeanShift
+from ..metrics.instance import mIoU
 from .utils import *
-from ..metrics.classification import mAP
 
 __all__ = ['SPVCNN']
 
@@ -89,7 +88,7 @@ class SPVCNN(pl.LightningModule):
         self.hparams = cfg
         self.save_hyperparameters(cfg)
 
-        self.clusterer = MeanShift()
+        self.clusterer = hydra.utils.instantiate(self.hparams.clusterer)
 
         self.optimizer_factory = hydra.utils.instantiate(
             self.hparams.optimizer)
@@ -286,6 +285,10 @@ class SPVCNN(pl.LightningModule):
             loss = self.semantic_criterion(outputs, targets)
         elif task == 'instance':
             loss = self.embed_criterion(outputs, targets)
+            self.clusterer.fit(outputs.cpu().detach().numpy())
+            pred_labels = self.clusterer.labels_
+            iou = mIoU(targets.cpu().detach().numpy(), pred_labels)
+            self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch, prog_bar=True)
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss,
@@ -294,6 +297,11 @@ class SPVCNN(pl.LightningModule):
             self.log(f'{split}_embed_loss', embed_loss,
                      on_step=on_step, on_epoch=on_epoch)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
+
+            self.clusterer.fit(outputs[1].cpu().detach().numpy())
+            pred_labels = self.clusterer.labels_
+            iou = mIoU(targets[:, 1].cpu().detach().numpy(), pred_labels)
+            self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch)
         self.log(f'{split}_loss', loss, on_step=on_step, on_epoch=on_epoch)
 
         return loss
