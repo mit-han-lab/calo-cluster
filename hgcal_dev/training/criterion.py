@@ -79,3 +79,30 @@ class NTXentLoss(nn.Module):
         loss = (F.cross_entropy(logits, targets) +
                 F.cross_entropy(logits.T, targets))
         return loss
+
+
+class CentroidInstanceLoss(nn.Module):
+    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5) -> None:
+        super().__init__()
+        self.delta_v = delta_v
+        self.delta_d = delta_d
+
+    def forward(self, outputs: torch.Tensor, labels: torch.Tensor):
+        unique_labels = torch.unique(labels)
+        mus = torch.zeros_like(unique_labels)
+        M = unique_labels.shape[0]
+
+        # Find mean of each instance and calculate L_pull.
+        L_pull = 0.0
+        for m, label in enumerate(unique_labels):
+            mask = labels == label
+            Nm = mask.sum()
+            mu = outputs[mask].mean()
+            mus[m] = mu
+            L_pull += F.relu(torch.norm(mu - outputs[mask], p=1) - self.delta_v)**2 / (M * Nm)
+        
+        L_push = torch.triu(F.relu(2 * self.delta_d - torch.norm(mus.tile((1,M)) - mus, p=1))).sum() / (M * (M - 1))
+
+        return L_pull + L_push
+        
+                
