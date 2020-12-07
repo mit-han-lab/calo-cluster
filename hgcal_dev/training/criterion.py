@@ -4,6 +4,7 @@ import torch
 from pytorch_metric_learning.distances import LpDistance
 from pytorch_metric_learning.losses import TripletMarginLoss
 from torch import nn
+from torch import float32
 from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
 
@@ -89,7 +90,7 @@ class CentroidInstanceLoss(nn.Module):
 
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor):
         unique_labels = torch.unique(labels)
-        mus = torch.zeros_like(unique_labels)
+        mus = torch.zeros((unique_labels.shape[0], outputs.shape[1]), device=outputs.device)
         M = unique_labels.shape[0]
 
         # Find mean of each instance and calculate L_pull.
@@ -97,12 +98,21 @@ class CentroidInstanceLoss(nn.Module):
         for m, label in enumerate(unique_labels):
             mask = labels == label
             Nm = mask.sum()
-            mu = outputs[mask].mean()
+            mu = outputs[mask].mean(axis=0)
             mus[m] = mu
-            L_pull += F.relu(torch.norm(mu - outputs[mask], p=1) - self.delta_v)**2 / (M * Nm)
+            L_pull += (F.relu(torch.norm(mu - outputs[mask], p=1, dim=0) - self.delta_v)**2).sum() / (M * Nm)
         
-        L_push = torch.triu(F.relu(2 * self.delta_d - torch.norm(mus.tile((1,M)) - mus, p=1))).sum() / (M * (M - 1))
+        L_push = (F.relu(2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=(1,2)))**2).sum() / (M * (M - 1))
 
         return L_pull + L_push
         
                 
+def main():
+    criterion = CentroidInstanceLoss()
+    outputs = torch.arange(8, dtype=float32).reshape((4, 2))
+    labels = torch.Tensor([0, 0, 1, 1])
+    breakpoint()
+    criterion(outputs, labels)
+
+if __name__ == "__main__":
+    main()
