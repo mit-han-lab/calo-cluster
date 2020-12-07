@@ -102,7 +102,7 @@ class CentroidInstanceLoss(nn.Module):
             mus[m] = mu
             L_pull += (F.relu(torch.norm(mu - outputs[mask], p=1, dim=0) - self.delta_v)**2).sum() / (M * Nm)
         
-        L_push = (F.relu(2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=(1,2)))**2).sum() / (M * (M - 1))
+        L_push = (F.relu((2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
 
         return L_pull + L_push
         

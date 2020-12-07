@@ -257,7 +257,8 @@ class SPVCNN(pl.LightningModule):
             out = self.embedder(z3.F)
         elif task == 'panoptic':
             out = (self.classifier(z3.F), self.embedder(z3.F))
-
+        else:
+            raise RuntimeError("invalid task!")
         return out
 
     def configure_optimizers(self):
@@ -284,11 +285,12 @@ class SPVCNN(pl.LightningModule):
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
         elif task == 'instance':
+            breakpoint()
             loss = self.embed_criterion(outputs, targets)
-            self.clusterer.fit(outputs.cpu().detach().numpy())
-            pred_labels = self.clusterer.labels_
-            iou = mIoU(targets.cpu().detach().numpy(), pred_labels)
-            self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch, prog_bar=True)
+            #self.clusterer.fit(outputs.cpu().detach().numpy())
+            #pred_labels = self.clusterer.labels_
+            #iou = mIoU(targets.cpu().detach().numpy(), pred_labels)
+            #self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch, prog_bar=True)
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss,
@@ -298,10 +300,12 @@ class SPVCNN(pl.LightningModule):
                      on_step=on_step, on_epoch=on_epoch)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
 
-            self.clusterer.fit(outputs[1].cpu().detach().numpy())
-            pred_labels = self.clusterer.labels_
-            iou = mIoU(targets[:, 1].cpu().detach().numpy(), pred_labels)
-            self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch)
+            #self.clusterer.fit(outputs[1].cpu().detach().numpy())
+            #pred_labels = self.clusterer.labels_
+            #iou = mIoU(targets[:, 1].cpu().detach().numpy(), pred_labels)
+            #self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch)
+        else:
+            raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss, on_step=on_step, on_epoch=on_epoch)
 
         return loss
