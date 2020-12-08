@@ -1,17 +1,19 @@
 import numpy as np
+import pandas as pd
+import plotly.express as px
 import torch
+from pytorch_metric_learning.distances import LpDistance
 from pytorch_metric_learning.losses import TripletMarginLoss
 from scipy import stats
-import matplotlib.pyplot as plt
-import plotly.express as px
-import pandas as pd
-from pytorch_metric_learning.distances import LpDistance
+
+
 def generate_1d_data(center, n):
     return np.random.rand(n) - (center + 1/2)
 
 
 def normal_loss(c, scale):
-    criterion = TripletMarginLoss(triplets_per_anchor=1, distance=LpDistance(normalize_embeddings=False, p=1))
+    criterion = TripletMarginLoss(
+        triplets_per_anchor=1, distance=LpDistance(normalize_embeddings=False, p=1))
     l_rv = stats.norm(loc=c, scale=scale)
     r_rv = stats.norm(scale=scale)
     r_rv = l_rv

@@ -106,20 +106,20 @@ class VertexDataModule(pl.LightningDataModule):
         vertices = tree['GenVertex']
 
         particle_df = pd.DataFrame()
-        for k, v in tqdm.tqdm(particles.items()):
+        for k, v in tqdm(particles.items()):
             name = k.decode('ascii').split('.')[1]
             if name == 'fBits':
                 continue
             particle_df[name] = v.array()
         
         vertex_df = pd.DataFrame()
-        for k, v in tqdm.tqdm(vertices.items()):
+        for k, v in tqdm(vertices.items()):
             name = k.decode('ascii').split('.')[1]
             if name == 'fBits':
                 continue
             vertex_df[name] = v.array()
 
-        for n in tqdm.tqdm(range(particle_df.shape[0])):
+        for n in tqdm(range(particle_df.shape[0])):
             jagged_particles = particle_df.loc[n]
             particle_dict = {k: jagged_particles[k] for k in jagged_particles.keys()}
             flat_p = pd.DataFrame(particle_dict)
