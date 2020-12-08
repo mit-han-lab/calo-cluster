@@ -285,7 +285,6 @@ class SPVCNN(pl.LightningModule):
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
         elif task == 'instance':
-            breakpoint()
             loss = self.embed_criterion(outputs, targets)
             #self.clusterer.fit(outputs.cpu().detach().numpy())
             #pred_labels = self.clusterer.labels_

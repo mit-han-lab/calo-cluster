@@ -19,10 +19,10 @@ from .base import BaseDataset
 
 class VertexDataset(BaseDataset):
     def __init__(self, voxel_size, events, task):
-        feats = ['x', 'y', 'z', 'time', 'energy']
-        coords = ['x', 'y', 'z']
+        feats = ['X', 'Y', 'Z']
+        coords = ['X', 'Y', 'Z']
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label='hit', instance_label='RHClusterMatch')
+                         class_label=None, instance_label='vertex_id')
 
 
 class VertexDataModule(pl.LightningDataModule):
@@ -67,7 +67,6 @@ class VertexDataModule(pl.LightningDataModule):
         events = events[:num_events]
         num_train_events = int(self.train_frac * num_events)
         num_test_events = int(self.test_frac * num_events)
-        num_val_events = num_events - num_train_events - num_test_events
 
         train_events = events[:num_train_events]
         val_events = events[num_train_events:-num_test_events]
@@ -102,18 +101,39 @@ class VertexDataModule(pl.LightningDataModule):
         logging.info(f'Extracting data to {self.pkl_data_dir}.')
         self.pkl_data_dir.mkdir(parents=True, exist_ok=True)
         root_dir = uproot.rootio.open(self.root_data_path)
-        root_events = root_dir.get('Events;1')
+        tree = root_dir.get('Delphes;1')
+        particles = tree['Particle']
+        vertices = tree['GenVertex']
 
-        df = pd.DataFrame()
-        for k, v in root_events[b'HcalRecHit'].items():
-            df[k.decode('ascii').split('.')[1]] = v.array()
+        particle_df = pd.DataFrame()
+        for k, v in tqdm.tqdm(particles.items()):
+            name = k.decode('ascii').split('.')[1]
+            if name == 'fBits':
+                continue
+            particle_df[name] = v.array()
+        
+        vertex_df = pd.DataFrame()
+        for k, v in tqdm.tqdm(vertices.items()):
+            name = k.decode('ascii').split('.')[1]
+            if name == 'fBits':
+                continue
+            vertex_df[name] = v.array()
 
-        for n in tqdm(range(df.shape[0])):
-            jagged_event = df.loc[n]
-            df_dict = {k: jagged_event[k] for k in jagged_event.keys()}
-            flat_event = pd.DataFrame(df_dict)
-            flat_event.astype({'hit': int})
-            flat_event.to_pickle(self.pkl_data_dir / f'event_{n:05}.pkl')
+        for n in tqdm.tqdm(range(particle_df.shape[0])):
+            jagged_particles = particle_df.loc[n]
+            particle_dict = {k: jagged_particles[k] for k in jagged_particles.keys()}
+            flat_p = pd.DataFrame(particle_dict)
+            jagged_vertices = vertex_df.loc[n]
+            vertex_dict = {k: jagged_vertices[k] for k in jagged_vertices.keys()}
+            flat_v = pd.DataFrame(vertex_dict)
+            flat_p['vertex_id'] = -1
+            vertex_id = 0
+            for i in range(flat_v.shape[0]):
+                mask = np.isin(flat_p['fUniqueID'], flat_v.loc[i, 'Constituents'])
+                flat_p.loc[mask, 'vertex_id'] = vertex_id
+                vertex_id += 1
+            flat_p = flat_p[flat_p['vertex_id'] != -1]
+            flat_p.to_pickle(self.pkl_data_dir / f'event_{n:05}.pkl')
 
     def prepare_data(self) -> None:
         if not self.extracted_data_exists():
