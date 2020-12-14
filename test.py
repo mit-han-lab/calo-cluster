@@ -32,15 +32,13 @@ def save_predictions(experiment):
         for i, (batch, event_path) in tqdm(enumerate(zip(dataloader, dataloader.dataset.events))):
             inputs = batch['features'].to(model.device)
             labels = batch['labels'].to(model.device)
-            labels_mapped = batch['labels_mapped'].to(model.device)
-            inverse_map = batch['inverse_map'].to(model.device)
             prediction = model(inputs).cpu()
 
             event_name = event_path.stem
             output_path = experiment.run_prediction_dir / event_name
             inds, labels = dataloader.dataset.get_inds_labels(i)
             np.savez_compressed(
-                output_path, prediction=prediction, inds=inds, labels=labels)
+                output_path, prediction=prediction, inds=inds, inputs=inputs.F.cpu(), labels=labels)
 
 
 def main() -> None:
