@@ -8,7 +8,7 @@ from ..models.spvcnn import SPVCNN
 import hydra
 
 class Experiment():
-    def __init__(self, run_path):
+    def __init__(self, run_path, ckpt_path=None):
         cfg_path = run_path / 'files' / '.hydra' / 'config.yaml'
         self.cfg = OmegaConf.load(cfg_path)
 
@@ -17,7 +17,8 @@ class Experiment():
 
         ckpt_dir = run_path / 'files' / self.cfg.wandb.project / \
             self.cfg.wandb.version / 'checkpoints'
-        ckpt_path = [p for p in sorted(ckpt_dir.glob('*.ckpt'))][-1]
+        if ckpt_path is None:
+            ckpt_path = [p for p in sorted(ckpt_dir.glob('*.ckpt'))][-1]
         self.model = SPVCNN.load_from_checkpoint(str(ckpt_path))
 
         self.datamodule = hydra.utils.instantiate(self.cfg.dataset)

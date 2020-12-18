@@ -1,0 +1,181 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.10.8
+    framework: torch
+    is_jupyter_run: true
+    is_kaggle_kernel: false
+    python_version: 3.8.5
+checkpoint/_target_:
+  desc: null
+  value: pytorch_lightning.callbacks.ModelCheckpoint
+checkpoint/mode:
+  desc: null
+  value: min
+checkpoint/monitor:
+  desc: null
+  value: val_loss
+checkpoint/period:
+  desc: null
+  value: 5
+checkpoint/save_top_k:
+  desc: null
+  value: -1
+checkpoint/verbose:
+  desc: null
+  value: false
+clusterer/_target_:
+  desc: null
+  value: hdbscan.HDBSCAN
+clusterer/min_cluster_size:
+  desc: null
+  value: 5
+criterion/embed/_target_:
+  desc: null
+  value: hgcal_dev.training.criterion.CentroidInstanceLoss
+criterion/embed/delta_d:
+  desc: null
+  value: 1.5
+criterion/embed/delta_v:
+  desc: null
+  value: 0.5
+criterion/task:
+  desc: null
+  value: instance
+dataset/_target_:
+  desc: null
+  value: hgcal_dev.datasets.hcal.HCalDataModule
+dataset/batch_size:
+  desc: null
+  value: 1
+dataset/data_dir:
+  desc: null
+  value: /home/alexjschuy/data/hgcal-dev/hcal
+dataset/event_frac:
+  desc: null
+  value: 1
+dataset/noise_level:
+  desc: null
+  value: 1
+dataset/num_classes:
+  desc: null
+  value: 2
+dataset/num_epochs:
+  desc: null
+  value: 100
+dataset/num_features:
+  desc: null
+  value: 5
+dataset/num_workers:
+  desc: null
+  value: 8
+dataset/task:
+  desc: null
+  value: instance
+dataset/test_frac:
+  desc: null
+  value: 0.1
+dataset/train_frac:
+  desc: null
+  value: 0.8
+dataset/voxel_size:
+  desc: null
+  value: 10
+deterministic:
+  desc: null
+  value: false
+init_ckpt:
+  desc: null
+  value: None
+log_level:
+  desc: null
+  value: INFO
+model/cr:
+  desc: null
+  value: 1
+model/cs:
+  desc: null
+  value:
+  - 32
+  - 32
+  - 64
+  - 128
+  - 256
+  - 256
+  - 128
+  - 96
+  - 96
+model/embed_dim:
+  desc: null
+  value: 8
+model/pres:
+  desc: null
+  value: 1
+model/target/_target_:
+  desc: null
+  value: hgcal_dev.models.spvcnn.SPVCNN
+model/vres:
+  desc: null
+  value: 1
+optimizer/_target_:
+  desc: null
+  value: hgcal_dev.training.optimizers.adam_factory
+optimizer/lr:
+  desc: null
+  value: 0.0003
+optimizer/weight_decay:
+  desc: null
+  value: 0.01
+outputs_dir:
+  desc: null
+  value: /home/alexjschuy/outputs
+overfit:
+  desc: null
+  value: false
+predictions_dir:
+  desc: null
+  value: /home/alexjschuy/predictions
+scheduler/_target_:
+  desc: null
+  value: hgcal_dev.training.schedulers.lambda_lr_factory
+scheduler/batch_size:
+  desc: null
+  value: 1
+scheduler/num_epochs:
+  desc: null
+  value: 100
+seed:
+  desc: null
+  value: 1588147245
+train/batch_size:
+  desc: null
+  value: 1
+train/distributed_backend:
+  desc: null
+  value: None
+train/gpus:
+  desc: null
+  value: 1
+train/num_epochs:
+  desc: null
+  value: 100
+wandb/_target_:
+  desc: null
+  value: pytorch_lightning.loggers.WandbLogger
+wandb/entity:
+  desc: null
+  value: uw-hgcal
+wandb/log_model:
+  desc: null
+  value: true
+wandb/name:
+  desc: null
+  value: hcal_centroid_batch_1
+wandb/project:
+  desc: null
+  value: hgcal-spvcnn
+wandb/version:
+  desc: null
+  value: 1ckl45ip

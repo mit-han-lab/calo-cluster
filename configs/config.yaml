@@ -1,5 +1,5 @@
-outputs_dir: /global/cscratch1/sd/schuya/hgcal-dev/outputs
-predictions_dir: /global/cscratch1/sd/schuya/hgcal-dev/predictions
+outputs_dir: /home/alexjschuy/outputs
+predictions_dir: /home/alexjschuy/predictions
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -9,7 +9,7 @@ init_ckpt: null
 overfit: False
 log_level: INFO
 defaults:
-  - train: slurm
+  - train: single_gpu
   - dataset: hcal
   - optimizer: sgd
   - criterion: joint
