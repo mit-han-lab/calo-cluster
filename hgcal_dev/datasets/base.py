@@ -38,7 +38,7 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, index):
         pc_, feat_, labels_ = self._get_pc_feat_labels(index)
-        inds, labels, inverse_map = sparse_quantize(pc_,
+        inds, _, inverse_map = sparse_quantize(pc_,
                                                     feat_,
                                                     labels_,
                                                     return_index=True,

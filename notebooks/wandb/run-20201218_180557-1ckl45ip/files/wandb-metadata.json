@@ -1,0 +1,32 @@
+{
+    "os": "Linux-4.9.0-14-amd64-x86_64-with-glibc2.10",
+    "python": "3.8.5",
+    "heartbeatAt": "2020-12-18T18:05:58.256760",
+    "startedAt": "2020-12-18T18:05:57.029350",
+    "docker": null,
+    "cpu_count": 4,
+    "cuda": null,
+    "args": [
+        "--ip=127.0.0.1",
+        "--stdin=9003",
+        "--control=9001",
+        "--hb=9000",
+        "--Session.signature_scheme=\"hmac-sha256\"",
+        "--Session.key=b\"3fc78659-10d1-4a9b-9fa3-6c6fe22b6c8d\"",
+        "--shell=9002",
+        "--transport=\"tcp\"",
+        "--iopub=9004",
+        "--f=/tmp/tmp-6620N75Ki2tjxtOH.json"
+    ],
+    "state": "running",
+    "program": "<python with no main file>",
+    "git": {
+        "remote": "git@github.com:mit-han-lab/hgcal-dev.git",
+        "commit": "5f1a9eab94af288b8fab4e466f8b93006bd373ca"
+    },
+    "email": "alexjschuy@gmail.com",
+    "root": "/home/alexjschuy/hgcal-dev",
+    "host": "alexschuy-pvcnn",
+    "username": "alexjschuy",
+    "executable": "/home/alexjschuy/miniconda3/envs/hgcal_dev/bin/python"
+}
