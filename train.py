@@ -6,7 +6,7 @@ import random
 import shutil
 import sys
 from pathlib import Path
-
+import yaml
 import torch
 
 import hydra
@@ -43,6 +43,12 @@ def train(cfg: DictConfig) -> None:
     shutil.copytree(Path.cwd() / '.hydra',
                     Path(logger.experiment.dir) / '.hydra')
     cfg.wandb.version = logger.version
+
+    config_path = Path(logger.experiment.dir) / '.hydra' / 'config.yaml'
+    with config_path.open('rw') as f:
+        data = yaml.load(f)
+        data['wandb']['version'] = cfg.wandb.version
+        yaml.dump(data, f)
 
     datamodule = hydra.utils.instantiate(cfg.dataset)
     model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
