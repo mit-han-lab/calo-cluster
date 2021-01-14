@@ -1,0 +1,4 @@
+# @package _group_
+_target_: hgcal_dev.clustering.meanshift.MeanShift
+use_gpu: True
+bandwidth: null
