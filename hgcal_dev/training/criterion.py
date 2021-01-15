@@ -8,6 +8,7 @@ from torch import float32
 from torch.nn import CrossEntropyLoss
 from torch.nn import functional as F
 
+from dataclasses import dataclass
 
 class JointLoss(nn.Module):
     def __init__(self, ignore_index: int = 255, alpha: float = 1.0):
@@ -83,27 +84,43 @@ class NTXentLoss(nn.Module):
 
 
 class CentroidInstanceLoss(nn.Module):
-    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5) -> None:
+    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1) -> None:
         super().__init__()
         self.delta_v = delta_v
         self.delta_d = delta_d
+        self.ignore_index = ignore_index
 
-    def forward(self, outputs: torch.Tensor, labels: torch.Tensor):
-        unique_labels = torch.unique(labels)
-        mus = torch.zeros((unique_labels.shape[0], outputs.shape[1]), device=outputs.device)
-        M = unique_labels.shape[0]
+    def forward(self, outputs: torch.Tensor, labels: torch.Tensor, subbatch_indices: torch.Tensor):
+        # Ignore points with invalid labels.
+        mask = labels != self.ignore_index
+        outputs = outputs[mask]
+        labels = labels[mask]
+        
+        # Iterate over each event within the batch.
+        unique_subbatch_indices = torch.unique(subbatch_indices)
+        B = unique_subbatch_indices.shape[0]
+        loss = 0.0
+        for subbatch_idx in unique_subbatch_indices:
+            subbatch_mask = subbatch_indices == subbatch_idx
+            subbatch_outputs = outputs[subbatch_mask]
+            subbatch_labels = labels[subbatch_mask]
 
-        # Find mean of each instance and calculate L_pull.
-        L_pull = 0.0
-        for m, label in enumerate(unique_labels):
-            mask = labels == label
-            Nm = mask.sum()
-            mu = outputs[mask].mean(axis=0)
-            mus[m] = mu
-            L_pull += (F.relu(torch.norm(mu - outputs[mask], p=1, dim=0) - self.delta_v)**2).sum() / (M * Nm)
-        L_push = (F.relu((2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
+            unique_labels = torch.unique(subbatch_labels)
+            mus = torch.zeros((unique_labels.shape[0], subbatch_outputs.shape[1]), device=subbatch_outputs.device)
+            M = unique_labels.shape[0]
 
-        return L_pull + L_push
+            # Find mean of each instance and calculate L_pull.
+            L_pull = 0.0
+            for m, label in enumerate(unique_labels):
+                mask = subbatch_labels == label
+                Nm = mask.sum()
+                mu = subbatch_outputs[mask].mean(axis=0)
+                mus[m] = mu
+                L_pull += (F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=0) - self.delta_v)**2).sum() / (M * Nm)
+            L_push = (F.relu((2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
+            loss += (L_pull + L_push) / B
+
+        return loss
         
                 
 def main():

@@ -1,5 +1,5 @@
-outputs_dir: /home/alexjschuy/outputs
-predictions_dir: /home/alexjschuy/predictions
+outputs_dir: /home/alexj/outputs
+predictions_dir: /home/alexj/predictions
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -11,7 +11,7 @@ log_level: INFO
 defaults:
   - train: single_gpu
   - dataset: hcal
-  - optimizer: sgd
+  - optimizer: adam
   - criterion: joint
   - scheduler: lambda_lr
   - model: spvcnn

@@ -273,7 +273,7 @@ class SPVCNN(pl.LightningModule):
         inputs = batch['features']
         targets = batch['labels'].F.long()
         outputs = self(inputs)
-
+        subbatch_indices = batch['subbatch_indices']
         if split == 'train':
             on_step = True
             on_epoch = True
@@ -285,24 +285,16 @@ class SPVCNN(pl.LightningModule):
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
         elif task == 'instance':
-            loss = self.embed_criterion(outputs, targets)
-            #self.clusterer.fit(outputs.cpu().detach().numpy())
-            #pred_labels = self.clusterer.labels_
-            #iou = mIoU(targets.cpu().detach().numpy(), pred_labels)
-            #self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch, prog_bar=True)
+            loss = self.embed_criterion(outputs, targets, subbatch_indices)
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss,
                      on_step=on_step, on_epoch=on_epoch)
-            embed_loss = self.embed_criterion(outputs[1], targets[:, 1])
+            embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices)
             self.log(f'{split}_embed_loss', embed_loss,
                      on_step=on_step, on_epoch=on_epoch)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
 
-            #self.clusterer.fit(outputs[1].cpu().detach().numpy())
-            #pred_labels = self.clusterer.labels_
-            #iou = mIoU(targets[:, 1].cpu().detach().numpy(), pred_labels)
-            #self.log(f'{split}_mIoU', iou, on_step=on_step, on_epoch=on_epoch)
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss, on_step=on_step, on_epoch=on_epoch)
