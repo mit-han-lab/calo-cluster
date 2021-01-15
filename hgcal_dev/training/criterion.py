@@ -95,6 +95,7 @@ class CentroidInstanceLoss(nn.Module):
         mask = labels != self.ignore_index
         outputs = outputs[mask]
         labels = labels[mask]
+        subbatch_indices = subbatch_indices[mask]
         
         # Iterate over each event within the batch.
         unique_subbatch_indices = torch.unique(subbatch_indices)

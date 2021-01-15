@@ -17,7 +17,7 @@ class BaseDataset(Dataset):
     coords: list = None
     class_label: str = 'class'
     instance_label: str = 'instance'
-    ignore_index: int = -1
+    ignore_label: int = -1
 
     def __len__(self):
         return len(self.events)
@@ -47,7 +47,8 @@ class BaseDataset(Dataset):
                                                     feat_,
                                                     labels_,
                                                     return_index=True,
-                                                    return_invs=True)
+                                                    return_invs=True,
+                                                    ignore_label=self.ignore_label)
         pc = pc_[inds]
         feat = feat_[inds]
         features = SparseTensor(feat, pc)
@@ -62,7 +63,8 @@ class BaseDataset(Dataset):
                                                     feat_,
                                                     labels_,
                                                     return_index=True,
-                                                    return_invs=True)
+                                                    return_invs=True,
+                                                    ignore_label=self.ignore_label)
         return inds, labels
 
     @staticmethod
