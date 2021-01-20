@@ -287,7 +287,6 @@ class SPVCNN(pl.LightningModule):
         elif task == 'instance':
             loss = self.embed_criterion(outputs, targets, subbatch_indices)
         elif task == 'panoptic':
-            breakpoint()
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss,
                      on_step=on_step, on_epoch=on_epoch)

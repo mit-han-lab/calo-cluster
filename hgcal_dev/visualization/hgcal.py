@@ -1,3 +1,5 @@
+from hgcal_dev.clustering.meanshift import MeanShift
+from os import P_NOWAIT
 import cycler
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,6 +12,9 @@ from plotly.subplots import make_subplots
 from sklearn.metrics import auc, confusion_matrix, roc_curve
 from tqdm import tqdm
 
+from hgcal_dev.metrics.instance import PanopticQuality
+from hgcal_dev.clustering.meanshift import MeanShift
+
 
 class Event():
 
@@ -20,16 +25,29 @@ class Event():
         self._load()
 
     def _load(self):
-        input_event = pd.DataFrame(data=np.load(self.input_path)['x'], columns=[
+        raw_event = np.load(self.input_path)
+        raw_x, raw_y = raw_event['x'], raw_event['y']
+        input_event = pd.DataFrame(data=raw_x, columns=[
                                    'x', 'y', 'z', 'time', 'energy'])
+        input_event['labels_s'] = raw_y[:, 0]
+        input_event['labels_i'] = raw_y[:, 1]
         event_prediction = np.load(self.pred_path)
-        self.inds = event_prediction['inds']
-        self.df = input_event.loc[self.inds].reset_index(drop=True)
-        self.df['labels'] = event_prediction['labels']
-        self.prediction_proba = event_prediction['prediction']
-        self.df['prediction'] = self.prediction_proba.argmax(axis=1)
-        self.prediction_proba = self.prediction_proba[self.df['labels'] != 255]
-        self.df = self.df[self.df['labels'] != 255].reset_index(drop=True)
+        self.embedding = event_prediction['embedding']
+        self.pred_class_labels = event_prediction['labels']
+
+        self.input_event = input_event
+
+    def cluster(self, clusterer):
+        pred_instance_labels = clusterer.cluster(self.embedding)
+        return pred_instance_labels
+
+    def pq(self, pred_instance_labels, min_points=1):
+        pq_metric = PanopticQuality(self.num_classes, min_points=min_points)
+
+        outputs = (self.pred_class_labels, pred_instance_labels)
+        targets = (self.input_event['labels_s'], self.input_event['labels_i'])
+        pq_metric.add(outputs, targets)
+        return pq_metric.compute()
 
     def plot_event(self, truth=True):
         hits = self.df

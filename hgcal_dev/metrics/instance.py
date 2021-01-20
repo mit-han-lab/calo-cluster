@@ -90,7 +90,8 @@ class PanopticQuality:
         sq = self.ious / np.maximum(self.tps, 1e-15)
         rq = self.tps / np.maximum(self.tps +
                                    self.fps * 0.5 + self.fns * 0.5, 1e-15)
-        return (sq * rq).mean()
+        pq = (sq * rq).mean()
+        return sq, rq, pq
 
 
 if __name__ == '__main__':
@@ -139,5 +140,5 @@ if __name__ == '__main__':
     yi = np.array(yi, dtype=np.int64).reshape(1, -1)
     evaluator = PanopticQuality(num_classes=4, ignore_index=-1, min_points=1)
     evaluator.add((xs, xi), (ys, yi))
-    pq = evaluator.compute()
+    _, _, pq = evaluator.compute()
     print('PQ:', pq.item(), pq.item() == 0.47916666666666663)

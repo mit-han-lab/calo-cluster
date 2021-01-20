@@ -26,21 +26,28 @@ def save_predictions(experiment):
     model.eval()
     datamodule.batch_size = 1
     datamodule.prepare_data()
-    datamodule.setup(stage='fit')
-    for split, dataloader in zip(('val', 'train'), (datamodule.val_dataloader(), datamodule.train_dataloader())):
+    datamodule.setup(stage=None)
+    for split, dataloader in zip(('test', 'val', 'train'), (datamodule.test_dataloader(), datamodule.val_dataloader(), datamodule.train_dataloader())):
         output_dir = experiment.run_prediction_dir / split
         output_dir.mkdir(exist_ok=True, parents=True)
         with torch.no_grad():
             for i, (batch, event_path) in tqdm(enumerate(zip(dataloader, dataloader.dataset.events))):
                 features = batch['features'].to(model.device)
-                labels = batch['labels'].to(model.device)
-                prediction = model(features).cpu()
-
+                inverse_map = batch['inverse_map'].F.type(torch.int)
                 event_name = event_path.stem
                 output_path = output_dir / event_name
-                inds, labels = dataloader.dataset.get_inds_labels(i)
-                np.savez_compressed(
-                    output_path, prediction=prediction, inds=inds, features=features.F.cpu(), labels=labels)
+                if experiment.cfg.criterion.task == 'instance':
+                    embedding = model(features).cpu().numpy()[inverse_map]
+                    np.savez_compressed(output_path, embedding=embedding)
+                elif experiment.cfg.criterion.task == 'class':
+                    labels = torch.argmax(model(features), dim=1).cpu().numpy()[inverse_map]
+                    np.savez_compressed(output_path, labels=labels)
+                elif experiment.cfg.criterion.task == 'panoptic':
+                    out_c, out_e = model(features)
+                    labels = torch.argmax(out_c, dim=1).cpu().numpy()[inverse_map]
+                    embedding = out_e.cpu().numpy()[inverse_map]
+                    np.savez_compressed(output_path, labels=labels, embedding=embedding)
+                
 
 
 def main() -> None:

@@ -11,5 +11,5 @@ class MeanShift():
 
     def cluster(self, x):
         self.clusterer.fit(x)
-        labels = self.clusterer._labels
+        labels = self.clusterer.labels_
         return labels
