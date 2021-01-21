@@ -39,7 +39,8 @@ def save_predictions(experiment):
                 if experiment.cfg.criterion.task == 'instance':
                     embedding = model(features).cpu().numpy()[inverse_map]
                     np.savez_compressed(output_path, embedding=embedding)
-                elif experiment.cfg.criterion.task == 'class':
+                elif experiment.cfg.criterion.task == 'semantic':
+                    breakpoint()
                     labels = torch.argmax(model(features), dim=1).cpu().numpy()[inverse_map]
                     np.savez_compressed(output_path, labels=labels)
                 elif experiment.cfg.criterion.task == 'panoptic':

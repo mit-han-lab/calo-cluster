@@ -18,10 +18,11 @@ from hgcal_dev.clustering.meanshift import MeanShift
 
 class Event():
 
-    def __init__(self, input_path, pred_path=None):
+    def __init__(self, input_path, pred_path=None, task='panoptic'):
         self.num_classes = 4
         self.input_path = input_path
         self.pred_path = pred_path
+        self.task = task
         self._load()
 
     def _load(self):
@@ -29,19 +30,22 @@ class Event():
         raw_x, raw_y = raw_event['x'], raw_event['y']
         input_event = pd.DataFrame(data=raw_x, columns=[
                                    'x', 'y', 'z', 'time', 'energy'])
-        input_event['labels_s'] = raw_y[:, 0]
-        input_event['labels_i'] = raw_y[:, 1]
         event_prediction = np.load(self.pred_path)
-        self.embedding = event_prediction['embedding']
-        self.pred_class_labels = event_prediction['labels']
-
+        if self.task == 'panoptic':
+            input_event['labels_s'] = raw_y[:, 0]
+            input_event['labels_i'] = raw_y[:, 1]
+            self.embedding = event_prediction['embedding']
+            self.pred_class_labels = event_prediction['labels']
+        elif self.task == 'instance':
+            input_event['labels'] = raw_y[:, 1]
+            self.embedding = event_prediction['embedding']
+        elif self.task == 'semantic':
+            input_event['labels'] = raw_y[:, 0]
+            self.pred_class_labels = event_prediction['labels']
         self.input_event = input_event
 
-    def cluster(self, clusterer):
-        pred_instance_labels = clusterer.cluster(self.embedding)
-        return pred_instance_labels
-
     def pq(self, pred_instance_labels, min_points=1):
+        assert self.task == 'panoptic'
         pq_metric = PanopticQuality(self.num_classes, min_points=min_points)
 
         outputs = (self.pred_class_labels, pred_instance_labels)
@@ -49,7 +53,8 @@ class Event():
         pq_metric.add(outputs, targets)
         return pq_metric.compute()
 
-    def plot_event(self, truth=True):
+
+    def _plot_semantic_event(self, truth):
         hits = self.df
         if truth:
             labels = hits['labels']
@@ -83,6 +88,15 @@ class Event():
         ax2.set_ylabel('y', fontsize=fontsize)
         ax0.tick_params(axis='both', which='major', labelsize=20)
         ax1.tick_params(axis='both', which='major', labelsize=20)
+
+    def _plot_instance_event(self, truth):
+        pass
+
+    def plot_event(self, semantic=True, truth=True):
+        if self.task == 'semantic' or semantic:
+            self._plot_semantic_event(truth=truth)
+        else:
+            self._plot_instance_event()
 
     def plot_3d(self, truth=True):
         hits = self.df

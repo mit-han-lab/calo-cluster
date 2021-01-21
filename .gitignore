@@ -15,3 +15,4 @@ notebooks/map_dev.ipynb
 notebooks/hcal_exploration.ipynb
 notebooks/hgcal_exploration.ipynb
 notebooks/shmargin_test.ipynb
+notebooks/wandb

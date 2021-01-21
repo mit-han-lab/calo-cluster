@@ -22,6 +22,10 @@ class Experiment():
         self.model = SPVCNN.load_from_checkpoint(str(ckpt_path))
 
         self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
+        self.datamodule.batch_size = 1
+        self.datamodule.prepare_data()
+        self.datamodule.setup(stage=None)
+
 
         wandb.init(id=self.cfg.wandb.version, entity=self.cfg.wandb.entity,
                    project=self.cfg.wandb.project, resume='allow')
