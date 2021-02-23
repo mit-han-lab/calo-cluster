@@ -7,7 +7,7 @@ class MeanShift():
         if use_gpu:
             self.clusterer = MeanShiftCosine(bandwidth=bandwidth)
         else:
-            self.clusterer = cluster.MeanShift(bandwidth=bandwidth)
+            self.clusterer = cluster.MeanShift(bandwidth=bandwidth, n_jobs=-1)
 
     def cluster(self, x):
         self.clusterer.fit(x)

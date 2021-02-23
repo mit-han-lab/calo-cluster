@@ -12,9 +12,9 @@ defaults:
   - train: single_gpu
   - dataset: hcal
   - optimizer: adam
-  - criterion: joint
+  - criterion: joint_centroid
   - scheduler: lambda_lr
   - model: spvcnn
   - wandb: upload
-  - checkpoint: top_1
+  - checkpoint: all
   - clusterer: hdbscan

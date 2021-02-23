@@ -16,7 +16,7 @@ from hgcal_dev.metrics.instance import PanopticQuality
 from hgcal_dev.clustering.meanshift import MeanShift
 
 
-class Event():
+class HGCalEvent():
 
     def __init__(self, input_path, pred_path=None, task='panoptic'):
         self.num_classes = 4

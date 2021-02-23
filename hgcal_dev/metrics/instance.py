@@ -43,55 +43,89 @@ class PanopticQuality:
         self.fns = np.zeros(self.num_classes, dtype=np.float64)
         self.ious = np.zeros(self.num_classes, dtype=np.float64)
 
-    def add(self, outputs, targets):
+        self.wtps = np.zeros(self.num_classes, dtype=np.float64)
+        self.wfps = np.zeros(self.num_classes, dtype=np.float64)
+        self.wfns = np.zeros(self.num_classes, dtype=np.float64)
+
+    def add(self, outputs, targets, weights=None):
         xs, xi = outputs
         ys, yi = targets
+
+        if weights is None:
+            weights = np.ones_like(xi, dtype=np.float64)
 
         mask = (ys != self.ignore_index)
         xs, xi = xs[mask], xi[mask] + 1
         ys, yi = ys[mask], yi[mask] + 1
+        weights = weights[mask]
 
         for k in range(self.num_classes):
             xik = xi * (xs == k)
             yik = yi * (ys == k)
 
-            xinstances, xcounts = np.unique(xik[xik != 0], return_counts=True)
+            xmask = xik != 0
+            ymask = yik != 0
+
+            xlabels = xik[xmask]
+            xweights = weights[xmask]
+            xinstances = np.unique(xlabels)
             xmapping = {k: idx for idx, k in enumerate(xinstances)}
             xmatched = np.array([False] * xinstances.shape[0])
+            xareas = (np.broadcast_to(xweights, (len(xinstances), len(xweights)))
+                      * xlabels == xinstances[..., None]).sum(axis=1)
 
-            yinstances, ycounts = np.unique(yik[yik != 0], return_counts=True)
+            ylabels = yik[ymask]
+            yweights = weights[ymask]
+            yinstances = np.unique(ylabels)
             ymapping = {k: idx for idx, k in enumerate(yinstances)}
             ymatched = np.array([False] * yinstances.shape[0])
+            yareas = (np.broadcast_to(yweights, (len(yinstances), len(yweights)))
+                      * ylabels == yinstances[..., None]).sum(axis=1)
 
-            indices = np.logical_and(xik != 0, yik != 0)
-            xylabels = xik[indices] + (2 ** 32) * yik[indices]
-            xylabels, intersections = np.unique(xylabels, return_counts=True)
-            xlabels, ylabels = xylabels % (2 ** 32), xylabels // (2 ** 32)
+            xymask = np.logical_and(xmask, ymask)
+            xyweights = weights[xymask]
+            xylabels = xik[xymask] + (2 ** 32) * yik[xymask]
+            xyinstances = np.unique(xylabels)
+            intersections = (np.broadcast_to(
+                xyweights, (len(xyinstances), len(xyweights))) * xylabels == xyinstances[..., None]).sum(axis=1)
+            xyxinstances, xyyinstances = xyinstances % (
+                2 ** 32), xyinstances // (2 ** 32)
 
-            xareas = np.array([xcounts[xmapping[k]] for k in xlabels])
-            yareas = np.array([ycounts[ymapping[k]] for k in ylabels])
+            xyxmask = xlabels == xyxinstances[..., None]
+            xyxareas = (np.broadcast_to(
+                xweights, (len(xyxinstances), len(xweights))) * xyxmask).sum(axis=1)
 
-            unions = xareas + yareas - intersections
-            ious = intersections.astype(np.float) / unions.astype(np.float)
+            xyymask = ylabels == xyyinstances[..., None]
+            xyyareas = (np.broadcast_to(
+                yweights, (len(xyyinstances), len(yweights))) * xyymask).sum(axis=1)
+
+            unions = xyxareas + xyyareas - intersections
+            ious = intersections / unions
             indices = ious > 0.5
 
             self.tps[k] += np.sum(indices)
+            self.wtps[k] += np.sum(intersections[indices])
             self.ious[k] += np.sum(ious[indices])
 
-            xmatched[[xmapping[k] for k in xlabels[indices]]] = True
-            ymatched[[ymapping[k] for k in ylabels[indices]]] = True
-            
-            self.fps[k] += np.sum(np.logical_and(xcounts >=
-                                                 self.min_points, xmatched == False))
-            self.fns[k] += np.sum(np.logical_and(ycounts >=
-                                                 self.min_points, ymatched == False))
+            xmatched[[xmapping[k] for k in xyxinstances[indices]]] = True
+            ymatched[[ymapping[k] for k in xyyinstances[indices]]] = True
+
+            self.fps[k] += np.sum(xmatched == False)
+            self.fns[k] += np.sum(ymatched == False)
+
+            self.wfps[k] += np.sum(xareas[xmatched == False])
+            self.wfns[k] += np.sum(yareas[ymatched == False])
 
     def compute(self):
         sq = self.ious / np.maximum(self.tps, 1e-15)
         rq = self.tps / np.maximum(self.tps +
-                                   self.fps * 0.5 + self.fns * 0.5, 1e-15)
+                                    self.fps * 0.5 + self.fns * 0.5, 1e-15)
         pq = (sq * rq).mean()
-        return sq, rq, pq
+        wrq = self.wtps / np.maximum(self.wtps +
+                                    self.wfps * 0.5 + self.wfns * 0.5, 1e-15)
+        wpq = (sq * wrq).mean()
+
+        return sq, rq, pq, wrq, wpq
 
 
 if __name__ == '__main__':
@@ -140,5 +174,5 @@ if __name__ == '__main__':
     yi = np.array(yi, dtype=np.int64).reshape(1, -1)
     evaluator = PanopticQuality(num_classes=4, ignore_index=-1, min_points=1)
     evaluator.add((xs, xi), (ys, yi))
-    _, _, pq = evaluator.compute()
+    _, _, pq, _, _ = evaluator.compute()
     print('PQ:', pq.item(), pq.item() == 0.47916666666666663)

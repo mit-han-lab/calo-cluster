@@ -19,15 +19,41 @@ from .base import BaseDataset
 
 
 class HCalDataset(BaseDataset):
-    def __init__(self, voxel_size, events, task):
-        feats = ['x', 'y', 'z', 'time', 'energy']
-        coords = ['x', 'y', 'z']
+    def __init__(self, voxel_size, events, task, use_2d):
+        self.use_2d = use_2d
+        if use_2d:
+            feats = ['eta', 'phi', 'time', 'energy']
+            coords = ['eta', 'phi']
+        else:
+            feats = ['x', 'y', 'z', 'time', 'energy']
+            coords = ['x', 'y', 'z']
+        
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
                          class_label='hit', instance_label='RHClusterMatch')
 
+    def _get_pc_feat_labels(self, index):
+        event = pd.read_pickle(self.events[index])
+        if self.task == 'panoptic':
+            block, labels_ = event[self.feats], event[[
+                self.class_label, self.instance_label]].to_numpy()
+        elif self.task == 'semantic':
+            block, labels_ = event[self.feats], event[self.class_label].to_numpy(
+            )
+        elif self.task == 'instance':
+            block, labels_ = event[self.feats], event[self.instance_label].to_numpy(
+            )
+        else:
+            raise RuntimeError(f'Unknown task = "{self.task}"')
+        
+        pc_ = np.round(block[self.coords].to_numpy() / self.voxel_size)
+        pc_ -= pc_.min(0, keepdims=1)
+
+        feat_ = block.to_numpy()
+        return pc_, feat_, labels_
+
 
 class HCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5, noise_level: float = 1.0, noise_seed: int = 31):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5, noise_level: float = 1.0, noise_seed: int = 31, use_2d: bool = False, split_clusters = False):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -45,15 +71,21 @@ class HCalDataModule(pl.LightningDataModule):
         self.root_data_path = self.data_dir / 'data.root'
         self.data_url = data_url
         self.raw_data_dir = self.data_dir / '1.0_noise'
+        self.raw_data_dir2 = self.data_dir / '1.0_noise_split' # for split_clusters = True
 
         assert 0.0 <= noise_level <= 1.0
         self.noise_seed = noise_seed
         self.noise_level = noise_level
         self.noisy_data_dir = self.data_dir / f'{noise_level}_noise'
+        self.noisy_data_dir2 = self.data_dir / f'{noise_level}_noise_split' # for split_clusters = True
+
+        self.use_2d = use_2d
+        self.split_clusters = split_clusters # if true, split instance clusters based on semantic label, to enforce each cluster possessing a unique semantic label.
 
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.raw_data_dir.mkdir(parents=True, exist_ok=True)
         self.noisy_data_dir.mkdir(parents=True, exist_ok=True)
+        self.noisy_data_dir2.mkdir(parents=True, exist_ok=True)
 
         self._raw_events = None
         self._events = None
@@ -98,6 +130,9 @@ class HCalDataModule(pl.LightningDataModule):
 
     def noisy_data_exists(self) -> bool:
         return len(set(self.noisy_data_dir.glob('*'))) != 0
+
+    def noisy_split_exists(self) -> bool:
+            return len(set(self.noisy_data_dir2.glob('*'))) != 0
 
     def download(self):
         try:
@@ -151,6 +186,30 @@ class HCalDataModule(pl.LightningDataModule):
                 noisy_event_path = self.noisy_data_dir / f'{event_path.stem}.pkl'
                 selected.to_pickle(noisy_event_path)
 
+    def make_split_data(self) -> None:
+        logging.info(f'Splitting dataset and saving to {self.noisy_data_dir2}.')
+        for event_path in tqdm(self.events):
+            event = pd.read_pickle(event_path)
+
+            instance_labels = event['RHClusterMatch']
+            unique_instance_labels = instance_labels.unique()
+            new_instance_labels = instance_labels.copy()
+            semantic_labels = event['hit']
+
+            hit_mask = semantic_labels == 1
+            noise_mask = ~hit_mask
+            
+            current_label = 0
+            for instance_label in unique_instance_labels:
+                cluster_mask = instance_labels == instance_label
+                new_instance_labels[cluster_mask & hit_mask] = current_label
+                new_instance_labels[cluster_mask & noise_mask] = current_label + 1
+                current_label += 2
+
+            event['RHClusterMatch'] = new_instance_labels
+            split_event_path = self.noisy_data_dir2 / f'{event_path.stem}.pkl'
+            event.to_pickle(split_event_path)
+
     def prepare_data(self) -> None:
         if not self.noisy_data_exists():
             logging.info(f'Noisy dataset not found at {self.noisy_data_dir}.')
@@ -160,6 +219,11 @@ class HCalDataModule(pl.LightningDataModule):
                     self.download()
                 self.extract()
             self.make_noisy_data()
+        if self.split_clusters:
+            if not self.noisy_split_exists():
+                logging.info(f'Split dataset not found at {self.noisy_data_dir2}.')
+                self.make_split_data()
+            self.noisy_data_dir = self.noisy_data_dir2
 
     def setup(self, stage=None) -> None:
         if self.seed is None:
@@ -173,12 +237,12 @@ class HCalDataModule(pl.LightningDataModule):
 
         if stage == 'fit' or stage is None:
             self.train_dataset = HCalDataset(
-                self.voxel_size, train_events, self.task)
+                self.voxel_size, train_events, self.task, self.use_2d)
             self.val_dataset = HCalDataset(
-                self.voxel_size, val_events, self.task)
+                self.voxel_size, val_events, self.task, self.use_2d)
         if stage == 'test' or stage is None:
             self.test_dataset = HCalDataset(
-                self.voxel_size, test_events, self.task)
+                self.voxel_size, test_events, self.task, self.use_2d)
 
     def dataloader(self, dataset: HCalDataset) -> DataLoader:
         return DataLoader(
