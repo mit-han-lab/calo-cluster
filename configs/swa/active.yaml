@@ -1,0 +1,8 @@
+# @package _group_
+active: True
+callback:
+  _target_: pytorch_lightning.callbacks.StochasticWeightAveraging
+  swa_epoch_start: 0.8
+  swa_lrs: null
+  annealing_epochs: 3
+  annealing_strategy: cos

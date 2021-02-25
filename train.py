@@ -6,6 +6,7 @@ import random
 import shutil
 import sys
 from pathlib import Path
+from pytorch_lightning import callbacks
 import yaml
 import torch
 
@@ -28,6 +29,13 @@ def train(cfg: DictConfig) -> None:
         cfg.train.batch_size = 1
     else:
         overfit_batches = 0.0
+    
+    callbacks = []
+
+    # Set up SWA.
+    if cfg.swa.active:
+        swa_callback = hydra.utils.instantiate(cfg.swa.callback)
+        callbacks.append(swa_callback)
 
     # Set up checkpointing.
     if cfg.init_ckpt is not None:
@@ -56,7 +64,7 @@ def train(cfg: DictConfig) -> None:
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
-                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5)
+                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks)
     trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
 

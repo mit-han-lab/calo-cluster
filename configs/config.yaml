@@ -18,3 +18,4 @@ defaults:
   - wandb: upload
   - checkpoint: all
   - clusterer: hdbscan
+  - swa: inactive
