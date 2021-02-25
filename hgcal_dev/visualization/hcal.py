@@ -114,17 +114,15 @@ class HCalEvent():
                     color='instance', size=size, color_discrete_sequence=palette)
         return fig
 
-    def pq(self, pred_instance_labels, min_points=1):
+    def pq(self, pred_instance_labels):
         assert self.task == 'panoptic'
-        pq_metric = PanopticQuality(num_classes=2, min_points=min_points)
+        pq_metric = PanopticQuality(num_classes=2)
 
         outputs = (self.pred_class_labels, pred_instance_labels)
         targets = (self.input_event['labels_s'].values, self.input_event['labels_i'].values)
         pq_metric.add(outputs, targets)
         
-        sq, rq, pq = pq_metric.compute()
-        tq = pq_metric.tps / np.maximum(pq_metric.tps + pq_metric.fns, 1e-15)
-        return sq, rq, pq, tq
+        return pq_metric.compute()
 
     @staticmethod
     def plot_pqs_vs_bandwidth(events, bws, log_x=False):

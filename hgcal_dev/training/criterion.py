@@ -85,11 +85,12 @@ class NTXentLoss(nn.Module):
 
 
 class CentroidInstanceLoss(nn.Module):
-    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1) -> None:
+    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1, normalize: bool = True) -> None:
         super().__init__()
         self.delta_v = delta_v
         self.delta_d = delta_d
         self.ignore_index = ignore_index
+        self.normalize = normalize
 
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor, subbatch_indices: torch.Tensor):
         # Ignore points with invalid labels.
@@ -98,6 +99,10 @@ class CentroidInstanceLoss(nn.Module):
         labels = labels[mask]
         subbatch_indices = subbatch_indices[mask]
         
+        # Normalize each output vector.
+        if self.normalize:
+            outputs = outputs / (torch.linalg.norm(outputs, axis=1) + 1e-8)[...,None]
+
         # Iterate over each event within the batch.
         unique_subbatch_indices = torch.unique(subbatch_indices)
         B = unique_subbatch_indices.shape[0]
@@ -123,56 +128,6 @@ class CentroidInstanceLoss(nn.Module):
             loss += (L_pull + L_push) / B
 
         return loss
-        
-
-def centroid_instance_loss(outputs: torch.Tensor, labels: torch.Tensor, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1):
-        # Ignore points with invalid labels.
-        mask = labels != ignore_index
-        outputs = outputs[mask]
-        labels = labels[mask]
-        
-        unique_labels = torch.unique(labels)
-        mus = torch.zeros((unique_labels.shape[0], outputs.shape[1]), device=outputs.device)
-        M = unique_labels.shape[0]
-
-        # Find mean of each instance and calculate L_pull.
-        L_pull = 0.0
-        for m, label in enumerate(unique_labels):
-            mask = labels == label
-            Nm = mask.sum()
-            mu = outputs[mask].mean(axis=0)
-            mus[m] = mu
-            L_pull += (F.relu(torch.norm(mu - outputs[mask], p=1, dim=0) - delta_v)**2).sum() / (M * Nm)
-        L_push = (F.relu((2 * delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
-        
-        loss = (L_pull + L_push)
-
-        return loss, L_pull, L_push
-
-
-def cosine_centroid_instance_loss(outputs: torch.Tensor, labels: torch.Tensor, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1):
-        # Ignore points with invalid labels.
-        mask = labels != ignore_index
-        outputs = outputs[mask]
-        labels = labels[mask]
-        
-        unique_labels = torch.unique(labels)
-        mus = torch.zeros((unique_labels.shape[0], outputs.shape[1]), device=outputs.device)
-        M = unique_labels.shape[0]
-
-        # Find mean of each instance and calculate L_pull.
-        L_pull = 0.0
-        for m, label in enumerate(unique_labels):
-            mask = labels == label
-            Nm = mask.sum()
-            mu = outputs[mask].mean(axis=0)
-            mus[m] = mu
-            L_pull += (F.relu(torch.norm(mu - outputs[mask], p=1, dim=0) - delta_v)**2).sum() / (M * Nm)
-        L_push = (-F.relu((2 * delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
-        
-        loss = (L_pull + L_push)
-
-        return loss, L_pull, L_push
                 
 def main():
     criterion = CentroidInstanceLoss()

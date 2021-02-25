@@ -31,10 +31,9 @@ def mIoU(labels, pred_labels):
 
 class PanopticQuality:
 
-    def __init__(self, *, num_classes, ignore_index=None, min_points=40):
+    def __init__(self, *, num_classes, ignore_index=None):
         self.num_classes = num_classes
         self.ignore_index = ignore_index
-        self.min_points = min_points
         self.reset()
 
     def reset(self):
@@ -42,6 +41,7 @@ class PanopticQuality:
         self.fps = np.zeros(self.num_classes, dtype=np.float64)
         self.fns = np.zeros(self.num_classes, dtype=np.float64)
         self.ious = np.zeros(self.num_classes, dtype=np.float64)
+        self.wious = np.zeros(self.num_classes, dtype=np.float64)
 
         self.wtps = np.zeros(self.num_classes, dtype=np.float64)
         self.wfps = np.zeros(self.num_classes, dtype=np.float64)
@@ -82,6 +82,9 @@ class PanopticQuality:
             yareas = (np.broadcast_to(yweights, (len(yinstances), len(yweights)))
                       * ylabels == yinstances[..., None]).sum(axis=1)
 
+            if len(yinstances) == 0 and len(xinstances) == 0:
+                self.tps[k], self.fps[k], self.fns[k], self.ious[k], self.wtps[k], self.wfps[k], self.wfns[k] = -1, -1, -1, -1, -1, -1, -1
+
             xymask = np.logical_and(xmask, ymask)
             xyweights = weights[xymask]
             xylabels = xik[xymask] + (2 ** 32) * yik[xymask]
@@ -106,6 +109,7 @@ class PanopticQuality:
             self.tps[k] += np.sum(indices)
             self.wtps[k] += np.sum(intersections[indices])
             self.ious[k] += np.sum(ious[indices])
+            self.wious[k] += np.sum(intersections[indices] * ious[indices]) * self.wtps[k] / (self.wtps[k] + np.sum(intersections[indices]))
 
             xmatched[[xmapping[k] for k in xyxinstances[indices]]] = True
             ymatched[[ymapping[k] for k in xyyinstances[indices]]] = True
@@ -117,15 +121,21 @@ class PanopticQuality:
             self.wfns[k] += np.sum(yareas[ymatched == False])
 
     def compute(self):
+        m = self.tps != -1
+
         sq = self.ious / np.maximum(self.tps, 1e-15)
         rq = self.tps / np.maximum(self.tps +
                                     self.fps * 0.5 + self.fns * 0.5, 1e-15)
-        pq = (sq * rq).mean()
+        pq = (sq[m] * rq[m]).mean()
+        tq = self.tps / np.maximum(self.tps + self.fns, 1e-15)
         wrq = self.wtps / np.maximum(self.wtps +
                                     self.wfps * 0.5 + self.wfns * 0.5, 1e-15)
-        wpq = (sq * wrq).mean()
+        wpq = (sq[m] * wrq[m]).mean()
+        wtq = self.wtps / np.maximum(self.wtps + self.wfns, 1e-15)
 
-        return sq, rq, pq, wrq, wpq
+        sq[~m], rq[~m], tq[~m], wrq[~m], wtq[~m] = -1, -1, -1, -1, -1
+
+        return sq, rq, pq, tq, wrq, wpq, wtq
 
 
 if __name__ == '__main__':
@@ -172,7 +182,7 @@ if __name__ == '__main__':
     xi = np.array(xi, dtype=np.int64).reshape(1, -1)
     ys = np.array(ys, dtype=np.int64).reshape(1, -1)
     yi = np.array(yi, dtype=np.int64).reshape(1, -1)
-    evaluator = PanopticQuality(num_classes=4, ignore_index=-1, min_points=1)
+    evaluator = PanopticQuality(num_classes=4, ignore_index=-1)
     evaluator.add((xs, xi), (ys, yi))
-    _, _, pq, _, _ = evaluator.compute()
+    _, _, pq, _, _, _, _ = evaluator.compute()
     print('PQ:', pq.item(), pq.item() == 0.47916666666666663)
