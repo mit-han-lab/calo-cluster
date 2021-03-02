@@ -19,14 +19,14 @@ from .base import BaseDataset
 
 class VertexDataset(BaseDataset):
     def __init__(self, voxel_size, events, task):
-        feats = ['X', 'Y', 'Z']
-        coords = ['X', 'Y', 'Z']
+        feats = ['Z', 'E', 'Px', 'Py', 'Pz', 'Eta', 'Phi']
+        coords = ['Eta', 'Phi']
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label=None, instance_label='vertex_id')
+                         class_label='IsPU', instance_label='vertex_id')
 
 
 class VertexDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/BkPgj9OjWaNBYqz/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 7):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -111,7 +111,7 @@ class VertexDataModule(pl.LightningDataModule):
             if name == 'fBits':
                 continue
             particle_df[name] = v.array()
-        
+
         vertex_df = pd.DataFrame()
         for k, v in tqdm(vertices.items()):
             name = k.decode('ascii').split('.')[1]
@@ -121,15 +121,18 @@ class VertexDataModule(pl.LightningDataModule):
 
         for n in tqdm(range(particle_df.shape[0])):
             jagged_particles = particle_df.loc[n]
-            particle_dict = {k: jagged_particles[k] for k in jagged_particles.keys()}
+            particle_dict = {k: jagged_particles[k]
+                             for k in jagged_particles.keys()}
             flat_p = pd.DataFrame(particle_dict)
             jagged_vertices = vertex_df.loc[n]
-            vertex_dict = {k: jagged_vertices[k] for k in jagged_vertices.keys()}
+            vertex_dict = {k: jagged_vertices[k]
+                           for k in jagged_vertices.keys()}
             flat_v = pd.DataFrame(vertex_dict)
             flat_p['vertex_id'] = -1
             vertex_id = 0
             for i in range(flat_v.shape[0]):
-                mask = np.isin(flat_p['fUniqueID'], flat_v.loc[i, 'Constituents'])
+                mask = np.isin(flat_p['fUniqueID'],
+                               flat_v.loc[i, 'Constituents'])
                 flat_p.loc[mask, 'vertex_id'] = vertex_id
                 vertex_id += 1
             flat_p = flat_p[flat_p['vertex_id'] != -1]

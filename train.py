@@ -1,24 +1,12 @@
-import argparse
-import copy
 import logging
-import os
-import random
 import shutil
-import sys
 from pathlib import Path
-from pytorch_lightning import callbacks
-import yaml
-import torch
 
 import hydra
 import pytorch_lightning as pl
 import submitit
-import wandb
+import yaml
 from omegaconf import DictConfig, OmegaConf
-
-
-def add(a, b):
-    return a + b
 
 
 def train(cfg: DictConfig) -> None:
