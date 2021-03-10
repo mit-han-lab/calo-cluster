@@ -10,7 +10,7 @@ overfit: False
 log_level: INFO
 defaults:
   - train: single_gpu
-  - dataset: hcal
+  - dataset: hcal_truth
   - optimizer: adam
   - criterion: joint_centroid
   - scheduler: lambda_lr

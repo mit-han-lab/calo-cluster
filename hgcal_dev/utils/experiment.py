@@ -25,7 +25,7 @@ class Experiment():
             self.cfg.predictions_dir) / self.cfg.wandb.version
         self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
 
-        ckpt_dir = self.cfg.outputs_dir / self.cfg.wandb.project / \
+        ckpt_dir = Path(self.cfg.outputs_dir) / self.cfg.wandb.project / \
             self.cfg.wandb.version / 'checkpoints'
         if ckpt_name is None:
             ckpt_path = [p for p in sorted(ckpt_dir.glob('*.ckpt'))][-1]
@@ -41,10 +41,10 @@ class Experiment():
         self.datamodule.prepare_data()
         self.datamodule.setup(stage=None)
 
-    def get_run_path(wandb_version):
+    def get_run_path(self, wandb_version):
         wandb_dir = Path('/home/alexj/outputs/wandb')
         for run_dir in wandb_dir.iterdir():
-            if run_dir.stem.contains(wandb_version):
+            if wandb_version in run_dir.stem:
                 return run_dir
         raise RuntimeError(
             f'run with wandb_version={wandb_version} not found; is {wandb_dir} correct?')
@@ -52,16 +52,20 @@ class Experiment():
     def save_predictions(self):
         model = self.model
         datamodule = self.datamodule
+        datamodule.num_workers = 0
         model.cuda(0)
         model.eval()
         datamodule.batch_size = 1
         datamodule.prepare_data()
         datamodule.setup(stage=None)
         for split, dataloader in zip(('test', 'val', 'train'), (datamodule.test_dataloader(), datamodule.val_dataloader(), datamodule.train_dataloader())):
+            if split == 'test' or split == 'val':
+                continue
             output_dir = self.run_prediction_dir / split
             output_dir.mkdir(exist_ok=True, parents=True)
             with torch.no_grad():
                 for i, (batch, event_path) in tqdm(enumerate(zip(dataloader, dataloader.dataset.events))):
+                    print(event_path)
                     features = batch['features'].to(model.device)
                     inverse_map = batch['inverse_map'].F.type(torch.int)
                     event_name = event_path.stem
@@ -105,6 +109,8 @@ class Experiment():
                 events.append(HGCalEvent(input_path, pred_path))
             elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.vertex.VertexDataModule':
                 events.append(VertexEvent(input_path, pred_path))
+            elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal_truth.HCalTruthDataModule':
+                events.append(HCalEvent(input_path, pred_path))
             else:
                 raise NotImplementedError()
         return events

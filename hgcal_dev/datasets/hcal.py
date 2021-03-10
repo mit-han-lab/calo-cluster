@@ -6,28 +6,29 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytorch_lightning as pl
 import requests
 import torch
+import uproot
+from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
-import pytorch_lightning as pl
-import uproot
 
 from ..utils.comm import get_rank
 from .base import BaseDataset
 
 
 class HCalDataset(BaseDataset):
-    def __init__(self, voxel_size, events, task, use_2d):
+    def __init__(self, voxel_size, events, task, use_2d, scale):
         self.use_2d = use_2d
+        self.scale = scale
         if use_2d:
             feats = ['eta', 'phi', 'time', 'energy']
             coords = ['eta', 'phi']
         else:
             feats = ['x', 'y', 'z', 'time', 'energy']
             coords = ['x', 'y', 'z']
-        
+
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
                          class_label='hit', instance_label='RHClusterMatch')
 
@@ -44,16 +45,25 @@ class HCalDataset(BaseDataset):
             )
         else:
             raise RuntimeError(f'Unknown task = "{self.task}"')
-        
+
         pc_ = np.round(block[self.coords].to_numpy() / self.voxel_size)
         pc_ -= pc_.min(0, keepdims=1)
 
         feat_ = block.to_numpy()
+        if self.scale:
+            if self.use_2d:
+                raise NotImplementedError()
+            else:
+                stds = np.array([119.310562, 117.978790, 286.380585, 8.158741, 2.077959])
+                means = np.array([-1.991564, -1.404704, 0.642713, 0.35379654, 0.447480])
+                t_mask = (feat_[:, 3] == -9999.0)
+                feat_ = (feat_ - means) / stds
+                feat_[t_mask, 3] = -2
         return pc_, feat_, labels_
 
 
 class HCalDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5, noise_level: float = 1.0, noise_seed: int = 31, use_2d: bool = False, split_clusters = False):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 5, noise_level: float = 1.0, noise_seed: int = 31, use_2d: bool = False, split_clusters: bool = False, scale: bool = False):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -61,6 +71,7 @@ class HCalDataModule(pl.LightningDataModule):
         self.voxel_size = voxel_size
         self.seed = seed
         self.task = task
+        self.scale = scale
 
         self._validate_fracs(event_frac, train_frac, test_frac)
         self.event_frac = event_frac
@@ -71,16 +82,19 @@ class HCalDataModule(pl.LightningDataModule):
         self.root_data_path = self.data_dir / 'data.root'
         self.data_url = data_url
         self.raw_data_dir = self.data_dir / '1.0_noise'
-        self.raw_data_dir2 = self.data_dir / '1.0_noise_split' # for split_clusters = True
+        self.raw_data_dir2 = self.data_dir / \
+            '1.0_noise_split'  # for split_clusters = True
 
         assert 0.0 <= noise_level <= 1.0
         self.noise_seed = noise_seed
         self.noise_level = noise_level
         self.noisy_data_dir = self.data_dir / f'{noise_level}_noise'
-        self.noisy_data_dir2 = self.data_dir / f'{noise_level}_noise_split' # for split_clusters = True
+        self.noisy_data_dir2 = self.data_dir / \
+            f'{noise_level}_noise_split'  # for split_clusters = True
 
         self.use_2d = use_2d
-        self.split_clusters = split_clusters # if true, split instance clusters based on semantic label, to enforce each cluster possessing a unique semantic label.
+        # if true, split instance clusters based on semantic label, to enforce each cluster possessing a unique semantic label.
+        self.split_clusters = split_clusters
 
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.raw_data_dir.mkdir(parents=True, exist_ok=True)
@@ -110,6 +124,8 @@ class HCalDataModule(pl.LightningDataModule):
         assert train_frac + test_frac <= 1.0
 
     def train_val_test_split(self, events):
+        pl.seed_everything(42)
+        events = shuffle(events)
         num_events = int(self.event_frac * len(events))
         events = events[:num_events]
         num_train_events = int(self.train_frac * num_events)
@@ -132,7 +148,7 @@ class HCalDataModule(pl.LightningDataModule):
         return len(set(self.noisy_data_dir.glob('*'))) != 0
 
     def noisy_split_exists(self) -> bool:
-            return len(set(self.noisy_data_dir2.glob('*'))) != 0
+        return len(set(self.noisy_data_dir2.glob('*'))) != 0
 
     def download(self):
         try:
@@ -183,11 +199,13 @@ class HCalDataModule(pl.LightningDataModule):
                 (non_noise_indices, selected_noise_indices))
             if selected_indices.shape[0] > 0:
                 selected = event.iloc[selected_indices]
-                noisy_event_path = self.noisy_data_dir / f'{event_path.stem}.pkl'
+                noisy_event_path = self.noisy_data_dir / \
+                    f'{event_path.stem}.pkl'
                 selected.to_pickle(noisy_event_path)
 
     def make_split_data(self) -> None:
-        logging.info(f'Splitting dataset and saving to {self.noisy_data_dir2}.')
+        logging.info(
+            f'Splitting dataset and saving to {self.noisy_data_dir2}.')
         for event_path in tqdm(self.events):
             event = pd.read_pickle(event_path)
 
@@ -198,12 +216,13 @@ class HCalDataModule(pl.LightningDataModule):
 
             hit_mask = semantic_labels == 1
             noise_mask = ~hit_mask
-            
+
             current_label = 0
             for instance_label in unique_instance_labels:
                 cluster_mask = instance_labels == instance_label
                 new_instance_labels[cluster_mask & hit_mask] = current_label
-                new_instance_labels[cluster_mask & noise_mask] = current_label + 1
+                new_instance_labels[cluster_mask &
+                                    noise_mask] = current_label + 1
                 current_label += 2
 
             event['RHClusterMatch'] = new_instance_labels
@@ -221,28 +240,28 @@ class HCalDataModule(pl.LightningDataModule):
             self.make_noisy_data()
         if self.split_clusters:
             if not self.noisy_split_exists():
-                logging.info(f'Split dataset not found at {self.noisy_data_dir2}.')
+                logging.info(
+                    f'Split dataset not found at {self.noisy_data_dir2}.')
                 self.make_split_data()
             self.noisy_data_dir = self.noisy_data_dir2
 
     def setup(self, stage=None) -> None:
+        train_events, val_events, test_events = self.train_val_test_split(
+            self.events)
         if self.seed is None:
             self.seed = torch.initial_seed() % (2**32 - 1)
         self.seed = self.seed + get_rank() * self.num_workers * self.num_epochs
         logging.debug(f'setting seed={self.seed}')
         pl.seed_everything(self.seed)
 
-        train_events, val_events, test_events = self.train_val_test_split(
-            self.events)
-
         if stage == 'fit' or stage is None:
             self.train_dataset = HCalDataset(
-                self.voxel_size, train_events, self.task, self.use_2d)
+                self.voxel_size, train_events, self.task, self.use_2d, self.scale)
             self.val_dataset = HCalDataset(
-                self.voxel_size, val_events, self.task, self.use_2d)
+                self.voxel_size, val_events, self.task, self.use_2d, self.scale)
         if stage == 'test' or stage is None:
             self.test_dataset = HCalDataset(
-                self.voxel_size, test_events, self.task, self.use_2d)
+                self.voxel_size, test_events, self.task, self.use_2d, self.scale)
 
     def dataloader(self, dataset: HCalDataset) -> DataLoader:
         return DataLoader(

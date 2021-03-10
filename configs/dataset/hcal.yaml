@@ -14,3 +14,4 @@ num_features: 5
 noise_level: 1.0
 use_2d: False
 split_clusters: False
+scale: False

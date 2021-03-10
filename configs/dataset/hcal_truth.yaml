@@ -1,0 +1,15 @@
+# @package _group_
+_target_: hgcal_dev.datasets.hcal_truth.HCalTruthDataModule
+num_classes: 2
+task: ${criterion.task}
+data_dir: /home/alexj/data/hgcal-dev/hcal_truth
+event_frac: 1.0
+train_frac: 0.8
+test_frac: 0.1
+num_workers: 8
+voxel_size: 10.0
+num_epochs: ${train.num_epochs}
+batch_size: ${train.batch_size}
+num_features: 5
+min_hits_per_cluster: 3
+min_cluster_energy: 6.0
