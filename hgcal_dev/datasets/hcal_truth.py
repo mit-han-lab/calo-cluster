@@ -97,8 +97,7 @@ class HCalTruthDataModule(pl.LightningDataModule):
         assert train_frac + test_frac <= 1.0
 
     def train_val_test_split(self, events):
-        pl.seed_everything(42)
-        events = shuffle(events)
+        events = shuffle(events, random_state=42)
         num_events = int(self.event_frac * len(events))
         events = events[:num_events]
         num_train_events = int(self.train_frac * num_events)

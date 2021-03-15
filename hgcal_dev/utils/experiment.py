@@ -59,13 +59,10 @@ class Experiment():
         datamodule.prepare_data()
         datamodule.setup(stage=None)
         for split, dataloader in zip(('test', 'val', 'train'), (datamodule.test_dataloader(), datamodule.val_dataloader(), datamodule.train_dataloader())):
-            if split == 'test' or split == 'val':
-                continue
             output_dir = self.run_prediction_dir / split
             output_dir.mkdir(exist_ok=True, parents=True)
             with torch.no_grad():
                 for i, (batch, event_path) in tqdm(enumerate(zip(dataloader, dataloader.dataset.events))):
-                    print(event_path)
                     features = batch['features'].to(model.device)
                     inverse_map = batch['inverse_map'].F.type(torch.int)
                     event_name = event_path.stem
@@ -104,13 +101,13 @@ class Experiment():
             event_name = input_path.stem
             pred_path = pred_dir / f'{event_name}.npz'
             if self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal.HCalDataModule':
-                events.append(HCalEvent(input_path, pred_path))
+                events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
             elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hgcal.HGCalDataModule':
-                events.append(HGCalEvent(input_path, pred_path))
+                events.append(HGCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
             elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.vertex.VertexDataModule':
-                events.append(VertexEvent(input_path, pred_path))
+                events.append(VertexEvent(input_path, pred_path, task=self.cfg.criterion.task))
             elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal_truth.HCalTruthDataModule':
-                events.append(HCalEvent(input_path, pred_path))
+                events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
             else:
                 raise NotImplementedError()
         return events

@@ -31,9 +31,10 @@ def mIoU(labels, pred_labels):
 
 class PanopticQuality:
 
-    def __init__(self, *, num_classes, ignore_index=None):
+    def __init__(self, *, num_classes, ignore_index=None, semantic=True):
         self.num_classes = num_classes
         self.ignore_index = ignore_index
+        self.semantic = semantic
         self.reset()
 
     def reset(self):
@@ -48,8 +49,14 @@ class PanopticQuality:
         self.wfns = np.zeros(self.num_classes, dtype=np.float64)
 
     def add(self, outputs, targets, weights=None):
-        xs, xi = outputs
-        ys, yi = targets
+        if not self.semantic:
+            xs = np.zeros(outputs.shape[0])
+            ys = xs
+            xi = outputs
+            yi = targets
+        else:
+            xs, xi = outputs
+            ys, yi = targets
 
         if weights is None:
             weights = np.ones_like(xi, dtype=np.float64)
@@ -135,7 +142,7 @@ class PanopticQuality:
 
         sq[~m], rq[~m], tq[~m], wrq[~m], wtq[~m] = -1, -1, -1, -1, -1
 
-        return sq, rq, pq, tq, wrq, wpq, wtq
+        return {'sq': sq, 'rq': rq, 'pq': pq, 'tq': tq, 'wrq': wrq, 'wpq': wpq, 'wtq': wtq}
 
 
 if __name__ == '__main__':

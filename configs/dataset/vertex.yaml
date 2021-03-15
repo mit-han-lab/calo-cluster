@@ -10,4 +10,5 @@ num_workers: 8
 voxel_size: 0.01
 num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
-num_features: 7
+num_features: 1
+scale: False

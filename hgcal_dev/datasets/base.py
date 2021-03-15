@@ -18,27 +18,30 @@ class BaseDataset(Dataset):
     class_label: str = 'class'
     instance_label: str = 'instance'
     ignore_label: int = -1
+    scale: bool = False
+    std: list = None
+    mean: list = None
 
     def __len__(self):
         return len(self.events)
 
     def _get_pc_feat_labels(self, index):
         event = pd.read_pickle(self.events[index])
+        feat_ = event[self.feats].to_numpy()
         if self.task == 'panoptic':
-            block, labels_ = event[self.feats], event[[
-                self.class_label, self.instance_label]].to_numpy()
+            labels_ = event[[self.class_label, self.instance_label]].to_numpy()
         elif self.task == 'semantic':
-            block, labels_ = event[self.feats], event[self.class_label].to_numpy(
-            )
+            labels_ = event[self.class_label].to_numpy()
         elif self.task == 'instance':
-            block, labels_ = event[self.feats], event[self.instance_label].to_numpy(
+            labels_ = event[self.instance_label].to_numpy(
             )
         else:
             raise RuntimeError(f'Unknown task = "{self.task}"')
-        pc_ = np.round(block[self.coords].to_numpy() / self.voxel_size)
+        pc_ = np.round(event[self.coords].to_numpy() / self.voxel_size)
         pc_ -= pc_.min(0, keepdims=1)
 
-        feat_ = block.to_numpy()
+        if self.scale:
+            feat_ = (feat_ - np.array(self.mean)) / np.array(self.std)
         return pc_, feat_, labels_
 
     def __getitem__(self, index):

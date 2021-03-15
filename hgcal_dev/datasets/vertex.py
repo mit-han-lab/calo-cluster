@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 import requests
 import torch
 import uproot
+from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -18,15 +19,15 @@ from .base import BaseDataset
 
 
 class VertexDataset(BaseDataset):
-    def __init__(self, voxel_size, events, task):
-        feats = ['Z', 'E', 'Px', 'Py', 'Pz', 'Eta', 'Phi']
+    def __init__(self, voxel_size, events, task, scale):
+        feats = ['Z']
         coords = ['Eta', 'Phi']
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label='IsPU', instance_label='vertex_id')
+                         class_label='IsPU', instance_label='vertex_id', scale=scale, mean=[-55.67877], std=[10541.643])
 
 
 class VertexDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/BkPgj9OjWaNBYqz/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 7):
+    def __init__(self, batch_size: int, num_epochs: int, num_workers: int, voxel_size: float, data_dir: str, data_url: str = 'https://cernbox.cern.ch/index.php/s/BkPgj9OjWaNBYqz/download', seed: int = None, event_frac: float = 1.0, train_frac: float = 0.8, test_frac: float = 0.1, task: str = 'class', num_classes: int = 2, num_features: int = 7, scale: bool = False):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -34,6 +35,7 @@ class VertexDataModule(pl.LightningDataModule):
         self.voxel_size = voxel_size
         self.seed = seed
         self.task = task
+        self.scale = scale
 
         self._validate_fracs(event_frac, train_frac, test_frac)
         self.event_frac = event_frac
@@ -63,6 +65,7 @@ class VertexDataModule(pl.LightningDataModule):
         assert train_frac + test_frac <= 1.0
 
     def train_val_test_split(self, events):
+        events = shuffle(events, random_state=42)
         num_events = int(self.event_frac * len(events))
         events = events[:num_events]
         num_train_events = int(self.train_frac * num_events)
@@ -157,12 +160,12 @@ class VertexDataModule(pl.LightningDataModule):
 
         if stage == 'fit' or stage is None:
             self.train_dataset = VertexDataset(
-                self.voxel_size, train_events, self.task)
+                self.voxel_size, train_events, self.task, self.scale)
             self.val_dataset = VertexDataset(
-                self.voxel_size, val_events, self.task)
+                self.voxel_size, val_events, self.task, self.scale)
         if stage == 'test' or stage is None:
             self.test_dataset = VertexDataset(
-                self.voxel_size, test_events, self.task)
+                self.voxel_size, test_events, self.task, self.scale)
 
     def dataloader(self, dataset: VertexDataset) -> DataLoader:
         return DataLoader(
