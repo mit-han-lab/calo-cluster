@@ -92,12 +92,17 @@ class CentroidInstanceLoss(nn.Module):
         self.ignore_index = ignore_index
         self.normalize = normalize
 
-    def forward(self, outputs: torch.Tensor, labels: torch.Tensor, subbatch_indices: torch.Tensor):
+    def forward(self, outputs: torch.Tensor, labels: torch.Tensor, subbatch_indices: torch.Tensor, weights: torch.Tensor = None):
+        # Add unity weights if none are provided.
+        if weights is None:
+            weights = torch.ones(labels.shape[0], dtype=float32, device=labels.device)
+
         # Ignore points with invalid labels.
         mask = labels != self.ignore_index
         outputs = outputs[mask]
         labels = labels[mask]
         subbatch_indices = subbatch_indices[mask]
+        weights = weights[mask]
         
         # Normalize each output vector.
         if self.normalize:
@@ -111,9 +116,11 @@ class CentroidInstanceLoss(nn.Module):
             subbatch_mask = subbatch_indices == subbatch_idx
             subbatch_outputs = outputs[subbatch_mask]
             subbatch_labels = labels[subbatch_mask]
+            subbatch_weights = weights[subbatch_mask]
 
             unique_labels = torch.unique(subbatch_labels)
             mus = torch.zeros((unique_labels.shape[0], subbatch_outputs.shape[1]), device=subbatch_outputs.device)
+            Ws = torch.zeros(unique_labels.shape[0])
             M = unique_labels.shape[0]
 
             # Find mean of each instance and calculate L_pull.
@@ -122,11 +129,12 @@ class CentroidInstanceLoss(nn.Module):
                 mask = subbatch_labels == label
                 Nm = mask.sum()
                 mu = subbatch_outputs[mask].mean(axis=0)
+                W = subbatch_weights[mask].mean(axis=0)
+                Ws[m] = W
                 mus[m] = mu
-                L_pull += (F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=0) - self.delta_v)**2).sum() / (M * Nm)
+                L_pull += (subbatch_weights[mask] * F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=1) - self.delta_v)**2).sum() / (M * Nm)
             L_push = (F.relu((2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
             loss += (L_pull + L_push) / B
-
         return loss
                 
 def main():
