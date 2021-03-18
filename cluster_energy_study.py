@@ -4,14 +4,12 @@ from pathlib import Path
 from hgcal_dev.utils.experiment import Experiment
 from hgcal_dev.metrics.instance import PanopticQuality
 import plotly.express as px
-from scipy.optimize import minimize_scalar
+from scipy.optimize import basinhopping
 from sklearn import cluster
 from PyPDF2 import PdfFileMerger
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-
-import plotly.io as pio
 
 def top_n_clusters(events: list, n: int):
     out = []
@@ -33,7 +31,7 @@ def optimize_bandwidth(events: list, max_clusters: int):
                 return pq
 
         pq = PanopticQuality(num_classes=2, min_points=2)
-        results = minimize_scalar(evaluate, bounds=[0.001, 0.5], method='bounded', options={'maxiter': 10})
+        results = basinhopping(evaluate, bounds=[0.001, 0.5], method='bounded', options={'maxiter': 10})
         bws[i] = results.x
         pqs[i] = results.fun
     return bws, pqs, n_clusters

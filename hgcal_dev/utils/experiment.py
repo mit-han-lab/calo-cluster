@@ -108,6 +108,8 @@ class Experiment():
                 events.append(VertexEvent(input_path, pred_path, task=self.cfg.criterion.task))
             elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal_truth.HCalTruthDataModule':
                 events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
+            elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal_2.HCal2DataModule':
+                events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
             else:
                 raise NotImplementedError()
         return events

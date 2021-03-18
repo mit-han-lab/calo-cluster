@@ -117,33 +117,30 @@ class HCal2DataModule(pl.LightningDataModule):
 
         return train_events, val_events, test_events
 
-    def get_clusters(self, raw_event, truth=True):
-        if truth:
-            cluster_col = 'trackId'
-        else:
-            cluster_col = 'RHAntiKtCluster'
-        result = raw_event.groupby([cluster_col])[['energy']].agg(['mean', 'count'])
-        energy = result[('energy', 'mean')]
-        energy.name = 'energy'
-        nhits = result[('energy', 'count')]
-        nhits.name = 'nhits'
-        return pd.concat([energy, nhits], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
+    @classmethod
+    def apply_selection(cls, event_path, data_dir, min_cluster_energy, min_hits_per_cluster, ignore_id=-99):
+        event = pd.read_pickle(event_path)
+        tracks = cls.get_clusters(event, truth=True)
 
-    def apply_selection(self, event, clusters, ignore_id=-99):
-        clusters = clusters[(clusters['energy'] >= self.min_cluster_energy) | (clusters['clusterId'] == ignore_id)]
-        clusters = clusters[(clusters['nhits'] >= self.min_hits_per_cluster) | (clusters['clusterId'] == ignore_id)]
-        event = event[event['trackId'].isin(clusters['clusterId'])]
-        return event.reset_index(drop=True), clusters.reset_index(drop=True)
+        tracks = tracks[(tracks['energy'] >= min_cluster_energy) | (tracks['clusterId'] == ignore_id)]
+        tracks = tracks[(tracks['nconstituents'] >= min_hits_per_cluster) | (tracks['clusterId'] == ignore_id)]
+        event = event[event['trackId'].isin(tracks['clusterId'])]
+        event = event.reset_index(drop=True)
+
+        out_path = data_dir / event_path.name
+        if event.shape[0] > 0:
+            event.to_pickle(out_path)
+
+    @classmethod
+    def _make_selected_data(cls, selected_data_dir, event_paths, min_cluster_energy, min_hits_per_cluster, ncpus=32):
+        logging.info(f'Making selected data at {selected_data_dir}')
+        with mp.Pool(ncpus) as p:
+            with tqdm(total=len(event_paths)) as pbar:
+                for _ in p.imap_unordered(partial(cls.apply_selection, data_dir=selected_data_dir, min_cluster_energy=min_cluster_energy, min_hits_per_cluster=min_hits_per_cluster), event_paths):
+                    pbar.update()
 
     def make_selected_data(self):
-        logging.info(f'Making selected data at {self.selected_data_dir}')
-        for event_path in tqdm(self.raw_events):
-            event = pd.read_pickle(event_path)
-            tracks = self.get_clusters(event, truth=True)
-            event, tracks = self.apply_selection(event, tracks)
-            out_path = self.selected_data_dir / event_path.name
-            if event.shape[0] > 0:
-                event.to_pickle(out_path)
+        self._make_selected_data(self.selected_data_dir, self.raw_events, self.min_cluster_energy, self.min_hits_per_cluster)
 
     def raw_data_exists(self) -> bool:
         return len(set(self.raw_data_dir.glob('*'))) != 0
@@ -198,40 +195,72 @@ class HCal2DataModule(pl.LightningDataModule):
         return self.dataloader(self.test_dataset)
 
     @classmethod
-    def get_track_id_map(cls, tracks, granularity=0.01):
-        def deltaR_sq(t1, t2):
-            return (t2.eta - t1.eta)**2 + (t2.phi - t1.phi)**2
-        granularity_sq = granularity**2
-        merged = np.full_like(tracks['trackId'].values, False, dtype=bool)
-        new_track_ids = {}
-        for t1 in tracks.sort_values('energy', ascending=False).itertuples():
-            if merged[t1.Index]:
-                continue
-            for t2 in tracks[~merged].itertuples():
-                if t2.Index == t1.Index:
-                    continue
-                if deltaR_sq(t1, t2) < granularity_sq:
-                    merged[t2.Index] = True
-                    new_track_ids[t2.trackId] = t1.trackId
-        return new_track_ids
+    def get_clusters(cls, event, truth=True):
+        if truth:
+            cluster_col = 'trackId'
+        else:
+            cluster_col = 'RHAntiKtCluster'
+        event['weta'] = event['eta'] * event['energy']
+        event['wphi'] = event['phi'] * event['energy']
+        result = event.groupby(['trackId'])[['energy', 'weta', 'wphi']].agg(['mean', 'count'])
+        energy = result[('energy', 'mean')]
+        energy.name = 'energy'
+        nconstituents = result[('energy', 'count')]
+        nconstituents.name = 'nconstituents'
+        eta = result[('weta', 'mean')] / energy
+        eta.name = 'eta'
+        phi = result[('wphi', 'mean')] / energy
+        phi.name = 'phi'
+        return pd.concat([energy, eta, phi, nconstituents], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
 
     @classmethod
-    def merge_track(cls, raw_event_path, data_dir, granularity):
-        event = pd.read_pickle(raw_event_path)
-        tracks = cls.get_tracks(event)
-        id_map = cls.get_track_id_map(tracks, granularity)
-        for old_id, new_id in id_map.items():
-            mask = (event['trackId'] == old_id)
-            event.loc[mask, 'trackId'] = new_id
-        event_path = data_dir / raw_event_path.name
-        event.to_pickle(event_path)
+    def merge_event(cls, event_path, data_dir, granularity=0.15):
+        event = pd.read_pickle(event_path)
+        noise = event[event['trackId'] == -99].reset_index(drop=True)
+        true_hits = event[event['trackId'] != -99].reset_index(drop=True)
+        
+        while True:
+            # Find delta R between each cluster, identify pairs that are mergeable and sort according to energy.
+            tracks = cls.get_clusters(true_hits)
+            eta = tracks['eta'].values
+            phi = tracks['phi'].values
+            dR2 = (np.expand_dims(eta, axis=1) - eta)**2 + (np.expand_dims(phi, axis=1) - phi)**2
+            np.fill_diagonal(dR2, 1.0)
+            mergeable = dR2 < granularity**2
+            sorted_indices = np.argsort(tracks['energy'].values)[::-1]
+
+            # Keep the highest energy pairs.
+            X, Y = np.where(mergeable[sorted_indices])
+            new_ids = {}
+            track_ids = tracks['clusterId'].values
+            for x, y in zip(X, Y):
+                x = track_ids[sorted_indices[x]]
+                y = track_ids[y]
+                if y not in new_ids and x not in new_ids:
+                    new_ids[y] = x
+            if len(new_ids) == 0:
+                break
+
+            # Assign the new ids
+            new_hits = true_hits.copy()
+            for k, v in new_ids.items():
+                new_hits.loc[true_hits['trackId']==k, 'trackId'] = v
+            true_hits = new_hits
+
+        # Fix ids.
+        track_ids = true_hits['trackId'].unique()
+        for i, track_id in enumerate(track_ids):
+            true_hits.loc[true_hits['trackId']==track_id, 'trackId'] = i
+        merged_event = pd.concat([noise, true_hits]).sample(frac=1).reset_index(drop=True)
+        merged_event_path = data_dir / event_path.name
+        merged_event.to_pickle(merged_event_path)
 
     @classmethod
-    def merge_tracks(cls, raw_data_dir, data_dir, granularity=0.01):
-        with mp.Pool(4) as p:
+    def merge_events(cls, raw_data_dir, data_dir, granularity=0.15, ncpus=32):
+        with mp.Pool(ncpus) as p:
             raw_event_paths = [f for f in raw_data_dir.glob('*.pkl')]
             with tqdm(total=len(raw_event_paths)) as pbar:
-                for _ in p.imap_unordered(partial(cls.merge_track, data_dir=data_dir, granularity=granularity), raw_event_paths):
+                for _ in p.imap_unordered(partial(cls.merge_event, data_dir=data_dir, granularity=granularity), raw_event_paths):
                     pbar.update()
 
     @staticmethod
