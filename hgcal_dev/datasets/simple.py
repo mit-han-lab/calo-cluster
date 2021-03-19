@@ -62,11 +62,13 @@ class SimpleDataModule(pl.LightningDataModule):
     def data_exists(self) -> bool:
         return len(set(self.data_dir.glob('*'))) != 0
 
-    def generate(self) -> None:
+    def generate(self, n_events=10000) -> None:
         logging.info(f'Generating data at {self.data_dir}.')
-        n_centers = 10
-        n_samples_per_event = 100
         n_events = 1000
+        rng = np.random.default_rng()
+        n_clusters = rng.poisson(20, n_events)
+        n_samples = rng.poisson(5, n_clusters*n_events)
+        
 
         pc, instances = datasets.make_blobs(n_features=3, centers=n_centers)
         features, classes = datasets.make_blobs(

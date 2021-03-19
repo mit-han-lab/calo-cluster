@@ -3,7 +3,7 @@ task: panoptic
 alpha: 10.0
 semantic:
   _target_: torch.nn.CrossEntropyLoss
-  ignore_index: 255
+  ignore_index: -1
 embed:
   _target_: hgcal_dev.training.criterion.triplet_margin_loss_factory
   triplets_per_anchor: 1000

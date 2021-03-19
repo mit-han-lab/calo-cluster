@@ -133,16 +133,16 @@ class CentroidInstanceLoss(nn.Module):
                 Ws[m] = W
                 mus[m] = mu
                 L_pull += (subbatch_weights[mask] * F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=1) - self.delta_v)**2).sum() / (M * Nm)
-            L_push = (F.relu((2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))).fill_diagonal_(0)**2).sum() / (M * (M - 1))
+            L_push = (F.relu(2 * self.delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2)).fill_diagonal_(0)**2).sum() / (M * (M - 1))
             loss += (L_pull + L_push) / B
         return loss
                 
 def main():
-    criterion = CentroidInstanceLoss()
-    outputs = torch.arange(8, dtype=float32).reshape((4, 2))
-    labels = torch.Tensor([0, 0, 1, 1])
-    breakpoint()
-    criterion(outputs, labels)
+    criterion = CentroidInstanceLoss(normalize=False)
+    outputs = torch.arange(10, dtype=float32).reshape((5, 2))
+    labels = torch.Tensor([2, 0, 2, 1, 2])
+    subbatch_indices = torch.Tensor([0, 0, 0, 0, 0])
+    print(criterion(outputs, labels, subbatch_indices))
 
 if __name__ == "__main__":
     main()

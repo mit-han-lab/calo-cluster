@@ -11,6 +11,6 @@ voxel_size: 10.0
 num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
 num_features: 5
-min_hits_per_cluster: 3
-min_cluster_energy: 6.0
+min_hits_per_cluster: 0
+min_cluster_energy: 0.5
 instance_label: truth

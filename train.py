@@ -1,3 +1,4 @@
+from hgcal_dev.utils.comm import is_rank_zero
 import logging
 import shutil
 from pathlib import Path
@@ -36,24 +37,27 @@ def train(cfg: DictConfig) -> None:
     # Set up wandb logging.
     logger = hydra.utils.instantiate(
         cfg.wandb, save_dir=cfg.outputs_dir, version=cfg.wandb.version, group=cfg.wandb.name)
-    shutil.copytree(Path.cwd() / '.hydra',
-                    Path(logger.experiment.dir) / '.hydra')
+    if is_rank_zero():
+        shutil.copytree(Path.cwd() / '.hydra',
+                        Path(logger.experiment.dir) / '.hydra')
     cfg.wandb.version = logger.version
 
-    config_path = Path(logger.experiment.dir) / '.hydra' / 'config.yaml'
-    with config_path.open('r+') as f:
-        data = yaml.load(f)
-        data['wandb']['version'] = cfg.wandb.version
-        f.seek(0)
-        yaml.dump(data, f)
+    if is_rank_zero():
+        config_path = Path(logger.experiment.dir) / '.hydra' / 'config.yaml'
+        with config_path.open('r+') as f:
+            data = yaml.load(f)
+            data['wandb']['version'] = cfg.wandb.version
+            f.seek(0)
+            yaml.dump(data, f)
 
     datamodule = hydra.utils.instantiate(cfg.dataset)
     model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
-                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks)
-    trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
+                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks, precision=16)
+    if is_rank_zero():
+        trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
 
 
@@ -61,8 +65,9 @@ def train(cfg: DictConfig) -> None:
 def hydra_main(cfg: DictConfig) -> None:
     # Set up python logging.
     logger = logging.getLogger()
-    logger.setLevel(cfg.log_level)
-    logging.info(OmegaConf.to_yaml(cfg))
+    if is_rank_zero():
+        logger.setLevel(cfg.log_level)
+        logging.info(OmegaConf.to_yaml(cfg))
     if 'slurm' in cfg.train:
         slurm_dir = Path.cwd() / 'slurm'
         slurm_dir.mkdir()

@@ -1,3 +1,4 @@
+from hgcal_dev.utils.comm import is_rank_zero
 import time
 from collections import OrderedDict
 from typing import Callable, List
@@ -86,7 +87,8 @@ class SPVCNN(pl.LightningModule):
     def __init__(self, cfg: OmegaConf):
         super().__init__()
         self.hparams = cfg
-        self.save_hyperparameters(cfg)
+        if is_rank_zero():
+            self.save_hyperparameters(cfg)
 
         self.clusterer = hydra.utils.instantiate(self.hparams.clusterer)
 
@@ -274,6 +276,7 @@ class SPVCNN(pl.LightningModule):
         targets = batch['labels'].F.long()
         outputs = self(inputs)
         subbatch_indices = batch['subbatch_indices']
+        sync_dist = (split != 'train')
 
         task = self.hparams.dataset.task
         if task == 'semantic':
@@ -288,7 +291,7 @@ class SPVCNN(pl.LightningModule):
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
         else:
             raise RuntimeError("invalid task!")
-        self.log(f'{split}_loss', loss)
+        self.log(f'{split}_loss', loss, sync_dist=sync_dist)
 
         return loss
 

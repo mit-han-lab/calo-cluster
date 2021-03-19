@@ -9,8 +9,8 @@ init_ckpt: null
 overfit: False
 log_level: INFO
 defaults:
-  - train: single_gpu
-  - dataset: hcal_truth
+  - train: distributed
+  - dataset: hcal_2
   - optimizer: adam
   - criterion: joint_centroid
   - scheduler: lambda_lr
