@@ -90,8 +90,6 @@ class SPVCNN(pl.LightningModule):
         if is_rank_zero():
             self.save_hyperparameters(cfg)
 
-        self.clusterer = hydra.utils.instantiate(self.hparams.clusterer)
-
         self.optimizer_factory = hydra.utils.instantiate(
             self.hparams.optimizer)
         self.scheduler_factory = hydra.utils.instantiate(
@@ -285,9 +283,9 @@ class SPVCNN(pl.LightningModule):
             loss = self.embed_criterion(outputs, targets, subbatch_indices)
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
-            self.log(f'{split}_class_loss', class_loss)
+            self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
             embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices)
-            self.log(f'{split}_embed_loss', embed_loss)
+            self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
         else:
             raise RuntimeError("invalid task!")

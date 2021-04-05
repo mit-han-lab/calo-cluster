@@ -1,16 +1,11 @@
 import logging
-import os
-import os.path as osp
-import random
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
-import requests
 import torch
-import uproot
-from sklearn import datasets
+from sklearn.datasets import make_blobs
 from torch.utils.data import DataLoader
 from .base import BaseDataset
 from tqdm import tqdm
@@ -20,7 +15,7 @@ from ..utils.comm import get_rank
 
 class SimpleDataset(BaseDataset):
     def __init__(self, voxel_size, events, task):
-        super().__init__(voxel_size, events, task, feats=['x', 'y', 'z', 'f1', 'f2'], coords=['x', 'y', 'z'])
+        super().__init__(voxel_size, events, task, feats=['x', 'y', 'z'], coords=['x', 'y', 'z'], instance_label='cluster')
 
 
 class SimpleDataModule(pl.LightningDataModule):
@@ -64,27 +59,14 @@ class SimpleDataModule(pl.LightningDataModule):
 
     def generate(self, n_events=10000) -> None:
         logging.info(f'Generating data at {self.data_dir}.')
-        n_events = 1000
         rng = np.random.default_rng()
-        n_clusters = rng.poisson(20, n_events)
-        n_samples = rng.poisson(5, n_clusters*n_events)
-        
-
-        pc, instances = datasets.make_blobs(n_features=3, centers=n_centers)
-        features, classes = datasets.make_blobs(
-            n_features=2, centers=2, n_samples=n_samples_per_event * n_events)
-        feats_split = np.array_split(features, 1000)
-        class_split = np.array_split(classes, 1000)
-
-        for i in range(n_events):
-            pc, instances = datasets.make_blobs(
-                n_features=3, centers=10, cluster_std=0.5)
-            df = pd.DataFrame(pc, columns=['x', 'y', 'z'])
-            df['instance'] = instances
-            df['f1'] = feats_split[i][:, 0]
-            df['f2'] = feats_split[i][:, 1]
-            df['class'] = class_split[i]
-            df.to_pickle(self.data_dir / f'event_{i}.pkl')
+        for i in tqdm(range(n_events)):
+            n_clusters = rng.poisson(20, 1)
+            n_samples = rng.poisson(5, n_clusters)
+            X, y = make_blobs(n_samples=n_samples, n_features=3, cluster_std=0.1)
+            event_path = data_dir / f'{i:05}.pkl'
+            df = pd.DataFrame({'x': X[:, 0], 'y': X[:, 1], 'z': X[:, 2], 'cluster': y})
+            df.to_pickle(event_path)
 
     def prepare_data(self) -> None:
         if not self.data_exists():

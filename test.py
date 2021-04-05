@@ -1,6 +1,6 @@
 import argparse
 
-from hgcal_dev.utils.experiment import Experiment
+from hgcal_dev.evaluation.experiments.base_experiment import BaseExperiment
 
 
 def main() -> None:
@@ -8,7 +8,7 @@ def main() -> None:
     parser.add_argument('wandb_version')
     parser.add_argument('--ckpt_name')
     args = parser.parse_args()
-    experiment = Experiment(args.wandb_version, args.ckpt_name)
+    experiment = BaseExperiment(args.wandb_version, args.ckpt_name)
     experiment.save_predictions()
 
 

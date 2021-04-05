@@ -1,29 +1,83 @@
 from pathlib import Path
 from typing import Union
 
+import cycler
 import hydra
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import plotly
+import plotly.express as px
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
 import torch
 import wandb
-from hgcal_dev.visualization.hcal import HCalEvent
-from hgcal_dev.visualization.hgcal import HGCalEvent
-from hgcal_dev.visualization.vertex import VertexEvent
+from hgcal_dev.clustering.meanshift import MeanShift
+from hgcal_dev.metrics.instance import PanopticQuality
+from hgcal_dev.models.spvcnn import SPVCNN
 from omegaconf import OmegaConf
+from plotly.subplots import make_subplots
+from sklearn.metrics import auc, confusion_matrix, roc_curve
 from tqdm import tqdm
 
-from ..models.spvcnn import SPVCNN
+
+class BaseEvent():
+    """Aggregates the input/output/clustering for a single event."""
+
+    def __init__(self, input_path, class_label: str = None, instance_label: str = None, pred_path=None, task='panoptic', clusterer=MeanShift(), num_classes=2):
+        self.input_path = input_path
+        self.pred_path = pred_path
+        self.task = task
+        self.class_label = class_label
+        self.instance_label = instance_label
+        self._pred_instance_labels = None
+        self.num_classes = num_classes
+        self.clusterer = clusterer
+        self._load()
+
+    def _load(self):
+        input_event = pd.read_pickle(self.input_path)
+        event_prediction = np.load(self.pred_path)
+        if self.task == 'panoptic':
+            self.embedding = event_prediction['embedding']
+            self.pred_class_labels = event_prediction['labels']
+        elif self.task == 'instance':
+            self.embedding = event_prediction['embedding']
+        elif self.task == 'semantic':
+            self.pred_class_labels = event_prediction['labels']
+        self.input_event = input_event
+
+    @property
+    def pred_instance_labels(self):
+        if self._pred_instance_labels is None:
+            self._pred_instance_labels = self.clusterer.cluster(self.embedding)
+        return self._pred_instance_labels
+
+    def pq(self):
+        assert self.task == 'panoptic' or self.task == 'instance'
+        if self.task == 'panoptic':
+            pq_metric = PanopticQuality(num_classes=self.num_classes)
+
+            outputs = (self.pred_class_labels, self.pred_instance_labels)
+            targets = (self.input_event[self.class_label].values,
+                       self.input_event[self.instance_label].values)
+        elif self.task == 'instance':
+            pq_metric = PanopticQuality(semantic=False)
+
+            outputs = self.pred_instance_labels
+            targets = self.input_event[self.instance_label].values
+        pq_metric.add(outputs, targets)
+
+        return pq_metric.compute()
 
 
-class Experiment():
+class BaseExperiment():
     def __init__(self, wandb_version, ckpt_name=None):
+        self.wandb_version = wandb_version
         run_path = self.get_run_path(wandb_version)
         self.run_path = run_path
         cfg_path = run_path / 'files' / '.hydra' / 'config.yaml'
         self.cfg = OmegaConf.load(cfg_path)
-
-        self.run_prediction_dir = Path(
-            self.cfg.predictions_dir) / self.cfg.wandb.version
-        self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
 
         ckpt_dir = Path(self.cfg.outputs_dir) / self.cfg.wandb.project / \
             self.cfg.wandb.version / 'checkpoints'
@@ -34,6 +88,9 @@ class Experiment():
             ckpt_path = ckpt_dir / ckpt_name
             if not ckpt_path.exists():
                 raise RuntimeError(f'No checkpoint found at {ckpt_path}!')
+
+        self.run_prediction_dir = Path(self.cfg.predictions_dir) / self.cfg.wandb.version / ckpt_path.stem
+        self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
         self.model = SPVCNN.load_from_checkpoint(str(ckpt_path))
 
         self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
@@ -100,16 +157,9 @@ class Experiment():
             pred_dir = self.run_prediction_dir / split
             event_name = input_path.stem
             pred_path = pred_dir / f'{event_name}.npz'
-            if self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal.HCalDataModule':
-                events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
-            elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hgcal.HGCalDataModule':
-                events.append(HGCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
-            elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.vertex.VertexDataModule':
-                events.append(VertexEvent(input_path, pred_path, task=self.cfg.criterion.task))
-            elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal_truth.HCalTruthDataModule':
-                events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
-            elif self.cfg.dataset._target_ == 'hgcal_dev.datasets.hcal_2.HCal2DataModule':
-                events.append(HCalEvent(input_path, pred_path, task=self.cfg.criterion.task))
-            else:
-                raise NotImplementedError()
+            events.append(self.make_event(
+                input_path, pred_path, task=self.cfg.criterion.task))
         return events
+
+    def make_event(input_path, pred_path, task):
+        raise NotImplementedError()

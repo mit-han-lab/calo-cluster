@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.express as px
 from hgcal_dev.clustering.meanshift import MeanShift
 from hgcal_dev.metrics.instance import PanopticQuality
-from hgcal_dev.utils.experiment import Experiment
+from hgcal_dev.evaluation.experiment import Experiment
 from PyPDF2 import PdfFileMerger
 from scipy.optimize import basinhopping
 from tqdm import tqdm

@@ -32,6 +32,8 @@ def mIoU(labels, pred_labels):
 class PanopticQuality:
 
     def __init__(self, *, num_classes, ignore_index=None, semantic=True):
+        if not semantic:
+            num_classes = 1
         self.num_classes = num_classes
         self.ignore_index = ignore_index
         self.semantic = semantic
