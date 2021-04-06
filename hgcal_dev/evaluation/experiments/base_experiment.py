@@ -88,8 +88,8 @@ class BaseExperiment():
             ckpt_path = ckpt_dir / ckpt_name
             if not ckpt_path.exists():
                 raise RuntimeError(f'No checkpoint found at {ckpt_path}!')
-
-        self.run_prediction_dir = Path(self.cfg.predictions_dir) / self.cfg.wandb.version / ckpt_path.stem
+        self.ckpt_name = ckpt_path.stem
+        self.run_prediction_dir = Path(self.cfg.predictions_dir) / self.cfg.wandb.version / self.ckpt_name
         self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
         self.model = SPVCNN.load_from_checkpoint(str(ckpt_path))
 

@@ -31,7 +31,7 @@ def mIoU(labels, pred_labels):
 
 class PanopticQuality:
 
-    def __init__(self, *, num_classes, ignore_index=None, semantic=True):
+    def __init__(self, *, num_classes=1, ignore_index=None, semantic=True):
         if not semantic:
             num_classes = 1
         self.num_classes = num_classes
@@ -118,7 +118,7 @@ class PanopticQuality:
             self.tps[k] += np.sum(indices)
             self.wtps[k] += np.sum(intersections[indices])
             self.ious[k] += np.sum(ious[indices])
-            self.wious[k] += np.sum(intersections[indices] * ious[indices]) * self.wtps[k] / (self.wtps[k] + np.sum(intersections[indices]))
+            self.wious[k] += np.sum(intersections[indices] * ious[indices]) * self.wtps[k] / np.maximum(self.wtps[k] + np.sum(intersections[indices]), 1e-15)
 
             xmatched[[xmapping[k] for k in xyxinstances[indices]]] = True
             ymatched[[ymapping[k] for k in xyyinstances[indices]]] = True
