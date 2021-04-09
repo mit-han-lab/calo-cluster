@@ -1,0 +1,3 @@
+[submodule "hgcal_dev/evaluation/glasbey"]
+	path = hgcal_dev/evaluation/glasbey
+	url = https://github.com/taketwo/glasbey
