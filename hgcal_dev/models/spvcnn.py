@@ -1,4 +1,3 @@
-from hgcal_dev.utils.comm import is_rank_zero
 import time
 from collections import OrderedDict
 from typing import Callable, List
@@ -10,13 +9,13 @@ import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
 import torchsparse.nn.functional as spf
+from hgcal_dev.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
 from torchsparse.point_tensor import PointTensor
 from torchsparse.sparse_tensor import SparseTensor
 from torchsparse.utils.helpers import *
 from torchsparse.utils.kernel_region import *
 
-from ..metrics.instance import mIoU
 from .utils import *
 
 __all__ = ['SPVCNN']

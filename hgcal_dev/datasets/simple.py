@@ -63,9 +63,10 @@ class SimpleDataModule(pl.LightningDataModule):
         for i in tqdm(range(n_events)):
             n_clusters = rng.poisson(20, 1)
             n_samples = rng.poisson(5, n_clusters)
-            X, y = make_blobs(n_samples=n_samples, n_features=3, cluster_std=0.1)
-            event_path = data_dir / f'{i:05}.pkl'
-            df = pd.DataFrame({'x': X[:, 0], 'y': X[:, 1], 'z': X[:, 2], 'cluster': y})
+            X, y = make_blobs(n_samples=n_samples, n_features=3, cluster_std=0.3)
+            event_path = self.data_dir / f'{i:05}.pkl'
+            energy = rng.exponential(size=n_samples)
+            df = pd.DataFrame({'x': X[:, 0], 'y': X[:, 1], 'z': X[:, 2], 'energy': energy, 'cluster': y})
             df.to_pickle(event_path)
 
     def prepare_data(self) -> None:

@@ -70,18 +70,15 @@ class PanopticQuality:
             xyweights = weights[xymask]
             xylabels = xik[xymask] + (2 ** 32) * yik[xymask]
             xyinstances = np.unique(xylabels)
-            intersections = (np.broadcast_to(
-                xyweights, (len(xyinstances), len(xyweights))) * (xylabels == xyinstances[..., None]).astype(int)).sum(axis=1)
+            intersections = (xyweights * (xylabels == xyinstances[..., None]).astype(int)).sum(axis=1)
             xyxinstances, xyyinstances = xyinstances % (
                 2 ** 32), xyinstances // (2 ** 32)
 
             xyxmask = xlabels == xyxinstances[..., None]
-            xyxareas = (np.broadcast_to(
-                xweights, (len(xyxinstances), len(xweights))) * xyxmask).sum(axis=1)
+            xyxareas = (xweights * xyxmask.astype(int)).sum(axis=1)
 
             xyymask = ylabels == xyyinstances[..., None]
-            xyyareas = (np.broadcast_to(
-                yweights, (len(xyyinstances), len(yweights))) * xyymask).sum(axis=1)
+            xyyareas = (yweights * xyymask.astype(int)).sum(axis=1)
 
             unions = xyxareas + xyyareas - intersections
             ious = intersections / unions

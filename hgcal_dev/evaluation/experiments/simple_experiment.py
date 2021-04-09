@@ -3,7 +3,7 @@ from hgcal_dev.clustering.meanshift import MeanShift
 
 class SimpleEvent(BaseEvent):
     def __init__(self, input_path, pred_path=None):
-        super().__init__(input_path, pred_path=pred_path, instance_label='cluster', task='instance', clusterer=MeanShift(bandwidth=0.01))
+        super().__init__(input_path, pred_path=pred_path, instance_label='cluster', task='instance', clusterer=MeanShift(bandwidth=0.01), weight_name='energy')
 
 class SimpleExperiment(BaseExperiment):
     def __init__(self, wandb_version, ckpt_name=None):

@@ -1,5 +1,6 @@
-outputs_dir: /home/alexj/outputs
+outputs_dir: /home/alexj/training_outputs
 predictions_dir: /home/alexj/predictions
+plots_dir: /home/alexj/plots
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -16,5 +17,5 @@ defaults:
   - scheduler: lambda_lr
   - model: spvcnn
   - wandb: upload
-  - checkpoint: all
+  - checkpoint: top_1
   - swa: inactive

@@ -2,6 +2,7 @@ name: hgcal_dev
 channels:
   - metric-learning
   - pytorch
+  - plotly
   - conda-forge
   - defaults
 dependencies:
@@ -23,9 +24,9 @@ dependencies:
   - blinker=1.4=py_1
   - brotlipy=0.7.0=py38h8df0ef7_1001
   - c-ares=1.16.1=h516909a_3
-  - ca-certificates=2020.11.8=ha878542_0
+  - ca-certificates=2021.1.19=h06a4308_1
   - cachetools=4.1.1=py_0
-  - certifi=2020.6.20=py38h924ce5b_2
+  - certifi=2020.12.5=py38h578d9bd_1
   - cffi=1.14.3=py38he30daa8_0
   - chardet=3.0.4=py38h924ce5b_1008
   - click=7.1.2=pyh9f0ad1d_0
@@ -33,6 +34,7 @@ dependencies:
   - configparser=5.0.1=py_0
   - cryptography=3.2.1=py38h7699a38_0
   - cudatoolkit=11.0.221=h6bb024c_0
+  - cycler=0.10.0=py_2
   - dbus=1.13.18=hb2f20db_0
   - decorator=4.4.2=py_0
   - defusedxml=0.6.0=py_0
@@ -78,6 +80,7 @@ dependencies:
   - jupyter_console=6.2.0=py_0
   - jupyter_core=4.6.3=py38_0
   - jupyterlab_pygments=0.1.2=py_0
+  - kiwisolver=1.3.1=py38h82cb98a_0
   - krb5=1.17.1=hfafb76e_3
   - lazy-object-proxy=1.4.3=py38h7b6447c_0
   - lcms2=2.11=h396b838_0
@@ -103,6 +106,8 @@ dependencies:
   - lz4-c=1.9.2=heb0550a_3
   - markdown=3.3.3=pyh9f0ad1d_0
   - markupsafe=1.1.1=py38h7b6447c_0
+  - matplotlib=3.3.2=h06a4308_0
+  - matplotlib-base=3.3.2=py38h817c723_0
   - mccabe=0.6.1=py38_1
   - mistune=0.8.4=py38h7b6447c_1000
   - mkl=2020.2=256
@@ -123,7 +128,7 @@ dependencies:
   - oauthlib=3.0.1=py_0
   - olefile=0.46=py_0
   - omegaconf=2.0.3=py38h32f6830_0
-  - openssl=1.1.1h=h516909a_0
+  - openssl=1.1.1j=h27cfd23_0
   - packaging=20.4=py_0
   - pandas=1.1.3=py38he6710b0_0
   - pandoc=2.11=hb0f4dca_0
@@ -152,15 +157,17 @@ dependencies:
   - pylint=2.6.0=py38_0
   - pyopenssl=19.1.0=py_1
   - pyparsing=2.4.7=py_0
+  - pypdf2=1.26.0=py_2
   - pyqt=5.9.2=py38h05f1152_4
   - pyrsistent=0.17.3=py38h7b6447c_0
   - pysocks=1.7.1=py38h924ce5b_2
   - python=3.8.5=h7579374_1
   - python-dateutil=2.8.1=py_0
+  - python-kaleido=0.0.3=py38_0
   - python-xxhash=2.0.0=py38h1e0a361_1
   - python_abi=3.8=1_cp38
   - pytorch=1.7.0=py3.8_cuda11.0.221_cudnn8.0.3_0
-  - pytorch-lightning=1.0.5=pyhd8ed1ab_0
+  - pytorch-lightning=1.2.1=pyhd8ed1ab_0
   - pytorch-metric-learning=0.9.94=pyh39e3cac_0
   - pytz=2020.1=py_0
   - pyyaml=5.3.1=py38h8df0ef7_1
@@ -175,6 +182,7 @@ dependencies:
   - rsa=4.6=pyh9f0ad1d_0
   - scikit-learn=0.23.2=py38h0573a6f_0
   - scipy=1.5.2=py38h0b6359f_0
+  - seaborn=0.11.1=pyhd3eb1b0_0
   - send2trash=1.5.0=py38_0
   - sentry-sdk=0.19.1=pyh9f0ad1d_0
   - setuptools=50.3.1=py38h06a4308_1
@@ -202,7 +210,6 @@ dependencies:
   - uproot-base=3.13.0=py38h578d9bd_0
   - uproot-methods=0.8.0=pyhd8ed1ab_0
   - urllib3=1.25.11=py_0
-  - wandb=0.10.8=pyh9f0ad1d_0
   - watchdog=0.10.3=py38h32f6830_2
   - wcwidth=0.2.5=py_0
   - webencodings=0.5.1=py38_1
@@ -221,5 +228,8 @@ dependencies:
   - zstandard=0.14.0=py38h950e882_3
   - zstd=1.4.5=h9ceee32_0
   - pip:
+    - colorspacious==1.1.2
+    - subprocess32==3.5.4
     - torchsparse==1.1.0
-prefix: /global/homes/s/schuya/miniconda3/envs/hgcal_dev
+    - wandb==0.10.14
+prefix: /home/alexj/miniconda3/envs/hgcal_dev
