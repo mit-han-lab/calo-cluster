@@ -1,5 +1,6 @@
 # @package _group_
 _target_: hgcal_dev.datasets.hgcal.HGCalDataModule
+seed: ${seed}
 num_classes: 4
 task: ${criterion.task}
 data_dir: /home/alexj/data/hgcal-dev/hgcal
