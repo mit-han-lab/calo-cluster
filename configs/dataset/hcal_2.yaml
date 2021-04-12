@@ -6,7 +6,7 @@ data_dir: /home/alexj/data/hgcal-dev/hcal_2
 event_frac: 1.0
 train_frac: 0.8
 test_frac: 0.1
-num_workers: 8
+num_workers: 32
 voxel_size: 10.0
 num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}

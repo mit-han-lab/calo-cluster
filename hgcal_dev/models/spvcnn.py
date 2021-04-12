@@ -273,32 +273,55 @@ class SPVCNN(pl.LightningModule):
         targets = batch['labels'].F.long()
         outputs = self(inputs)
         subbatch_indices = batch['subbatch_indices']
+        if 'weights' in batch:
+            weights = batch['weights']
+        else:
+            weights = None
         sync_dist = (split != 'train')
 
         task = self.hparams.dataset.task
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
+            ret = {'loss': loss}
         elif task == 'instance':
-            loss = self.embed_criterion(outputs, targets, subbatch_indices)
+            loss = self.embed_criterion(outputs, targets, subbatch_indices, weights.F)
+            ret = {'loss': loss}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-            embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices)
+            embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights.F)
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
+            ret = {'loss': loss, 'class_loss': class_loss, 'embed_loss': embed_loss}
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss, sync_dist=sync_dist)
 
-        return loss
+        return ret
 
     def training_step(self, batch, batch_idx):
-        loss = self.step(batch, batch_idx, split='train')
-        return loss
+        return self.step(batch, batch_idx, split='train')
 
     def validation_step(self, batch, batch_idx):
-        loss = self.step(batch, batch_idx, split='val')
-        return loss
+        return self.step(batch, batch_idx, split='val')
 
     def test_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, split='test')
+
+    def validation_epoch_end(self, outputs: List) -> None:
+        n = len(outputs)
+        if self.hparams.dataset.task == 'panoptic':
+            loss, class_loss, embed_loss = 0.0, 0.0, 0.0
+            for o in outputs:
+                loss += o['loss'] / n
+                class_loss += o['class_loss'] / n
+                embed_loss += o['embed_loss'] / n
+            self.log(f'val_class_loss_epoch', class_loss, sync_dist=True)
+            self.log(f'val_embed_loss_epoch', embed_loss, sync_dist=True)
+        else:
+            loss = 0.0
+            for o in outputs:
+                loss += o['loss'] / n
+        self.log(f'val_loss_epoch', loss, sync_dist=True)
+        
+        return super().validation_epoch_end(outputs)

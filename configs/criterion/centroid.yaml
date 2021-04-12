@@ -5,3 +5,4 @@ embed:
   delta_v: 0.5
   delta_d: 1.5
   normalize: True
+  use_weights: False

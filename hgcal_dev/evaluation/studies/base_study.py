@@ -50,8 +50,8 @@ class BaseStudy:
         bw_image_path = self.out_dir / 'bandwidth.pdf'
         bw_fig.write_image(str(bw_image_path), scale=10)
 
-    def qualitative_cluster_study(self, n=5, clusterer=None):
-        out_dir = self.out_dir / 'scatter'
+    def qualitative_cluster_study(self, n=5, clusterer=None, out_dir='scatter'):
+        out_dir = self.out_dir / out_dir
         out_dir.mkdir(exist_ok=True)
 
         for split in ('train', 'val'):

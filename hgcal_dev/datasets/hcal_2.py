@@ -32,7 +32,7 @@ class Hcal2Dataset(BaseDataset):
         else:
             raise RuntimeError()
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label='hit', instance_label=instance_label)
+                         class_label='hit', instance_label=instance_label, weight='energy')
 
     def _get_pc_feat_labels(self, index):
         event = pd.read_pickle(self.events[index])
@@ -52,7 +52,11 @@ class Hcal2Dataset(BaseDataset):
         pc_ -= pc_.min(0, keepdims=1)
 
         feat_ = block.to_numpy()
-        return pc_, feat_, labels_
+        if self.weight is not None:
+            weights_ = event[self.weight].to_numpy()
+        else:
+            weights_ = None
+        return pc_, feat_, labels_, weights_
 
 
 class HCal2DataModule(pl.LightningDataModule):

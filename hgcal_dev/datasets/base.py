@@ -1,11 +1,24 @@
+import logging
+import multiprocessing as mp
+from dataclasses import dataclass
+from functools import partial
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from torch.utils.data.dataset import Dataset
-from torchsparse.utils import sparse_quantize
+import pytorch_lightning as pl
+import torch
+import uproot
 from hgcal_dev.utils.sparse_collate import sparse_collate_fn
+from sklearn.utils import shuffle
+from torch.utils.data import DataLoader
+from torch.utils.data.dataset import Dataset
 from torchsparse import SparseTensor
+from torchsparse.utils import sparse_quantize
+from tqdm import tqdm
 
-from dataclasses import dataclass
+from ..utils.comm import get_rank
+
 
 @dataclass
 class BaseDataset(Dataset):
@@ -15,6 +28,7 @@ class BaseDataset(Dataset):
     task: str
     feats: list = None
     coords: list = None
+    weight: str = None
     class_label: str = 'class'
     instance_label: str = 'instance'
     ignore_label: int = -1
@@ -42,10 +56,15 @@ class BaseDataset(Dataset):
 
         if self.scale:
             feat_ = (feat_ - np.array(self.mean)) / np.array(self.std)
-        return pc_, feat_, labels_
+
+        if self.weight is not None:
+            weights_ = event[self.weight].to_numpy()
+        else:
+            weights_ = None
+        return pc_, feat_, labels_, weights_
 
     def __getitem__(self, index):
-        pc_, feat_, labels_ = self._get_pc_feat_labels(index)
+        pc_, feat_, labels_, weights_ = self._get_pc_feat_labels(index)
         inds, labels, inverse_map = sparse_quantize(pc_,
                                                     feat_,
                                                     labels_,
@@ -54,14 +73,22 @@ class BaseDataset(Dataset):
                                                     ignore_label=self.ignore_label)
         pc = pc_[inds]
         feat = feat_[inds]
+
         features = SparseTensor(feat, pc)
+
         labels = SparseTensor(labels, pc)
         labels_ = SparseTensor(labels_, pc_)
         inverse_map = SparseTensor(inverse_map, pc_)
-        return {'features': features, 'labels': labels, 'labels_mapped': labels_, 'inverse_map': inverse_map}
+        return_dict = {'features': features, 'labels': labels,
+                       'labels_mapped': labels_, 'inverse_map': inverse_map}
+        if weights_ is not None:
+            weights = weights_[inds]
+            weights = SparseTensor(weights, pc)
+            return_dict['weights'] = weights
+        return return_dict
 
     def get_inds_labels(self, index):
-        pc_, feat_, labels_ = self._get_pc_feat_labels(index)
+        pc_, feat_, labels_, _ = self._get_pc_feat_labels(index)
         inds, labels, inverse_map = sparse_quantize(pc_,
                                                     feat_,
                                                     labels_,

@@ -85,16 +85,17 @@ class NTXentLoss(nn.Module):
 
 
 class CentroidInstanceLoss(nn.Module):
-    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1, normalize: bool = True) -> None:
+    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, ignore_index: int = -1, normalize: bool = True, use_weights: bool = False) -> None:
         super().__init__()
         self.delta_v = delta_v
         self.delta_d = delta_d
         self.ignore_index = ignore_index
         self.normalize = normalize
+        self.use_weights = use_weights
 
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor, subbatch_indices: torch.Tensor, weights: torch.Tensor = None):
         # Add unity weights if none are provided.
-        if weights is None:
+        if weights is None or not self.use_weights:
             weights = torch.ones(labels.shape[0], dtype=float32, device=labels.device)
 
         # Ignore points with invalid labels.

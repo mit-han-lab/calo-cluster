@@ -86,7 +86,6 @@ class BaseExperiment():
         self.run_path = run_path
         cfg_path = run_path / 'files' / '.hydra' / 'config.yaml'
         self.cfg = OmegaConf.load(cfg_path)
-
         ckpt_dir = Path(self.cfg.outputs_dir) / self.cfg.wandb.project / \
             self.cfg.wandb.version / 'checkpoints'
         if ckpt_name is None:

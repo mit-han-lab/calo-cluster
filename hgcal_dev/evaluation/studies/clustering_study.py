@@ -8,40 +8,7 @@ from hgcal_dev.evaluation.utils import get_palette
 from tqdm import tqdm
 import logging
 import time
-
-
-class IoUMatcher():
-    '''Match true and predicted clusters using IoU. Can optionally include weighting and use of semantic labels.'''
-
-    def __init__(self) -> None:
-        pass
-
-    def match(self, xi, yi, weights=None):
-        ''' xi: predicted cluster labels
-            yi: true cluster labels
-            weights: weight for each sample'''
-        if weights is None:
-            weights = np.ones_like(xi, dtype=np.float64)
-
-        xylabels = xi + (2 ** 32) * yi
-        xyinstances = np.unique(xylabels)
-
-        xymask = xylabels == xyinstances[..., None]
-        intersections = (weights * xymask.astype(int)).sum(axis=1)
-
-        xyxinstances, xyyinstances = xyinstances % (
-            2 ** 32), xyinstances // (2 ** 32)
-
-        xyxmask = xi == xyxinstances[..., None]
-        xyxareas = (weights * xyxmask.astype(int)).sum(axis=1)
-
-        xyymask = yi == xyyinstances[..., None]
-        xyyareas = (weights * xyymask.astype(int)).sum(axis=1)
-
-        unions = xyxareas + xyyareas - intersections
-        ious = intersections / unions
-        indices = ious > 0.5
-        return xyxinstances[indices], xyyinstances[indices], ious[indices]
+import hgcal_dev.evaluation.studies.functional as F
 
 
 class ClusteringStudy(BaseStudy):
@@ -51,45 +18,14 @@ class ClusteringStudy(BaseStudy):
         self.clusterer = clusterer
         super().__init__(experiment)
 
-    def resolution(self, nevents=100, nbins=10, range_x=(0, 2)):
-        for split in ('train', 'val'):
+    def resolution(self, nevents=100, nbins=10, range_x=(0, 2), splits=('train', 'val'), out_dir='.'):
+        out_dir = self.out_dir / out_dir
+        out_dir.mkdir(exist_ok=True, parents=True)
+        for split in splits:
             events = self.experiment.get_events(split=split, n=nevents)
-            resolutions = []
-            energies = []
-            n_unmatched = 0
-            for event in tqdm(events):
-                matcher = IoUMatcher()
-                xi = event.pred_instance_labels
-                yi = event.input_event[event.instance_label].values
-                if event.weight_name:
-                    weights = event.input_event[event.weight_name].values
-                else:
-                    weights = None
-                matched_pred, matched_truth, _ = matcher.match(
-                    xi, yi, weights=weights)
-                all_truth = np.unique(yi)
-                yim_mask = yi == matched_truth[..., None]
-                matched_truth_energies = (weights * yim_mask.astype(int)).sum(axis=1)
-
-                xim_mask = xi == matched_pred[..., None]
-                matched_pred_energies = (weights * xim_mask.astype(int)).sum(axis=1)
-                resolution = matched_pred_energies / matched_truth_energies
-                resolutions.append(resolution)
-                energies.append(matched_truth_energies)
-
-                unmatched_truth = np.setdiff1d(all_truth, matched_truth, assume_unique=True)
-                yim_mask = yi == unmatched_truth[..., None]
-                unmatched_truth_energies = (weights * yim_mask.astype(int)).sum(axis=1)
-
-                n_unmatched = len(all_truth) - len(matched_truth)
-                resolutions.append(np.zeros(n_unmatched))
-                energies.append(unmatched_truth_energies)
-            resolution = np.concatenate(resolutions)
-            energy = np.concatenate(energies)
-
-            plot_df = pd.DataFrame({'energy resolution': resolution, 'energy': energy})
+            plot_df = F.resolution(events)
             fig = px.histogram(plot_df, x='energy resolution')
-            out_path = self.out_dir / f'{split}_energy_resolution_histogram.png'
+            out_path = out_dir / f'{split}_energy_resolution_histogram.png'
             fig.write_image(str(out_path), scale=10)
 
             _, bin_edges = np.histogram(plot_df['energy'], bins=nbins)
@@ -112,7 +48,6 @@ class ClusteringStudy(BaseStudy):
         return results
 
     def _qualitative_plot(self, out_dir, split, i, event):
-        matcher = IoUMatcher()
         xi = event.pred_instance_labels
         yi = event.input_event[event.instance_label].values
         if event.weight_name:
@@ -121,7 +56,7 @@ class ClusteringStudy(BaseStudy):
         else:
             size = None
             weights = None
-        pred_clusters, truth_clusters, _ = matcher.match(
+        pred_clusters, truth_clusters, _ = F.iou_match(
             xi, yi, weights=weights)
         pred_clusters = pred_clusters.astype(str)
         truth_clusters = truth_clusters.astype(str)
