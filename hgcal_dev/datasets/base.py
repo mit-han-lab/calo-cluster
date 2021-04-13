@@ -100,3 +100,138 @@ class BaseDataset(Dataset):
     @staticmethod
     def collate_fn(inputs):
         return sparse_collate_fn(inputs)
+
+
+@dataclass
+class BaseDataModule(pl.LightningDataModule):
+    """The base pytorch-lightning data module that handles common data loading tasks.
+
+    If you set self.transformed_data_dir != self.raw_data_dir in a subclass, and self._transformed_data_dir is empty
+    or does not exist, then the function returned by self.get_transform_function will be applied to each raw event
+    and the result will be saved to self.transformed_data_dir when prepare_data is called. 
+
+    This allows subclasses to define arbitrary transformations that should be performed before serving data,
+    e.g., merging, applying selections, reducing noise levels, etc.
+    
+    When creating a base class, make sure to override make_dataset appropriately."""
+
+    num_features: int
+    batch_size: int
+    num_epochs: int
+    num_workers: int
+    voxel_size: float
+    data_dir: str
+    raw_data_dir: str
+    seed: int
+    event_frac: float
+    train_frac: float
+    test_frac: float
+    task: str
+    num_classes: int
+
+    def __post_init__(self):
+        super().__init__()
+
+        self._validate_fracs()
+
+        self.data_dir = Path(self.data_dir)
+        self.raw_data_dir = Path(self.raw_data_dir)
+        self.raw_data_dir.mkdir(parents=True, exist_ok=True)
+        self.transformed_data_dir = self.raw_data_dir
+
+        self._events = None
+        self._raw_events = None
+
+    @property
+    def events(self) -> list:
+        if self._events is None:
+            self._events = []
+            self._events.extend(
+                sorted(self.transformed_data_dir.glob('*.pkl')))
+        return self._events
+
+    @property
+    def raw_events(self) -> list:
+        if self._raw_events is None:
+            self._raw_events = []
+            self._raw_events.extend(sorted(self.raw_data_dir.glob('*.pkl')))
+        return self._raw_events
+
+    def _validate_fracs(self):
+        fracs = [self.event_frac, self.train_frac, self.test_frac]
+        assert all(0.0 <= f <= 1.0 for f in fracs)
+        assert self.train_frac + self.test_frac <= 1.0
+
+    def train_val_test_split(self, events):
+        events = shuffle(events, random_state=42)
+        num_events = int(self.event_frac * len(events))
+        events = events[:num_events]
+        num_train_events = int(self.train_frac * num_events)
+        num_test_events = int(self.test_frac * num_events)
+
+        train_events = events[:num_train_events]
+        val_events = events[num_train_events:-num_test_events]
+        test_events = events[-num_test_events:]
+
+        return train_events, val_events, test_events
+
+    def make_transformed_data(self, ncpus=32):
+        transform = self.get_transform_function()
+        logging.info(f'Making transformed data at {self.transformed_data_dir}')
+        with mp.Pool(ncpus) as p:
+            with tqdm(total=len(self.raw_events)) as pbar:
+                for _ in p.imap_unordered(transform, self.raw_events):
+                    pbar.update()
+
+    def raw_data_exists(self) -> bool:
+        return len(set(self.raw_data_dir.glob('*'))) != 0
+
+    def transformed_data_exists(self) -> bool:
+        return len(set(self.transformed_data_dir.glob('*'))) != 0
+
+    def prepare_data(self) -> None:
+        if not self.transformed_data_exists():
+            logging.info(
+                f'transformed dataset not found at {self.transformed_data_dir}.')
+            if not self.raw_data_exists():
+                logging.error(f'Raw dataset not found at {self.raw_data_dir}.')
+                raise RuntimeError()
+            self.make_transformed_data()
+
+    def setup(self, stage=None) -> None:
+        train_events, val_events, test_events = self.train_val_test_split(
+            self.events)
+
+        logging.debug(f'setting seed={self.seed}')
+        pl.seed_everything(self.seed)
+
+        if stage == 'fit' or stage is None:
+            self.train_dataset = self.make_dataset(train_events)
+            self.val_dataset = self.make_dataset(val_events)
+        if stage == 'test' or stage is None:
+            self.test_dataset = self.make_dataset(test_events)
+
+    def dataloader(self, dataset: BaseDataset) -> DataLoader:
+        return DataLoader(
+            dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=True,
+            collate_fn=dataset.collate_fn,
+            worker_init_fn=lambda worker_id: np.random.seed(self.seed + worker_id))
+
+    def train_dataloader(self) -> DataLoader:
+        return self.dataloader(self.train_dataset)
+
+    def val_dataloader(self) -> DataLoader:
+        return self.dataloader(self.val_dataset)
+
+    def test_dataloader(self) -> DataLoader:
+        return self.dataloader(self.test_dataset)
+
+    def get_transform_function(self):
+        """In subclasses, should return a function that accepts an event path as its sole argument."""
+        raise NotImplementedError()
+
+    def make_dataset(self, events) -> BaseDataset:
+        raise NotImplementedError()
