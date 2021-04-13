@@ -1,3 +1,4 @@
+import math
 from pathlib import Path
 from typing import Union
 
@@ -12,6 +13,7 @@ import plotly.figure_factory as ff
 import plotly.graph_objects as go
 import torch
 import wandb
+import yaml
 from hgcal_dev.clustering.meanshift import MeanShift
 from hgcal_dev.evaluation.metrics.instance import PanopticQuality
 from hgcal_dev.models.spvcnn import SPVCNN
@@ -19,12 +21,12 @@ from omegaconf import OmegaConf
 from plotly.subplots import make_subplots
 from sklearn.metrics import auc, confusion_matrix, roc_curve
 from tqdm import tqdm
-import yaml
+
 
 class BaseEvent():
     """Aggregates the input/output/clustering for a single event."""
 
-    def __init__(self, input_path, class_label: str = None, instance_label: str = None, pred_path: Path = None, task : str = 'panoptic', clusterer=MeanShift(), num_classes: int = 2, weight_name: str = None):
+    def __init__(self, input_path, class_label: str = None, instance_label: str = None, pred_path: Path = None, task: str = 'panoptic', clusterer=MeanShift(), num_classes: int = 2, weight_name: str = None):
         self.input_path = input_path
         self.pred_path = pred_path
         self.task = task
@@ -98,7 +100,8 @@ class BaseExperiment():
             if not ckpt_path.exists():
                 raise RuntimeError(f'No checkpoint found at {ckpt_path}!')
         self.ckpt_name = ckpt_path.stem
-        self.run_prediction_dir = Path(self.cfg.predictions_dir) / self.cfg.wandb.version / self.ckpt_name
+        self.run_prediction_dir = Path(
+            self.cfg.predictions_dir) / self.cfg.wandb.version / self.ckpt_name
         self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
         self.model = SPVCNN.load_from_checkpoint(str(ckpt_path))
 
@@ -108,7 +111,8 @@ class BaseExperiment():
         self.datamodule.setup(stage=None)
 
     def get_run_path(self, wandb_version):
-        config_path = Path(__file__).parent.parent.parent.parent / 'configs' / 'config.yaml'
+        config_path = Path(__file__).parent.parent.parent.parent / \
+            'configs' / 'config.yaml'
         with config_path.open('r') as f:
             config = yaml.load(f)
             outputs_dir = Path(config['outputs_dir'])
@@ -122,35 +126,45 @@ class BaseExperiment():
     def save_predictions(self):
         model = self.model
         datamodule = self.datamodule
-        datamodule.num_workers = 0
+        datamodule.num_workers = 32
         model.cuda(0)
         model.eval()
-        datamodule.batch_size = 1
+        datamodule.batch_size = 512
         datamodule.prepare_data()
         datamodule.setup(stage=None)
         for split, dataloader in zip(('test', 'val', 'train'), (datamodule.test_dataloader(), datamodule.val_dataloader(), datamodule.train_dataloader())):
             output_dir = self.run_prediction_dir / split
             output_dir.mkdir(exist_ok=True, parents=True)
             with torch.no_grad():
-                for i, (batch, event_path) in tqdm(enumerate(zip(dataloader, dataloader.dataset.events))):
+                for i, batch in tqdm(enumerate(dataloader), total=math.ceil(len(dataloader.dataset.events) / datamodule.batch_size)):
                     features = batch['features'].to(model.device)
-                    inverse_map = batch['inverse_map'].F.type(torch.int)
-                    event_name = event_path.stem
-                    output_path = output_dir / event_name
+                    inverse_map = batch['inverse_map'].F.type(torch.long)
+                    subbatch_idx = features.C[..., -1]
                     if self.cfg.criterion.task == 'instance':
-                        embedding = model(features).cpu().numpy()[inverse_map]
-                        np.savez_compressed(output_path, embedding=embedding)
+                        embedding = model(features)[inverse_map].cpu().numpy()
                     elif self.cfg.criterion.task == 'semantic':
-                        labels = torch.argmax(model(features), dim=1).cpu().numpy()[
-                            inverse_map]
-                        np.savez_compressed(output_path, labels=labels)
+                        labels = torch.argmax(model(features), dim=1)[
+                            inverse_map].cpu().numpy()
                     elif self.cfg.criterion.task == 'panoptic':
                         out_c, out_e = model(features)
-                        labels = torch.argmax(out_c, dim=1).cpu().numpy()[
-                            inverse_map]
-                        embedding = out_e.cpu().numpy()[inverse_map]
-                        np.savez_compressed(
-                            output_path, labels=labels, embedding=embedding)
+                        labels = torch.argmax(out_c, dim=1)[
+                            inverse_map].cpu().numpy()
+                        embedding = out_e[inverse_map].cpu().numpy()
+                    for j in torch.unique(subbatch_idx):
+                        event_path = dataloader.dataset.events[i *
+                                                               datamodule.batch_size + j]
+                        event_name = event_path.stem
+                        output_path = output_dir / event_name
+                        mask = (subbatch_idx == j)[inverse_map].cpu().numpy()
+                        if self.cfg.criterion.task == 'instance':
+                            np.savez_compressed(
+                                output_path, embedding=embedding[mask])
+                        elif self.cfg.criterion.task == 'semantic':
+                            np.savez_compressed(
+                                output_path, labels=labels[mask])
+                        elif self.cfg.criterion.task == 'panoptic':
+                            np.savez_compressed(
+                                output_path, labels=labels[mask], embedding=embedding[mask])
 
     def get_events(self, split, n=-1):
         pred_dir = self.run_prediction_dir / split
