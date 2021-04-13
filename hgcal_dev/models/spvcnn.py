@@ -272,7 +272,7 @@ class SPVCNN(pl.LightningModule):
         inputs = batch['features']
         targets = batch['labels'].F.long()
         outputs = self(inputs)
-        subbatch_indices = batch['subbatch_indices']
+        subbatch_indices = inputs[..., -1]
         if 'weights' in batch:
             weights = batch['weights']
         else:

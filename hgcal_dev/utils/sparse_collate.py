@@ -99,7 +99,6 @@ def sparse_collate_tensors(sparse_tensors):
 
 def sparse_collate_fn(batch):
     if isinstance(batch[0], dict):
-        batch_size = batch.__len__()
         ans_dict = {}
         for key in batch[0].keys():
             if isinstance(batch[0][key], SparseTensor):
@@ -117,10 +116,8 @@ def sparse_collate_fn(batch):
                     [sample[key] for sample in batch])
             else:
                 ans_dict[key] = [sample[key] for sample in batch]
-        ans_dict['subbatch_indices'] = torch.cat([torch.empty(len(list(b.values())[0].C)).fill_(i) for i,b in enumerate(batch)])
         return ans_dict
     else:
-        batch_size = batch.__len__()
         ans_dict = tuple()
         for i in range(len(batch[0])):
             key = batch[0][i]
