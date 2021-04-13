@@ -140,31 +140,94 @@ class BaseExperiment():
                     features = batch['features'].to(model.device)
                     inverse_map = batch['inverse_map'].F.type(torch.long)
                     subbatch_idx = features.C[..., -1]
+                    subbatch_im_idx = batch['inverse_map'].C[..., -1].to(model.device)
                     if self.cfg.criterion.task == 'instance':
-                        embedding = model(features)[inverse_map].cpu().numpy()
+                        embedding = model(features).cpu().numpy()
                     elif self.cfg.criterion.task == 'semantic':
-                        labels = torch.argmax(model(features), dim=1)[
-                            inverse_map].cpu().numpy()
+                        labels = torch.argmax(model(features), dim=1).cpu().numpy()
                     elif self.cfg.criterion.task == 'panoptic':
                         out_c, out_e = model(features)
-                        labels = torch.argmax(out_c, dim=1)[
-                            inverse_map].cpu().numpy()
-                        embedding = out_e[inverse_map].cpu().numpy()
+                        labels = torch.argmax(out_c, dim=1).cpu().numpy()
+                        embedding = out_e.cpu().numpy()
                     for j in torch.unique(subbatch_idx):
                         event_path = dataloader.dataset.events[i *
                                                                datamodule.batch_size + j]
                         event_name = event_path.stem
                         output_path = output_dir / event_name
-                        mask = (subbatch_idx == j)[inverse_map].cpu().numpy()
+                        mask = (subbatch_idx == j).cpu().numpy()
+                        im_mask = (subbatch_im_idx == j).cpu().numpy()
                         if self.cfg.criterion.task == 'instance':
                             np.savez_compressed(
-                                output_path, embedding=embedding[mask])
+                                output_path, embedding=embedding[mask][inverse_map[im_mask]])
                         elif self.cfg.criterion.task == 'semantic':
                             np.savez_compressed(
-                                output_path, labels=labels[mask])
+                                output_path, labels=labels[mask][inverse_map[im_mask]])
                         elif self.cfg.criterion.task == 'panoptic':
                             np.savez_compressed(
-                                output_path, labels=labels[mask], embedding=embedding[mask])
+                                output_path, labels=labels[mask][inverse_map[im_mask]], embedding=embedding[mask][inverse_map[im_mask]])
+
+    def loss(self, split):
+        task = self.cfg.dataset.task
+        assert task in ('instance', 'semantic', 'panoptic')
+        if task == 'instance':
+            embed_criterion = hydra.utils.instantiate(
+                self.cfg.criterion.embed)
+            ret = {'loss': 0.0}
+        elif task == 'panoptic':
+            semantic_criterion = hydra.utils.instantiate(
+                self.cfg.criterion.semantic)
+            embed_criterion = hydra.utils.instantiate(
+                self.cfg.criterion.embed)
+            ret = {'loss': 0.0, 'class_loss': 0.0, 'embed_loss': 0.0}
+        elif task == 'semantic':
+            semantic_criterion = hydra.utils.instantiate(
+                self.cfg.criterion.semantic)
+            ret = {'loss': 0.0}
+
+        model = self.model
+        datamodule = self.datamodule
+        datamodule.num_workers = 32
+        model.cuda(0)
+        model.eval()
+        datamodule.batch_size = 512
+        datamodule.prepare_data()
+        datamodule.setup(stage=None)
+
+        if split == 'train':
+            dataloader = datamodule.train_dataloader()
+        elif split == 'val':
+            dataloader = datamodule.val_dataloader()
+        elif split == 'test':
+            dataloader = datamodule.test_dataloader()
+        n_batches = math.ceil(
+            len(dataloader.dataset.events) / datamodule.batch_size)
+
+        with torch.no_grad():
+            for batch in tqdm(dataloader, total=n_batches):
+                features = batch['features'].to(model.device)
+                targets = batch['labels'].F.long().to(model.device)
+                outputs = model(features)
+                subbatch_indices = features.C[..., -1]
+                if 'weights' in batch:
+                    weights = batch['weights'].F.to(model.device)
+                else:
+                    weights = None
+                if task == 'semantic':
+                    loss = semantic_criterion(outputs, targets)
+                    ret['loss'] += loss / n_batches
+                elif task == 'instance':
+                    loss = embed_criterion(
+                        outputs, targets, subbatch_indices, weights)
+                    ret['loss'] += loss / n_batches
+                elif task == 'panoptic':
+                    class_loss = semantic_criterion(outputs[0], targets[:, 0])
+                    embed_loss = embed_criterion(
+                        outputs[1], targets[:, 1], subbatch_indices, weights)
+                    loss = class_loss + self.cfg.criterion.alpha * embed_loss
+                    ret['loss'] += loss / n_batches
+                    ret['class_loss'] += class_loss / n_batches
+                    ret['embed_loss'] += embed_loss / n_batches
+        return ret
 
     def get_events(self, split, n=-1):
         pred_dir = self.run_prediction_dir / split
