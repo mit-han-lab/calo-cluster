@@ -102,7 +102,7 @@ pyasn1==0.4.8
 pyasn1-modules==0.2.8
 pycodestyle==2.6.0
 pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
-Pygments==2.6.1
+Pygments==2.7.4
 pylint==2.6.0
 pyparsing==2.4.7
 pyrsistent==0.16.0
