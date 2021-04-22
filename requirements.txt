@@ -1,5 +1,5 @@
 absl-py==0.9.0
-aiohttp==3.6.2
+aiohttp==3.7.4
 antlr4-python3-runtime==4.8
 argon2-cffi @ file:///home/conda/feedstock_root/build_artifacts/argon2-cffi_1590329924553/work
 ase==3.19.2
