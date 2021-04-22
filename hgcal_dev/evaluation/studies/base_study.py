@@ -15,9 +15,7 @@ import yaml
 class BaseStudy:
     def __init__(self, experiment) -> None:
         self.experiment = experiment
-        plots_dir = Path(self.experiment.cfg.plots_dir)
-        self.out_dir = plots_dir / self.experiment.wandb_version / self.experiment.ckpt_name
-        self.out_dir.mkdir(exist_ok=True, parents=True)
+        self.out_dir = self.experiment.plots_dir
 
     def bandwidth_study(self, nevents=10, niter=200, x0=0.01, xl=0.001, xh=1.0, stepsize=0.5):
         events = self.experiment.get_events(split='train', n=nevents)
@@ -62,7 +60,7 @@ class BaseStudy:
 
     def _qualitative_plot(self, out_dir, split, i, event):
         plot_df = event.input_event
-        task = self.experiment.cfg.criterion.task
+        task = self.experiment.task
         if task == 'instance' or task == 'panoptic':
             plot_df['pred_instance_labels'] = event.pred_instance_labels
             plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(str)

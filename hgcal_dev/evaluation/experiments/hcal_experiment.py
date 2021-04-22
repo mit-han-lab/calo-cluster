@@ -9,7 +9,11 @@ class HCalEvent(BaseEvent):
 class HCalExperiment(BaseExperiment):
     def __init__(self, wandb_version, ckpt_name=None):
         super().__init__(wandb_version, ckpt_name=ckpt_name)
-        if self.cfg.dataset.instance_label == 'truth':
+        if self.multiple_models:
+            instance_label = self.cfg[1].dataset.instance_label
+        else:
+            instance_label = self.cfg.dataset.instance_label
+        if instance_label == 'truth':
             self.instance_label = 'trackId'
         else:
             self.instance_label = 'RHAntiKtCluster'

@@ -1,5 +1,6 @@
 # @package _group_
 task: panoptic
+required_data: ${criterion.task}
 alpha: 1.0
 semantic:
   _target_: torch.nn.CrossEntropyLoss

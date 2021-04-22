@@ -94,7 +94,7 @@ class SPVCNN(pl.LightningModule):
         self.scheduler_factory = hydra.utils.instantiate(
             self.hparams.scheduler)
 
-        task = self.hparams.dataset.task
+        task = self.hparams.criterion.task
         assert task in ('instance', 'semantic', 'panoptic')
         if task == 'instance' or task == 'panoptic':
             self.embed_criterion = hydra.utils.instantiate(
@@ -249,7 +249,7 @@ class SPVCNN(pl.LightningModule):
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.point_transforms[2](z2.F)
 
-        task = self.hparams.dataset.task
+        task = self.hparams.criterion.task
         if task == 'semantic':
             out = self.classifier(z3.F)
         elif task == 'instance':
@@ -272,19 +272,22 @@ class SPVCNN(pl.LightningModule):
         inputs = batch['features']
         targets = batch['labels'].F.long()
         outputs = self(inputs)
-        subbatch_indices = inputs[..., -1]
+        subbatch_indices = inputs.C[..., -1]
         if 'weights' in batch:
             weights = batch['weights']
         else:
             weights = None
         sync_dist = (split != 'train')
 
-        task = self.hparams.dataset.task
+        task = self.hparams.criterion.task
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
             ret = {'loss': loss}
         elif task == 'instance':
-            loss = self.embed_criterion(outputs, targets, subbatch_indices, weights.F)
+            if self.hparams.dataset.task == 'panoptic':
+                loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights.F, semantic_labels=targets[:, 0])
+            else:
+                loss = self.embed_criterion(outputs, targets, subbatch_indices, weights.F)
             ret = {'loss': loss}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
@@ -310,7 +313,7 @@ class SPVCNN(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: List) -> None:
         n = len(outputs)
-        if self.hparams.dataset.task == 'panoptic':
+        if self.hparams.criterion.task == 'panoptic':
             loss, class_loss, embed_loss = 0.0, 0.0, 0.0
             for o in outputs:
                 loss += o['loss'] / n

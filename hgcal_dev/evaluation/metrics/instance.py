@@ -81,7 +81,8 @@ class PanopticQuality:
             xyyareas = (yweights * xyymask.astype(int)).sum(axis=1)
 
             unions = xyxareas + xyyareas - intersections
-            ious = intersections / unions
+            ious = intersections / np.maximum(unions, 1e-15)
+            ious[intersections == unions] = 1.0
             indices = ious > 0.5
 
             self.tps[k] += np.sum(indices)

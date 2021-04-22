@@ -1,5 +1,6 @@
 # @package _group_
 task: instance
+required_data: ${criterion.task}
 embed:
   _target_: hgcal_dev.training.criterion.CentroidInstanceLoss
   delta_v: 0.5

@@ -11,10 +11,7 @@ from .base import BaseDataModule, BaseDataset
 
 
 class HCalDataset(BaseDataset):
-    def __init__(self, voxel_size, events, task, instance_label):
-        feats = ['x', 'y', 'z', 'time', 'energy']
-        coords = ['x', 'y', 'z']
-
+    def __init__(self, voxel_size, events, task, instance_label, feats, coords):
         if instance_label == 'truth':
             instance_label = 'trackId'
         elif instance_label == 'antikt':
@@ -55,6 +52,8 @@ class HCalDataModule(BaseDataModule):
     min_hits_per_cluster: int
     instance_label: str
     noise_id: int
+    feats: list
+    coords: list
 
     def __post_init__(self):
         super().__post_init__()
@@ -63,7 +62,7 @@ class HCalDataModule(BaseDataModule):
         self.transformed_data_dir.mkdir(parents=True, exist_ok=True)
 
     def make_dataset(self, events) -> BaseDataset:
-        return HCalDataset(self.voxel_size, events, self.task, self.instance_label)
+        return HCalDataset(self.voxel_size, events, self.task, self.instance_label, self.feats, self.coords)
 
     @classmethod
     def _apply_transform(cls, event_path, min_cluster_energy, min_hits_per_cluster, noise_id, transformed_data_dir):

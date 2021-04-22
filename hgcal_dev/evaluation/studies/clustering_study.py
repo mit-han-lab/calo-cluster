@@ -18,23 +18,34 @@ class ClusteringStudy(BaseStudy):
         self.clusterer = clusterer
         super().__init__(experiment)
 
-    def resolution(self, nevents=100, nbins=10, range_x=(0, 2), splits=('train', 'val'), out_dir='.'):
+    def resolution(self, nevents=100, bin_edges=[0.0, 0.5, 1.0, 3, 5, 10], range_x=(0, 2), splits=('train', 'val'), out_dir='.'):
         out_dir = self.out_dir / out_dir
         out_dir.mkdir(exist_ok=True, parents=True)
         for split in splits:
             events = self.experiment.get_events(split=split, n=nevents)
-            plot_df = F.resolution(events)
+            plot_df, event_df = F.resolution(events)
             fig = px.histogram(plot_df, x='energy resolution')
             out_path = out_dir / f'{split}_energy_resolution_histogram.png'
             fig.write_image(str(out_path), scale=10)
 
-            _, bin_edges = np.histogram(plot_df['energy'], bins=nbins)
-            for i in range(nbins):
+            mean_resolutions = np.zeros(len(bin_edges) - 1)
+            std_resolutions = np.zeros(len(bin_edges) - 1)
+            bin_energies = np.zeros(len(bin_edges) - 1)
+            for i in range(len(bin_edges) - 1):
                 start = bin_edges[i]
                 end = bin_edges[i+1]
-                fig = px.histogram(plot_df[(plot_df['energy'] > start) & (plot_df['energy'] < end)], x='energy resolution', title=f'{start:.3} < energy < {end:.3}', range_x=range_x, nbins=40)
-                out_path = self.out_dir / f'{split}_{i}_energy_resolution.png'
-                fig.write_image(str(out_path), scale=10)
+                data = plot_df[(plot_df['energy'] > start) & (plot_df['energy'] < end)]
+                mean_resolutions[i] = data['energy resolution'].mean()
+                std_resolutions[i] = data['energy resolution'].std()
+                bin_energies[i] = (end + start) / 2
+
+            plot_df_2 = pd.DataFrame({'mean_resolution': mean_resolutions, 'std_resolution': std_resolutions, 'energy': bin_energies})
+            fig = px.scatter(plot_df_2, x='energy', y='mean_resolution', title='mean of energy resolution')
+            out_path = self.out_dir / f'{split}_mean_energy_resolution.png'
+            fig.write_image(str(out_path), scale=10)
+            fig = px.scatter(plot_df_2, x='energy', y='std_resolution', title='standard deviation of energy resolution')
+            out_path = self.out_dir / f'{split}_std_energy_resolution.png'
+            fig.write_image(str(out_path), scale=10)
 
     def pq(self, nevents=100, use_weights=False):
         events = self.experiment.get_events(split='val', n=nevents)
