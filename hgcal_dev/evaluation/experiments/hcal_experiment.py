@@ -18,5 +18,5 @@ class HCalExperiment(BaseExperiment):
         else:
             self.instance_label = 'RHAntiKtCluster'
 
-    def make_event(self, input_path, pred_path, task):
-        return HCalEvent(input_path=input_path, pred_path=pred_path, task=task, instance_label=self.instance_label)
+    def make_event(self, input_path, pred_path):
+        return HCalEvent(input_path=input_path, pred_path=pred_path, task=self.task, instance_label=self.instance_label)

@@ -16,7 +16,6 @@ import torch
 import wandb
 import yaml
 from hgcal_dev.clustering.meanshift import MeanShift
-from hgcal_dev.evaluation.metrics.instance import PanopticQuality
 from hgcal_dev.models.spvcnn import SPVCNN
 from omegaconf import OmegaConf
 from plotly.subplots import make_subplots
@@ -60,42 +59,6 @@ class BaseEvent():
             self.embedding = event_prediction['embedding']
         elif self.task == 'semantic':
             self.pred_class_labels = event_prediction['labels']
-        
-        if self.multiple_models:
-            self.task = 'panoptic'
-        else:
-            self.task = self.cfg.criterion.task
-
-
-    @property
-    def pred_instance_labels(self):
-        if self._pred_instance_labels is None:
-            self._pred_instance_labels = self.clusterer.cluster(self.embedding)
-        return self._pred_instance_labels
-
-    def pq(self, use_weights=False):
-        assert self.task == 'panoptic' or self.task == 'instance'
-        if self.task == 'panoptic':
-            pq_metric = PanopticQuality(num_classes=self.num_classes)
-
-            outputs = (self.pred_class_labels, self.pred_instance_labels)
-            targets = (self.input_event[self.class_label].values,
-                       self.input_event[self.instance_label].values)
-        elif self.task == 'instance':
-            pq_metric = PanopticQuality(semantic=False)
-
-            outputs = self.pred_instance_labels
-            targets = self.input_event[self.instance_label].values
-
-        if use_weights:
-            if self.weight_name is None:
-                raise RuntimeError('No weight name given!')
-            weights = self.input_event[self.weight_name].values
-        else:
-            weights = None
-        pq_metric.add(outputs, targets, weights=weights)
-
-        return pq_metric.compute()
 
 
 class BaseExperiment():
@@ -152,7 +115,10 @@ class BaseExperiment():
 
         self.plots_dir.mkdir(exist_ok=True, parents=True)
 
-
+        if self.multiple_models:
+            self.task = 'panoptic'
+        else:
+            self.task = self.cfg.criterion.task
 
     def _get_ckpt(self, cfg, ckpt_name):
         ckpt_dir = Path(cfg.outputs_dir) / cfg.wandb.project / \
@@ -260,7 +226,6 @@ class BaseExperiment():
         events = []
 
         if self.multiple_models:
-            task = 'panoptic'
             pred_dir = [d / split for d in self.run_prediction_dir]
             ignore_model_idxs = []
             for i, d in enumerate(pred_dir):
@@ -269,7 +234,6 @@ class BaseExperiment():
             if len(ignore_model_idxs) != len(pred_dir):
                 self.save_predictions(ignore_model_idxs=ignore_model_idxs)
         else:
-            task = self.cfg.criterion.task
             pred_dir = self.run_prediction_dir / split
             if len([f for f in pred_dir.glob('*.npz')]) == 0:
                 self.save_predictions()
@@ -281,8 +245,8 @@ class BaseExperiment():
             else:
                 pred_path = pred_dir / f'{event_name}.npz'
             events.append(self.make_event(
-                input_path, pred_path, task=task))
+                input_path, pred_path))
         return events
 
-    def make_event(input_path, pred_path, task):
+    def make_event(input_path, pred_path):
         raise NotImplementedError()

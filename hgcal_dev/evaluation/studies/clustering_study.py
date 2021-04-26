@@ -9,49 +9,63 @@ from tqdm import tqdm
 import logging
 import time
 import hgcal_dev.evaluation.studies.functional as F
-
+from hgcal_dev.evaluation.metrics.instance import PanopticQuality
 
 class ClusteringStudy(BaseStudy):
 
-    def __init__(self, experiment, energy_name='energy', clusterer=MeanShift(bandwidth=0.022)) -> None:
-        self.energy_name = 'energy'
-        self.clusterer = clusterer
-        super().__init__(experiment)
+    def __init__(self, experiment, energy_name='energy', clusterer=None) -> None:
+        assert experiment.task == 'panoptic' or experiment.task == 'instance'
+        self.energy_name = energy_name
+        super().__init__(experiment, clusterer)
 
-    def resolution(self, nevents=100, bin_edges=[0.0, 0.5, 1.0, 3, 5, 10], range_x=(0, 2), splits=('train', 'val'), out_dir='.'):
+    @property
+    def clusterer(self):
+        return self._clusterer
+
+    @clusterer.setter
+    def clusterer(self, c):
+        self._clusterer = c
+
+    def resolution(self, nevents=100, nbins=11, lo=0, hi=10, splits=('val',), out_dir='.'):
         out_dir = self.out_dir / out_dir
         out_dir.mkdir(exist_ok=True, parents=True)
         for split in splits:
             events = self.experiment.get_events(split=split, n=nevents)
-            plot_df, event_df = F.resolution(events)
-            fig = px.histogram(plot_df, x='energy resolution')
+            cluster_df, event_df = F.resolution(events, self.clusterer)
+            fig = px.histogram(cluster_df, x='energy resolution')
             out_path = out_dir / f'{split}_energy_resolution_histogram.png'
             fig.write_image(str(out_path), scale=10)
 
-            mean_resolutions = np.zeros(len(bin_edges) - 1)
-            std_resolutions = np.zeros(len(bin_edges) - 1)
-            bin_energies = np.zeros(len(bin_edges) - 1)
-            for i in range(len(bin_edges) - 1):
-                start = bin_edges[i]
-                end = bin_edges[i+1]
-                data = plot_df[(plot_df['energy'] > start) & (plot_df['energy'] < end)]
-                mean_resolutions[i] = data['energy resolution'].mean()
-                std_resolutions[i] = data['energy resolution'].std()
-                bin_energies[i] = (end + start) / 2
+            means, errors, bin_edges = F.make_bins(cluster_df['energy'], cluster_df['energy_resolution'], nbins=nbins, lo=lo, hi=hi)
+            bin_df = pd.DataFrame({'resolution': means, 'error': errors, 'energy': bin_edges})
+            px.scatter(bin_df, x='energy', y='resolution', error_y='error')
 
-            plot_df_2 = pd.DataFrame({'mean_resolution': mean_resolutions, 'std_resolution': std_resolutions, 'energy': bin_energies})
-            fig = px.scatter(plot_df_2, x='energy', y='mean_resolution', title='mean of energy resolution')
-            out_path = self.out_dir / f'{split}_mean_energy_resolution.png'
-            fig.write_image(str(out_path), scale=10)
-            fig = px.scatter(plot_df_2, x='energy', y='std_resolution', title='standard deviation of energy resolution')
-            out_path = self.out_dir / f'{split}_std_energy_resolution.png'
-            fig.write_image(str(out_path), scale=10)
-
-    def pq(self, nevents=100, use_weights=False):
+    def pq(self, nevents=100, use_weights=True, ignore_semantic_labels=None):
         events = self.experiment.get_events(split='val', n=nevents)
         results = {}
         for event in tqdm(events):
-            pq = event.pq(use_weights=use_weights)
+            pred_instance_labels = self.clusterer.cluster(event)
+            if self.experiment.task == 'panoptic':
+                pq_metric = PanopticQuality(num_classes=event.num_classes, ignore_index=-1, ignore_semantic_labels=ignore_semantic_labels)
+
+                outputs = (event.pred_class_labels, pred_instance_labels)
+                targets = (event.input_event[event.class_label].values,
+                        event.input_event[event.instance_label].values)
+            elif self.experiment.task == 'instance':
+                pq_metric = PanopticQuality(semantic=False, ignore_index=-1)
+
+                outputs = pred_instance_labels
+                targets = event.input_event[event.instance_label].values
+
+            if use_weights:
+                if event.weight_name is None:
+                    raise RuntimeError('No weight name given!')
+                weights = event.input_event[event.weight_name].values
+            else:
+                weights = None
+            pq_metric.add(outputs, targets, weights=weights)
+
+            pq = pq_metric.compute()
             for k in pq:
                 if k not in results:
                     results[k] = 0.0
@@ -59,7 +73,7 @@ class ClusteringStudy(BaseStudy):
         return results
 
     def _qualitative_plot(self, out_dir, split, i, event):
-        xi = event.pred_instance_labels
+        xi = self.clusterer.cluster(event)
         yi = event.input_event[event.instance_label].values
         if event.weight_name:
             size = event.weight_name
@@ -72,7 +86,7 @@ class ClusteringStudy(BaseStudy):
         pred_clusters = pred_clusters.astype(str)
         truth_clusters = truth_clusters.astype(str)
         plot_df = event.input_event.copy()
-        plot_df['pred_instance_labels'] = event.pred_instance_labels
+        plot_df['pred_instance_labels'] = xi
         plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(
             str)
         plot_df.loc[~plot_df['pred_instance_labels'].isin(

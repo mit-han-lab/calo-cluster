@@ -13,9 +13,18 @@ from ..utils import get_palette
 import yaml
 
 class BaseStudy:
-    def __init__(self, experiment) -> None:
+    def __init__(self, experiment, clusterer=None) -> None:
         self.experiment = experiment
         self.out_dir = self.experiment.plots_dir
+        self._clusterer = clusterer
+
+    @property
+    def clusterer(self):
+        return self._clusterer
+
+    @clusterer.setter
+    def clusterer(self, c):
+        self._clusterer = c
 
     def bandwidth_study(self, nevents=10, niter=200, x0=0.01, xl=0.001, xh=1.0, stepsize=0.5):
         events = self.experiment.get_events(split='train', n=nevents)
@@ -62,11 +71,11 @@ class BaseStudy:
         plot_df = event.input_event
         task = self.experiment.task
         if task == 'instance' or task == 'panoptic':
-            plot_df['pred_instance_labels'] = event.pred_instance_labels
+            plot_df['pred_instance_labels'] = self.clusterer.cluster(event)
             plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(str)
             plot_df['truth_instance_labels'] = plot_df[event.instance_label].astype(str)
 
-            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_instance_labels', color_discrete_sequence=get_palette(event.pred_instance_labels))
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_instance_labels', color_discrete_sequence=get_palette(plot_df['pred_instance_labels']))
             out_path = out_dir / f'{split}_{i}_instance_pred.png'
             fig.write_image(str(out_path), scale=10)
 
