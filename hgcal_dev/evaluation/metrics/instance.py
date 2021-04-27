@@ -2,13 +2,13 @@ import numpy as np
 from hgcal_dev.evaluation.studies.functional import iou_match
 class PanopticQuality:
 
-    def __init__(self, *, num_classes=1, ignore_index=None, semantic=True, ignore_semantic_labels=None):
+    def __init__(self, *, num_classes=1, ignore_index=None, semantic=True, ignore_class_labels=None):
         if not semantic:
             num_classes = 1
         self.num_classes = num_classes
         self.ignore_index = ignore_index
         self.semantic = semantic
-        self.ignore_semantic_labels = ignore_semantic_labels
+        self.ignore_class_labels = ignore_class_labels
         self.reset()
 
     def reset(self):
@@ -22,7 +22,7 @@ class PanopticQuality:
         self.wfns = np.zeros(self.num_classes, dtype=np.float64)
 
     def add(self, outputs, targets, weights=None):
-        _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_semantic_labels=self.ignore_semantic_labels)
+        _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_class_labels=self.ignore_class_labels)
         for k in range(self.num_classes):
             if k not in _xyxinstances:
                 self.tps[k], self.wtps[k], self.ious[k], self.fps[k], self.fns[k], self.wfps[k], self.wfns[k] = -1, -1, -1, -1, -1, -1, -1

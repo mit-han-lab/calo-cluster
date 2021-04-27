@@ -26,27 +26,42 @@ class ClusteringStudy(BaseStudy):
     def clusterer(self, c):
         self._clusterer = c
 
-    def resolution(self, nevents=100, nbins=11, lo=0, hi=10, splits=('val',), out_dir='.'):
+    def response(self, nevents=100, nbins=21, lo=0, hi=20, splits=('val',), out_dir='.', match_highest=False):
         out_dir = self.out_dir / out_dir
+        if match_highest:
+            out_dir = out_dir / 'match_highest'
+        else:
+            out_dir = out_dir / 'match_threshold'
         out_dir.mkdir(exist_ok=True, parents=True)
         for split in splits:
             events = self.experiment.get_events(split=split, n=nevents)
-            cluster_df, event_df = F.resolution(events, self.clusterer)
-            fig = px.histogram(cluster_df, x='energy resolution')
-            out_path = out_dir / f'{split}_energy_resolution_histogram.png'
-            fig.write_image(str(out_path), scale=10)
+            cluster_dfs, event_dfs = F.response(events, self.clusterer, match_highest)
+            for k in cluster_dfs:
+                cluster_df = cluster_dfs[k]
+                fig = px.histogram(cluster_df, x='energy response', range_x=(0, 5), nbins=2000)
+                out_path = out_dir / f'{split}_class_{k}_energy_response_histogram.png'
+                fig.write_image(str(out_path), scale=10)
 
-            means, errors, bin_edges = F.make_bins(cluster_df['energy'], cluster_df['energy_resolution'], nbins=nbins, lo=lo, hi=hi)
-            bin_df = pd.DataFrame({'resolution': means, 'error': errors, 'energy': bin_edges})
-            px.scatter(bin_df, x='energy', y='resolution', error_y='error')
+                means, errors, bin_edges = F.make_bins(cluster_df['energy'], cluster_df['energy response'], nbins=nbins, lo=lo, hi=hi)
+                bin_df = pd.DataFrame({'response': means, 'error': errors, 'energy': bin_edges})
+                fig = px.scatter(bin_df, x='energy', y='response', error_y='error')
+                out_path = out_dir / f'{split}_class_{k}_binned_energy_response_histogram.png'
+                fig.write_image(str(out_path), scale=10)
 
-    def pq(self, nevents=100, use_weights=True, ignore_semantic_labels=None):
+                matched_mask = cluster_df['energy response'] >= 0.5
+                means, errors, bin_edges = F.make_bins(cluster_df['energy'], matched_mask.astype(int), nbins=nbins, lo=lo, hi=hi)
+                count_df = pd.DataFrame({'matched_frac': means, 'error': errors, 'energy': bin_edges})
+                fig = px.scatter(count_df, x='energy', y='matched_frac', error_y='error')
+                out_path = out_dir / f'{split}_class_{k}_binned_n_matched_histogram.png'
+                fig.write_image(str(out_path), scale=10)
+
+    def pq(self, nevents=100, use_weights=True, ignore_class_labels=None):
         events = self.experiment.get_events(split='val', n=nevents)
         results = {}
         for event in tqdm(events):
             pred_instance_labels = self.clusterer.cluster(event)
             if self.experiment.task == 'panoptic':
-                pq_metric = PanopticQuality(num_classes=event.num_classes, ignore_index=-1, ignore_semantic_labels=ignore_semantic_labels)
+                pq_metric = PanopticQuality(num_classes=event.num_classes, ignore_index=-1, ignore_class_labels=ignore_class_labels)
 
                 outputs = (event.pred_class_labels, pred_instance_labels)
                 targets = (event.input_event[event.class_label].values,
@@ -81,7 +96,7 @@ class ClusteringStudy(BaseStudy):
         else:
             size = None
             weights = None
-        pred_clusters, truth_clusters, _ = F.iou_match(
+        pred_clusters, truth_clusters, *_ = F.iou_match(
             xi, yi, weights=weights)
         pred_clusters = pred_clusters.astype(str)
         truth_clusters = truth_clusters.astype(str)
@@ -136,7 +151,7 @@ def main():
         SimpleExperiment
     exp = SimpleExperiment('dhc9f7wl')
     study = ClusteringStudy(exp)
-    study.resolution(nevents=100)
+    study.response(nevents=100)
 
 
 if __name__ == '__main__':

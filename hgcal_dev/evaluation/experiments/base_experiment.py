@@ -42,7 +42,7 @@ class BaseEvent():
         input_event = pd.read_pickle(self.input_path)
         self.input_event = input_event
 
-        self.multiple_models = type(self.pred_path) != Path and type(self.pred_path) != str
+        self.multiple_models = not issubclass(type(self.pred_path), Path) and type(self.pred_path) != str
 
         if self.multiple_models:
             event_prediction = {}
@@ -109,7 +109,7 @@ class BaseExperiment():
             plots_dir = Path(self.cfg.plots_dir)
             self.plots_dir = plots_dir / self.wandb_version / self.ckpt_name
 
-            self.datamodule = hydra.utils.instantiate(self.cfg[1].dataset)
+            self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
             self.datamodule.prepare_data()
             self.datamodule.setup(stage=None)
 

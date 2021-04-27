@@ -1,14 +1,15 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from collections import defaultdict
 
 
-
-def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_semantic_labels=None):
+def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_class_labels=None, match_highest=False):
     ''' xi: predicted cluster labels
         yi: true cluster labels
         weights: weight for each sample
-        threshold: iou threshold (must be >= 0.5)'''
+        threshold: iou threshold (must be >= 0.5)
+        match_highest: if true, match each true cluster to the pred cluster with the highest iou, rather than using a threshold.'''
     assert threshold >= 0.5
 
     if not semantic:
@@ -40,7 +41,7 @@ def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ign
     _intersections = {}
     for k in range(len(np.unique(np.concatenate([xs, ys])))):
 
-        if ignore_semantic_labels is not None and k in ignore_semantic_labels:
+        if ignore_class_labels is not None and k in ignore_class_labels:
             continue
 
         xik = xi * (xs == k)
@@ -48,6 +49,9 @@ def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ign
 
         xmask = xik != 0
         ymask = yik != 0
+
+        xik = xik - 1
+        yik = yik - 1
 
         xlabels = xik[xmask]
         xweights = weights[xmask]
@@ -86,7 +90,14 @@ def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ign
         unions = xyxareas + xyyareas - intersections
         ious = intersections / np.maximum(unions, 1e-15)
         ious[intersections == unions] = 1.0
-        indices = ious > 0.5
+        if match_highest:
+            indices = np.zeros(ious.shape[0])
+            ious_per_y = ious * (xyyinstances == yinstances[..., None]).astype(int)
+            ious_per_y = ious_per_y[ious_per_y.any(axis=1)]
+            indices[np.argmax(ious_per_y, axis=1)] = 1
+            indices = indices.astype(bool)
+        else:
+            indices = ious > 0.5
 
         xmatched[[xmapping[k] for k in xyxinstances[indices]]] = True
         ymatched[[ymapping[k] for k in xyyinstances[indices]]] = True
@@ -105,12 +116,11 @@ def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ign
     return _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections
 
 
-def resolution(events, clusterer):
-    resolutions = []
-    energies = []
-    n_unmatched = 0
-    unmatched_true = np.zeros(len(events))
-    unmatched_pred = np.zeros(len(events))
+def response(events, clusterer, match_highest):
+    responses = defaultdict(list)
+    energies = defaultdict(list)
+    unmatched_true = defaultdict(lambda: np.zeros(len(events)))
+    unmatched_pred = defaultdict(lambda: np.zeros(len(events)))
     for i, event in tqdm(enumerate(events)):
         xi = clusterer.cluster(event)
         yi = event.input_event[event.instance_label].values
@@ -118,39 +128,58 @@ def resolution(events, clusterer):
             weights = event.input_event[event.weight_name].values
         else:
             weights = None
-        matched_pred, matched_truth, _ = iou_match(
-            xi, yi, weights=weights, ignore_label=clusterer.ignore_label, use_semantic=clusterer.use_semantic)
-        all_truth = np.unique(yi)
-        all_pred = np.unique(xi)
-        yim_mask = yi == matched_truth[..., None]
-        matched_truth_energies = (weights * yim_mask.astype(int)).sum(axis=1)
+        if clusterer.use_semantic:
+            xs = event.pred_class_labels
+            ys = event.input_event[event.class_label].values
+            outputs = (xs, xi)
+            targets = (ys, yi)
+        else:
+            outputs = xi
+            targets = yi
+        matched_pred, matched_truth, *_ = iou_match(
+            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest)
+        for k in matched_pred:
+            if clusterer.use_semantic:
+                yik = yi[ys == k]
+                xik = xi[xs == k]
+                weights_y = weights[ys == k]
+                weights_x = weights[xs == k]
+            else:
+                yik = yi
+                xik = xi
+                weights_y = weights
+                weights_x = weights
+            all_truth = np.unique(yik)
+            all_pred = np.unique(xik)
+            yim_mask = yik == matched_truth[k][..., None]
+            matched_truth_energies = (weights_y * yim_mask.astype(int)).sum(axis=1)
 
-        xim_mask = xi == matched_pred[..., None]
-        matched_pred_energies = (weights * xim_mask.astype(int)).sum(axis=1)
-        resolution = matched_pred_energies / matched_truth_energies
-        resolutions.append(resolution)
-        energies.append(matched_truth_energies)
+            xim_mask = xik == matched_pred[k][..., None]
+            matched_pred_energies = (weights_x * xim_mask.astype(int)).sum(axis=1)
+            response = matched_pred_energies / matched_truth_energies
+            responses[k].append(response)
+            energies[k].append(matched_truth_energies)
 
-        unmatched_truth = np.setdiff1d(
-            all_truth, matched_truth, assume_unique=True)
-        yim_mask = yi == unmatched_truth[..., None]
-        unmatched_truth_energies = (weights * yim_mask.astype(int)).sum(axis=1)
+            unmatched_truth = np.setdiff1d(
+                all_truth, matched_truth[k], assume_unique=True)
+            yim_mask = yik == unmatched_truth[..., None]
+            unmatched_truth_energies = (weights_y * yim_mask.astype(int)).sum(axis=1)
 
-        n_unmatched_true = len(all_truth) - len(matched_truth)
-        n_unmatched_pred = len(all_pred) - len(matched_pred)
-        resolutions.append(np.zeros(n_unmatched_true))
-        energies.append(unmatched_truth_energies)
-        unmatched_true[i] = n_unmatched_true
-        unmatched_pred[i] = n_unmatched_pred
+            n_unmatched_true = len(all_truth) - len(matched_truth[k])
+            n_unmatched_pred = len(all_pred) - len(matched_pred[k])
+            responses[k].append(np.zeros(n_unmatched_true))
+            energies[k].append(unmatched_truth_energies)
+            unmatched_true[k][i] = n_unmatched_true
+            unmatched_pred[k][i] = n_unmatched_pred
 
-    resolution = np.concatenate(resolutions)
-    energy = np.concatenate(energies)
+    response = {k: np.concatenate(responses[k]) for k in responses}
+    energy = {k: np.concatenate(energies[k]) for k in energies}
 
-    cluster_df = pd.DataFrame(
-        {'energy resolution': resolution, 'energy': energy})
-    event_df = pd.DataFrame({'n_unmatched_true_clusters': unmatched_true,
-                             'n_unmatched_pred_clusters': unmatched_pred})
-    return cluster_df, event_df
+    cluster_dfs = {k: pd.DataFrame(
+        {'energy response': response[k], 'energy': energy[k]}) for k in response}
+    event_dfs = {k: pd.DataFrame({'n_unmatched_true_clusters': unmatched_true[k],
+                             'n_unmatched_pred_clusters': unmatched_pred[k]}) for k in unmatched_true}
+    return cluster_dfs, event_dfs
 
 
 def make_bins(x, y, nbins, lo, hi):
@@ -159,7 +188,7 @@ def make_bins(x, y, nbins, lo, hi):
     errors = np.zeros(nbins)
     bin_edges = np.linspace(lo, hi, num=nbins)
     bin_indices = np.digitize(x, bin_edges) - 1
-    for i in nbins:
+    for i in range(nbins):
         mask = (bin_indices == i)
         y_bin = y[mask]
         means[i] = np.mean(y_bin)

@@ -9,8 +9,7 @@ class AntiKtHCalEvent(BaseEvent):
 
     def _load(self):
         input_event = pd.read_pickle(self.input_path)
-        self.embedding = None
-        self._pred_instance_labels = input_event['RHAntiKtCluster'].values
+        self.embedding = input_event['RHAntiKtCluster_reco'].values
         self.input_event = input_event
 
 class AntiKtHCalExperiment(BaseExperiment):
