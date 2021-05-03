@@ -1,15 +1,14 @@
+import hgcal_dev.evaluation.studies.functional as F
 import numpy as np
 import pandas as pd
 import plotly
 import plotly.express as px
-from hgcal_dev.clustering.meanshift import MeanShift
+from hgcal_dev.evaluation.metrics.instance import iou_match
 from hgcal_dev.evaluation.studies.base_study import BaseStudy
 from hgcal_dev.evaluation.utils import get_palette
+from scipy.optimize import basinhopping
 from tqdm import tqdm
-import logging
-import time
-import hgcal_dev.evaluation.studies.functional as F
-from hgcal_dev.evaluation.metrics.instance import PanopticQuality
+
 
 class ClusteringStudy(BaseStudy):
 
@@ -18,14 +17,6 @@ class ClusteringStudy(BaseStudy):
         self.energy_name = energy_name
         super().__init__(experiment, clusterer)
 
-    @property
-    def clusterer(self):
-        return self._clusterer
-
-    @clusterer.setter
-    def clusterer(self, c):
-        self._clusterer = c
-
     def response(self, nevents=100, nbins=21, lo=0, hi=20, splits=('val',), out_dir='.', match_highest=False):
         out_dir = self.out_dir / out_dir
         if match_highest:
@@ -33,54 +24,53 @@ class ClusteringStudy(BaseStudy):
         else:
             out_dir = out_dir / 'match_threshold'
         out_dir.mkdir(exist_ok=True, parents=True)
+        data_dict = {}
         for split in splits:
+            data_dict[split] = {}
             events = self.experiment.get_events(split=split, n=nevents)
-            cluster_dfs, event_dfs = F.response(events, self.clusterer, match_highest)
+            cluster_dfs, event_dfs = F.response(
+                events, self.clusterer, match_highest)
+            data_dict[split]['cluster_dfs'] = cluster_dfs
+            data_dict[split]['event_dfs'] = event_dfs
             for k in cluster_dfs:
                 cluster_df = cluster_dfs[k]
-                fig = px.histogram(cluster_df, x='energy response', range_x=(0, 5), nbins=2000)
-                out_path = out_dir / f'{split}_class_{k}_energy_response_histogram.png'
+                fig = px.histogram(cluster_df, x='energy response')
+                out_path = out_dir / \
+                    f'{split}_class_{k}_energy_response_histogram.png'
                 fig.write_image(str(out_path), scale=10)
 
-                means, errors, bin_edges = F.make_bins(cluster_df['energy'], cluster_df['energy response'], nbins=nbins, lo=lo, hi=hi)
-                bin_df = pd.DataFrame({'response': means, 'error': errors, 'energy': bin_edges})
-                fig = px.scatter(bin_df, x='energy', y='response', error_y='error')
-                out_path = out_dir / f'{split}_class_{k}_binned_energy_response_histogram.png'
+                bin_edges = np.linspace(lo, hi, num=nbins)
+                means, errors = F.make_bins(
+                    cluster_df['energy'], cluster_df['energy response'], bin_edges=bin_edges)
+                data_dict[split][k] = {}
+                data_dict[split][k]['means'] = means
+                data_dict[split][k]['errors'] = errors
+                bin_df = pd.DataFrame(
+                    {'response': means, 'error': errors, 'energy': bin_edges})
+                fig = px.scatter(bin_df, x='energy',
+                                 y='response', error_y='error')
+                out_path = out_dir / \
+                    f'{split}_class_{k}_binned_energy_response_histogram.png'
                 fig.write_image(str(out_path), scale=10)
 
                 matched_mask = cluster_df['energy response'] >= 0.5
-                means, errors, bin_edges = F.make_bins(cluster_df['energy'], matched_mask.astype(int), nbins=nbins, lo=lo, hi=hi)
-                count_df = pd.DataFrame({'matched_frac': means, 'error': errors, 'energy': bin_edges})
-                fig = px.scatter(count_df, x='energy', y='matched_frac', error_y='error')
-                out_path = out_dir / f'{split}_class_{k}_binned_n_matched_histogram.png'
+                means, errors = F.make_bins(
+                    cluster_df['energy'], matched_mask.astype(int), bin_edges=bin_edges)
+                count_df = pd.DataFrame(
+                    {'matched_frac': means, 'error': errors, 'energy': bin_edges})
+                fig = px.scatter(count_df, x='energy',
+                                 y='matched_frac', error_y='error')
+                out_path = out_dir / \
+                    f'{split}_class_{k}_binned_n_matched_histogram.png'
                 fig.write_image(str(out_path), scale=10)
+        return data_dict
 
-    def pq(self, nevents=100, use_weights=True, ignore_class_labels=None):
-        events = self.experiment.get_events(split='val', n=nevents)
+    def pq(self, nevents=100, use_weights=True, ignore_class_labels=None, split='val'):
+        events = self.experiment.get_events(split=split, n=nevents)
         results = {}
         for event in tqdm(events):
-            pred_instance_labels = self.clusterer.cluster(event)
-            if self.experiment.task == 'panoptic':
-                pq_metric = PanopticQuality(num_classes=event.num_classes, ignore_index=-1, ignore_class_labels=ignore_class_labels)
-
-                outputs = (event.pred_class_labels, pred_instance_labels)
-                targets = (event.input_event[event.class_label].values,
-                        event.input_event[event.instance_label].values)
-            elif self.experiment.task == 'instance':
-                pq_metric = PanopticQuality(semantic=False, ignore_index=-1)
-
-                outputs = pred_instance_labels
-                targets = event.input_event[event.instance_label].values
-
-            if use_weights:
-                if event.weight_name is None:
-                    raise RuntimeError('No weight name given!')
-                weights = event.input_event[event.weight_name].values
-            else:
-                weights = None
-            pq_metric.add(outputs, targets, weights=weights)
-
-            pq = pq_metric.compute()
+            pq = F.pq(event, use_weights, self.clusterer,
+                      self.experiment.task, ignore_class_labels)
             for k in pq:
                 if k not in results:
                     results[k] = 0.0
@@ -96,46 +86,96 @@ class ClusteringStudy(BaseStudy):
         else:
             size = None
             weights = None
-        pred_clusters, truth_clusters, *_ = F.iou_match(
+        _pred_clusters, _truth_clusters, *_ = iou_match(
             xi, yi, weights=weights)
-        pred_clusters = pred_clusters.astype(str)
-        truth_clusters = truth_clusters.astype(str)
-        plot_df = event.input_event.copy()
-        plot_df['pred_instance_labels'] = xi
-        plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(
-            str)
-        plot_df.loc[~plot_df['pred_instance_labels'].isin(
-            pred_clusters), 'pred_instance_labels'] = 'unmatched'
+        for k in _pred_clusters:
+            pred_clusters = _pred_clusters[k].astype(str)
+            truth_clusters = _truth_clusters[k].astype(str)
+            plot_df = event.input_event.copy()
+            plot_df['pred_instance_labels'] = xi
+            plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(
+                str)
+            plot_df.loc[~plot_df['pred_instance_labels'].isin(
+                pred_clusters), 'pred_instance_labels'] = 'unmatched'
 
-        plot_df['truth_instance_labels'] = plot_df[event.instance_label].astype(
-            str)
-        plot_df.loc[~plot_df['truth_instance_labels'].isin(
-            truth_clusters), 'truth_instance_labels'] = 'unmatched'
+            plot_df['truth_instance_labels'] = plot_df[event.instance_label].astype(
+                str)
+            plot_df.loc[~plot_df['truth_instance_labels'].isin(
+                truth_clusters), 'truth_instance_labels'] = 'unmatched'
 
-        new_pred_instance_labels = plot_df['pred_instance_labels'].copy()
-        for i, c in enumerate(truth_clusters):
-            new_pred_instance_labels[plot_df['pred_instance_labels'] ==
-                                     pred_clusters[i]] = c
-        plot_df['pred_instance_labels'] = new_pred_instance_labels
-        if len(plot_df['pred_instance_labels'].unique()) > len(plot_df['truth_instance_labels'].unique()):
-            larger_set = plot_df['pred_instance_labels'].unique()
-        else:
-            larger_set = plot_df['truth_instance_labels'].unique()
-        color_discrete_sequence = get_palette(larger_set)
-        color_discrete_map = {}
-        for color, cluster in zip(color_discrete_sequence, larger_set):
-            color_discrete_map[cluster] = color
+            new_pred_instance_labels = plot_df['pred_instance_labels'].copy()
+            for i, c in enumerate(truth_clusters):
+                new_pred_instance_labels[plot_df['pred_instance_labels'] ==
+                                         pred_clusters[i]] = c
+            plot_df['pred_instance_labels'] = new_pred_instance_labels
+            if len(plot_df['pred_instance_labels'].unique()) > len(plot_df['truth_instance_labels'].unique()):
+                larger_set = plot_df['pred_instance_labels'].unique()
+            else:
+                larger_set = plot_df['truth_instance_labels'].unique()
+            color_discrete_sequence = get_palette(larger_set)
+            color_discrete_map = {}
+            for color, cluster in zip(color_discrete_sequence, larger_set):
+                color_discrete_map[cluster] = color
 
-        fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_instance_labels',
-                            size=size, color_discrete_map=color_discrete_map)
-        out_path = out_dir / f'{split}_{i}_matched_instance_pred.png'
-        fig.write_image(str(out_path), scale=10)
-            
-        fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='truth_instance_labels',
-                            size=size, color_discrete_map=color_discrete_map)
-        out_path = out_dir / f'{split}_{i}_matched_instance_truth.png'
-        fig.write_image(str(out_path), scale=10)
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_instance_labels',
+                                size=size, color_discrete_map=color_discrete_map)
+            out_path = out_dir / \
+                f'class_{k}_{split}_{i}_matched_instance_pred.png'
+            fig.write_image(str(out_path), scale=10)
+
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='truth_instance_labels',
+                                size=size, color_discrete_map=color_discrete_map)
+            out_path = out_dir / \
+                f'class_{k}_{split}_{i}_matched_instance_truth.png'
+            fig.write_image(str(out_path), scale=10)
         return super()._qualitative_plot(out_dir, split, i, event)
+
+    def bandwidth_study(self, clusterer_factory, nevents=-1, out_dir='.', x0=0.02, bounds=(0.001, 1.0), use_weights: bool = True, ignore_class_labels: list = None, niter: int = 200, T: float = 0.1, stepsize: float = 0.05):
+        out_dir = self.out_dir / out_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        events = self.experiment.get_events(split='train', n=nevents)
+
+        optimal_bw, optimal_pq, results = self._optimize_bandwidth(
+            events, clusterer_factory, x0, bounds, use_weights, ignore_class_labels, niter, T, stepsize)
+        print(f'optimal bandwidth = {optimal_bw}, for which pq = {optimal_pq}')
+        bws = results.keys()
+        pqs = results.values()
+
+        bw_fig = px.scatter(x=bws, y=pqs, labels={
+                            'x': 'bandwidth', 'y': 'pq'}, title='Bandwidth vs. Panoptic Quality')
+        bw_image_path = out_dir / 'bandwidth.png'
+        bw_fig.write_image(str(bw_image_path), scale=10)
+
+        data_dict = {}
+        data_dict['bws'] = bws
+        data_dict['pqs'] = pqs
+        data_dict['optimal_bw'] = optimal_bw
+        data_dict['optimal_pq'] = optimal_pq
+
+        figs_dict = {}
+        figs_dict['bandwidth_vs_pq'] = bw_fig
+
+        return data_dict, figs_dict
+
+    def _optimize_bandwidth(self, events: list, clusterer_factory, x0: float, bounds: tuple, use_weights: bool, ignore_class_labels: list, niter: int, T: float, stepsize: float):
+        all_results = {}
+        n = len(events)
+
+        def f(bw: float):
+            bw = bw[0]
+            wpq = 0.0
+            for event in events:
+                clusterer = clusterer_factory(bw)
+                results = F.pq(event, use_weights, clusterer,
+                               self.experiment.task, ignore_class_labels)
+                wpq += results['wpq'] / n
+            all_results[bw] = wpq
+            return -wpq
+        bounds = [bounds]
+        minimizer_kwargs = {"method": "L-BFGS-B", "bounds": bounds}
+        results = basinhopping(f, x0=x0, niter=niter,
+                               disp=True, T=T, stepsize=stepsize, minimizer_kwargs=minimizer_kwargs)
+        return results.x, results.fun, all_results
 
 
 def main():

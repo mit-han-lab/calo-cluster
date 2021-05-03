@@ -11,6 +11,7 @@ from scipy.optimize import basinhopping
 from tqdm import tqdm
 from ..utils import get_palette
 import yaml
+import logging
 
 class BaseStudy:
     def __init__(self, experiment, clusterer=None) -> None:
@@ -57,14 +58,14 @@ class BaseStudy:
         bw_image_path = self.out_dir / 'bandwidth.pdf'
         bw_fig.write_image(str(bw_image_path), scale=10)
 
-    def qualitative_cluster_study(self, n=5, clusterer=None, out_dir='scatter'):
+    def qualitative_cluster_study(self, n=5, out_dir='scatter'):
         out_dir = self.out_dir / out_dir
         out_dir.mkdir(exist_ok=True)
 
+        logging.info('Making qualitative plots...')
         for split in ('train', 'val'):
+            logging.info(f'split = {split}')
             for i, event in tqdm(enumerate(self.experiment.get_events(split=split, n=n))):
-                if clusterer is not None:
-                    event.clusterer = clusterer
                 self._qualitative_plot(out_dir, split, i, event)
 
     def _qualitative_plot(self, out_dir, split, i, event):
@@ -96,4 +97,10 @@ class BaseStudy:
             out_path = out_dir / f'{split}_{i}_semantic_truth.png'
             fig.write_image(str(out_path), scale=10)
 
+    def voxel_occupancy(self):
+        if self.experiment.multiple_models:
+            dm = self.experiment.datamodule[1]
+        else:
+            dm = self.experiment.datamodule
+        return dm.voxel_occupancy()
 

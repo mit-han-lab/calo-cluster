@@ -15,7 +15,7 @@ ps = PanopticStudy(exp)
 
 # %%
 ps.clusterer = MeanShift(bandwidth=0.022)
-ps.pq(nevents=100, use_weights=True, ignore_class_labels=(0,))
+ps.pq(nevents=1000, use_weights=True, ignore_class_labels=(0,))
 
 
 # %%
@@ -24,7 +24,7 @@ ps.confusion_matrix(nevents=1000)
 
 # %%
 ps.clusterer = MeanShift(bandwidth=0.022)
-ps.response(nevents=-1, splits=('val',), nbins=10, lo=0.5, hi=5, match_highest=True)
+ps.response(nevents=1000, splits=('val',), nbins=100, lo=0.5, hi=100, match_highest=True)
 
 
 # %%

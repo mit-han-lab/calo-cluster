@@ -235,3 +235,12 @@ class BaseDataModule(pl.LightningDataModule):
 
     def make_dataset(self, events) -> BaseDataset:
         raise NotImplementedError()
+        
+    def voxel_occupancy(self):
+        self.batch_size = 1
+        dataloader = self.train_dataloader()
+        voxel_occupancies = np.zeros(len(dataloader.dataset))
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader.dataset)):
+            voxel_occupancies[i] = len(batch['inverse_map'].C) / len(batch['features'].C) 
+
+        return voxel_occupancies

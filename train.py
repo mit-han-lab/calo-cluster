@@ -55,7 +55,7 @@ def train(cfg: DictConfig) -> None:
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
-                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks, precision=16)
+                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks, precision=16, log_every_n_steps=1)
     if is_rank_zero():
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)

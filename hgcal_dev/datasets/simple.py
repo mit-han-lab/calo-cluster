@@ -12,7 +12,7 @@ from .base import BaseDataModule, BaseDataset
 class SimpleDataset(BaseDataset):
     def __init__(self, voxel_size, events, task):
         super().__init__(voxel_size, events, task, feats=[
-            'x', 'y', 'z'], coords=['x', 'y', 'z'], instance_label='cluster')
+            'x', 'y', 'z'], coords=['x', 'y', 'z'], instance_label='cluster', weight='energy')
 
 
 @dataclass

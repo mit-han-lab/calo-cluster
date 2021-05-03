@@ -15,8 +15,9 @@ class AntiKtHCalEvent(BaseEvent):
 class AntiKtHCalExperiment(BaseExperiment):
     def __init__(self, wandb_version, ckpt_name=None):
         super().__init__(wandb_version, ckpt_name=ckpt_name)
+        self.task = 'instance'
 
-    def make_event(self, input_path, pred_path, task):
+    def make_event(self, input_path, pred_path):
         return AntiKtHCalEvent(input_path=input_path, pred_path=pred_path, task='instance')
 
     def save_predictions(self):

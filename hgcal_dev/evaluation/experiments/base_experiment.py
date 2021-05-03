@@ -1,3 +1,4 @@
+import logging
 import math
 from pathlib import Path
 from re import L
@@ -238,6 +239,7 @@ class BaseExperiment():
             if len([f for f in pred_dir.glob('*.npz')]) == 0:
                 self.save_predictions()
 
+        logging.info('Loading events...')
         for input_path in tqdm(input_paths):
             event_name = input_path.stem
             if self.multiple_models:

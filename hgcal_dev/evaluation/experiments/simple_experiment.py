@@ -9,7 +9,7 @@ class SimpleExperiment(BaseExperiment):
     def __init__(self, wandb_version, ckpt_name=None):
         super().__init__(wandb_version, ckpt_name=ckpt_name)
 
-    def make_event(self, input_path, pred_path, task):
+    def make_event(self, input_path, pred_path):
         return SimpleEvent(input_path, pred_path)
 
 
