@@ -1,4 +1,4 @@
-name: hgcal_dev
+name: hgcal_dev_test
 channels:
   - metric-learning
   - pytorch
@@ -230,6 +230,5 @@ dependencies:
   - pip:
     - colorspacious==1.1.2
     - subprocess32==3.5.4
-    - torchsparse==1.1.0
     - wandb==0.10.14
-prefix: /home/alexj/miniconda3/envs/hgcal_dev
+prefix: /home/alexj/miniconda3/envs/hgcal_dev_test

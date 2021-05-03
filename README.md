@@ -21,11 +21,11 @@
 
 First, clone this repository: `git clone --recurse-submodules https://github.com/mit-han-lab/hgcal-dev.git `.
 
-A conda `environment.yml` file is provided; use it to create an environment by running `conda env create -f environment.yml`. Then, run `pip install -e .` to install the hgcal-dev package. 
+A conda `environment.yml` file is provided; use it to create an environment by running `conda env create -f environment.yml`. Make sure torchsparse is available in this environment; you can run `pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git` within the environment to install it. Then, run `pip install -e .` to install the hgcal-dev package. 
 
 Next, modify the following hard-coded paths in the config files:
 1. configs/config.yaml -- `outputs_dir` and `predictions_dir`
-2. configs/dataset/* -- `data_dir`
+2. configs/dataset/* -- `data_dir` and `raw_data_dir`
 
 The lightning data modules will download and extract the relevant datasets automatically the first time you run training. However, if you prefer to download them manually, they are available at:
 * hcal -- https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download
