@@ -11,10 +11,10 @@ overfit: False
 log_level: INFO
 defaults:
   - train: distributed
-  - dataset: hcal
+  - dataset: hcal_pf
   - optimizer: adam
   - criterion: joint_centroid
-  - scheduler: lambda_lr
+  - scheduler: one_cycle_lr
   - model: spvcnn
   - wandb: upload
   - checkpoint: all

@@ -1,0 +1,4 @@
+# @package _group_
+_target_: hgcal_dev.training.schedulers.one_cycle_lr_factory
+max_lr: ${optimizer.lr}
+last_epoch: -1

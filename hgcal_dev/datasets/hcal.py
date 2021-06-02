@@ -171,5 +171,6 @@ class HCalDataModule(BaseDataModule):
                 df_dict = {k: jagged_event[k] for k in jagged_event.keys()}
                 flat_event = pd.DataFrame(df_dict)
                 flat_event.astype({'hit': int})
+                flat_event['hit'] = (flat_event['genE'] > 0.2).astype(int)
                 flat_event.to_pickle(raw_data_dir / f'event_{n+ni:05}.pkl')
             ni = n + 1

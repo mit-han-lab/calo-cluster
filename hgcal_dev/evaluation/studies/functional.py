@@ -6,6 +6,41 @@ from hgcal_dev.evaluation.metrics.instance import PanopticQuality, iou_match
 from tqdm import tqdm
 
 
+def cluster_width(events, clusterer, match_highest):
+    for i, event in tqdm(enumerate(events)):
+        xi = clusterer.cluster(event)
+        yi = event.input_event[event.instance_label].values
+        if event.weight_name:
+            weights = event.input_event[event.weight_name].values
+        else:
+            weights = None
+        if clusterer.use_semantic:
+            xs = event.pred_class_labels
+            ys = event.input_event[event.class_label].values
+            for k in np.unique(xs):
+                pass
+            outputs = (xs, xi)
+            targets = (ys, yi)
+        else:
+            outputs = xi
+            targets = yi
+        
+        matched_pred, matched_truth, *_ = iou_match(
+            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest)
+        for k in matched_pred:
+            if clusterer.use_semantic:
+                yik = yi[ys == k]
+                xik = xi[xs == k]
+                weights_y = weights[ys == k]
+                weights_x = weights[xs == k]
+            else:
+                yik = yi
+                xik = xi
+                weights_y = weights
+                weights_x = weights
+            yim_mask = yik == matched_truth[k][..., None]
+            xim_mask = xik == matched_pred[k][..., None]
+
 def response(events, clusterer, match_highest):
     responses = defaultdict(list)
     energies = defaultdict(list)
@@ -72,7 +107,7 @@ def response(events, clusterer, match_highest):
     return cluster_dfs, event_dfs
 
 
-def make_bins(x, y, bin_edges):
+def make_bins(x, y, bin_edges, use_standard_error: bool = True):
     "find mean and std error of y within bins of x determined by bin_edges"
     nbins = len(bin_edges)
     means = np.zeros(nbins)
@@ -82,7 +117,10 @@ def make_bins(x, y, bin_edges):
         mask = (bin_indices == i)
         y_bin = y[mask]
         means[i] = np.mean(y_bin)
-        errors[i] = np.std(y_bin) / (np.sum(mask))**0.5  # standard error
+        if use_standard_error:
+            errors[i] = np.std(y_bin) / (np.sum(mask))**0.5  # standard error
+        else:
+            errors[i] = np.std(y_bin)
     return means, errors
 
 def pq(event, use_weights, clusterer, task, ignore_class_labels):
@@ -109,3 +147,6 @@ def pq(event, use_weights, clusterer, task, ignore_class_labels):
 
     pq = pq_metric.compute()
     return pq
+
+def num_clusters(event, pred_instance_labels):
+    pass

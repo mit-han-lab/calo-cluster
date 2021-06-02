@@ -34,6 +34,10 @@ def train(cfg: DictConfig) -> None:
         resume_from_checkpoint = None
     checkpoint_callback = hydra.utils.instantiate(cfg.checkpoint)
 
+    # Set up learning rate monitor.
+    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
+    callbacks.append(lr_monitor)
+
     # Set up wandb logging.
     logger = hydra.utils.instantiate(
         cfg.wandb, save_dir=cfg.outputs_dir, version=cfg.wandb.version, group=cfg.wandb.name)
@@ -55,7 +59,7 @@ def train(cfg: DictConfig) -> None:
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
-                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks, precision=16, log_every_n_steps=1)
+                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks, precision=16, log_every_n_steps=1, terminate_on_nan=True)
     if is_rank_zero():
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)

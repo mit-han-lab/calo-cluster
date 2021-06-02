@@ -40,22 +40,32 @@ class ClusteringStudy(BaseStudy):
                 fig.write_image(str(out_path), scale=10)
 
                 bin_edges = np.linspace(lo, hi, num=nbins)
-                means, errors = F.make_bins(
-                    cluster_df['energy'], cluster_df['energy response'], bin_edges=bin_edges)
+                means, standard_errors = F.make_bins(
+                    cluster_df['energy'], cluster_df['energy response'], bin_edges=bin_edges, use_standard_error=True)
+                _, errors = F.make_bins(
+                    cluster_df['energy'], cluster_df['energy response'], bin_edges=bin_edges, use_standard_error=False)
                 data_dict[split][k] = {}
                 data_dict[split][k]['means'] = means
-                data_dict[split][k]['errors'] = errors
+                data_dict[split][k]['standard_error'] = standard_errors
+                data_dict[split][k]['rms'] = errors
+                data_dict[split][k]['energy'] = bin_edges
                 bin_df = pd.DataFrame(
-                    {'response': means, 'error': errors, 'energy': bin_edges})
+                    {'response': means, 'standard_error': standard_errors, 'rms': errors, 'energy': bin_edges})
                 fig = px.scatter(bin_df, x='energy',
-                                 y='response', error_y='error')
+                                 y='response', error_y='standard_error')
                 out_path = out_dir / \
                     f'{split}_class_{k}_binned_energy_response_histogram.png'
                 fig.write_image(str(out_path), scale=10)
 
+                fig = px.scatter(bin_df, x='energy',
+                                 y='rms')
+                out_path = out_dir / \
+                    f'{split}_class_{k}_binned_rms_histogram.png'
+                fig.write_image(str(out_path), scale=10)
+
                 matched_mask = cluster_df['energy response'] >= 0.5
                 means, errors = F.make_bins(
-                    cluster_df['energy'], matched_mask.astype(int), bin_edges=bin_edges)
+                    cluster_df['energy'], matched_mask.astype(int), bin_edges=bin_edges, use_standard_error=True)
                 count_df = pd.DataFrame(
                     {'matched_frac': means, 'error': errors, 'energy': bin_edges})
                 fig = px.scatter(count_df, x='energy',
@@ -63,10 +73,18 @@ class ClusteringStudy(BaseStudy):
                 out_path = out_dir / \
                     f'{split}_class_{k}_binned_n_matched_histogram.png'
                 fig.write_image(str(out_path), scale=10)
+
+                
+                fig = px.density_heatmap(cluster_df[(cluster_df['energy response'] < 10) & (cluster_df['energy'] < 100)], x='energy', y='energy response', nbinsx=100, nbinsy=100)
+                out_path = out_dir / \
+                    f'{split}_class_{k}_density_heatmap_energy_response_histogram.png'
+                fig.write_image(str(out_path), scale=10)
+
         return data_dict
 
     def pq(self, nevents=100, use_weights=True, ignore_class_labels=None, split='val'):
         events = self.experiment.get_events(split=split, n=nevents)
+        nevents = len(events)
         results = {}
         for event in tqdm(events):
             pq = F.pq(event, use_weights, self.clusterer,
@@ -74,6 +92,10 @@ class ClusteringStudy(BaseStudy):
             for k in pq:
                 if k not in results:
                     results[k] = 0.0
+                if type(pq[k]) == np.ndarray:
+                    pq[k][pq[k] == -1] = 0.0
+                elif pq[k] == -1:
+                    pq[k] = 0.0
                 results[k] += pq[k] / nevents
         return results
 

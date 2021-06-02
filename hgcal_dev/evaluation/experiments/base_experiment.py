@@ -222,7 +222,8 @@ class BaseExperiment():
         if n == -1:
             input_paths = dataloader.dataset.events
         else:
-            input_paths = dataloader.dataset.events[:n]
+            m = len(dataloader.dataset.events)
+            input_paths = dataloader.dataset.events[m-n:m]
 
         events = []
 

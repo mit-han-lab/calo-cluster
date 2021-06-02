@@ -1,4 +1,4 @@
 # @package _group_
 _target_: hgcal_dev.training.optimizers.adam_factory
-lr: 3e-4
+lr: 3e-2
 weight_decay: 1e-2
