@@ -326,4 +326,7 @@ class SPVCNN(pl.LightningModule):
             num_devices = max(num_devices, self.trainer.tpu_cores)
 
         effective_accum = self.trainer.accumulate_grad_batches * num_devices
-        return (batches // effective_accum) * self.trainer.max_epochs
+        num_steps = (batches // effective_accum) * self.trainer.max_epochs 
+        num_steps += batches * self.trainer.max_epochs - num_steps * effective_accum
+        print(f'num steps = {num_steps}')
+        return num_steps

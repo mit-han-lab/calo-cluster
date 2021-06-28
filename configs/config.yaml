@@ -6,9 +6,11 @@ hydra:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
 seed: 1588147245
 deterministic: False
+resume_ckpt: null
 init_ckpt: null
 overfit: False
 log_level: INFO
+val_check_interval: 0.5
 defaults:
   - train: distributed
   - dataset: hcal_pf

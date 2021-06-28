@@ -67,7 +67,7 @@ class HCalDataModule(BaseDataModule):
     @classmethod
     def _apply_transform(cls, event_path, min_cluster_energy, min_hits_per_cluster, noise_id, transformed_data_dir):
         event = pd.read_pickle(event_path)
-        tracks = cls.get_clusters(event, truth=True)
+        tracks = cls.get_clusters(event)
 
         tracks = tracks[(tracks['energy'] >= min_cluster_energy) | (
             tracks['clusterId'] == noise_id)]
@@ -84,28 +84,27 @@ class HCalDataModule(BaseDataModule):
         return partial(self._apply_transform, min_cluster_energy=self.min_cluster_energy, min_hits_per_cluster=self.min_hits_per_cluster, noise_id=self.noise_id, transformed_data_dir=self.transformed_data_dir)
 
     @classmethod
-    def get_clusters(cls, event, truth=True):
+    def get_clusters(cls, event, cluster_col='trackId'):
         """Find [eta, phi] (weighted by constituent energy) of clusters in event."""
-        if truth:
-            cluster_col = 'trackId'
-        else:
-            cluster_col = 'RHAntiKtCluster'
         event['weta'] = event['eta'] * event['energy']
         event['wphi'] = event['phi'] * event['energy']
-        result = event.groupby(['trackId'])[
-            ['energy', 'weta', 'wphi']].agg(['mean', 'count'])
-        energy = result[('energy', 'mean')]
+        grouped_event = event.groupby([cluster_col])
+        angle_agg = grouped_event[
+            ['weta', 'wphi']].agg(['sum'])
+        energy_agg = grouped_event[
+            ['energy']].agg(['sum', 'count'])
+        energy = energy_agg[('energy', 'sum')]
         energy.name = 'energy'
-        nconstituents = result[('energy', 'count')]
+        nconstituents = energy_agg[('energy', 'count')]
         nconstituents.name = 'nconstituents'
-        eta = result[('weta', 'mean')] / energy
+        eta = angle_agg[('weta', 'sum')] / energy
         eta.name = 'eta'
-        phi = result[('wphi', 'mean')] / energy
+        phi = angle_agg[('wphi', 'sum')] / energy
         phi.name = 'phi'
         return pd.concat([energy, eta, phi, nconstituents], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
 
     @classmethod
-    def merge_event(cls, event_path, data_dir, granularity=0.15, noise_id=-99):
+    def merge_event(cls, event_path, data_dir, granularity=0.015, noise_id=-99):
         event = pd.read_pickle(event_path)
         noise = event[event['trackId'] == noise_id].reset_index(drop=True)
         true_hits = event[event['trackId'] != noise_id].reset_index(drop=True)
@@ -149,7 +148,7 @@ class HCalDataModule(BaseDataModule):
         merged_event.to_pickle(merged_event_path)
 
     @classmethod
-    def merge_events(cls, raw_data_dir, data_dir, granularity=0.15, ncpus=32):
+    def merge_events(cls, raw_data_dir, data_dir, granularity=0.05, ncpus=32):
         with mp.Pool(ncpus) as p:
             raw_event_paths = [f for f in raw_data_dir.glob('*.pkl')]
             with tqdm(total=len(raw_event_paths)) as pbar:
@@ -157,7 +156,7 @@ class HCalDataModule(BaseDataModule):
                     pbar.update()
 
     @staticmethod
-    def root_to_pickle(root_data_path, raw_data_dir):
+    def root_to_pickle(root_data_path, raw_data_dir, noise_id=-99):
         ni = 0
         for f in sorted(root_data_path.glob('*.root')):
             root_dir = uproot.rootio.open(f)
@@ -171,6 +170,10 @@ class HCalDataModule(BaseDataModule):
                 df_dict = {k: jagged_event[k] for k in jagged_event.keys()}
                 flat_event = pd.DataFrame(df_dict)
                 flat_event.astype({'hit': int})
-                flat_event['hit'] = (flat_event['genE'] > 0.2).astype(int)
+                hit_mask = (flat_event['genE'] > 0.2)
+                noise_mask = ~hit_mask
+                flat_event['hit'] = hit_mask.astype(int)
+                flat_event.loc[noise_mask, 'trackId'] = noise_id
                 flat_event.to_pickle(raw_data_dir / f'event_{n+ni:05}.pkl')
             ni = n + 1
+

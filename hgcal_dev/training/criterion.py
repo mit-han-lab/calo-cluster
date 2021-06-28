@@ -116,17 +116,18 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, weights, use_weigh
             M = unique_labels.shape[0]
 
             # Find mean of each instance and calculate L_pull.
-            L_pull = 0.0
-            for m, label in enumerate(unique_labels):
-                mask = subbatch_labels == label
-                Nm = mask.sum()
-                mu = subbatch_outputs[mask].mean(axis=0)
-                W = subbatch_weights[mask].mean(axis=0)
-                Ws[m] = W
-                mus[m] = mu
-                L_pull += (subbatch_weights[mask] * F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=1) - delta_v)**2).sum() / (M * Nm)
-            L_push = (F.relu(2 * delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2)).fill_diagonal_(0)**2).sum() / (M * (M - 1))
-            loss += (L_pull + L_push) / B
+            if M > 1:
+                L_pull = 0.0
+                for m, label in enumerate(unique_labels):
+                    mask = subbatch_labels == label
+                    Nm = mask.sum()
+                    mu = subbatch_outputs[mask].mean(axis=0)
+                    W = subbatch_weights[mask].mean(axis=0)
+                    Ws[m] = W
+                    mus[m] = mu
+                    L_pull += (subbatch_weights[mask] * F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=1) - delta_v)**2).sum() / (M * Nm)
+                L_push = (F.relu(2 * delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2)).fill_diagonal_(0)**2).sum() / (M * (M - 1))
+                loss += (L_pull + L_push) / B
         return loss
 
 class CentroidInstanceLoss(nn.Module):
@@ -145,7 +146,7 @@ class CentroidInstanceLoss(nn.Module):
             loss = 0.0
             unique_semantic_labels = torch.unique(semantic_labels)
             for semantic_label in unique_semantic_labels:
-                if semantic_label == self.semantic_ignore_index:
+                if (semantic_label == self.semantic_ignore_index) or semantic_label == self.ignore_index:
                     continue
                 mask = (semantic_labels == semantic_label)
                 loss += centroid_instance_loss(outputs[mask], labels[mask], subbatch_indices[mask], weights[mask], self.use_weights, self.ignore_index, self.normalize, self.delta_d, self.delta_v)

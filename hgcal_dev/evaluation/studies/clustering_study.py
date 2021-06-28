@@ -9,13 +9,81 @@ from hgcal_dev.evaluation.utils import get_palette
 from scipy.optimize import basinhopping
 from tqdm import tqdm
 
+from hgcal_dev.evaluation.experiments.base_experiment import BaseExperiment
 
 class ClusteringStudy(BaseStudy):
 
-    def __init__(self, experiment, energy_name='energy', clusterer=None) -> None:
+    def __init__(self, experiment: BaseExperiment, energy_name: str = 'energy', clusterer=None) -> None:
         assert experiment.task == 'panoptic' or experiment.task == 'instance'
         self.energy_name = energy_name
         super().__init__(experiment, clusterer)
+
+    def get_clusters(self, nevents, split, match_highest=False):
+        events = self.experiment.get_events(split=split, n=nevents)
+        truth_clusters = []
+        pred_clusters = []
+        truth_hits = []
+        pred_hits = []
+        for event in tqdm(events):
+            xi = self.clusterer.cluster(event)
+            yi = event.input_event[event.instance_label].values
+            df = event.input_event
+            df['weta'] = df['eta'] * df['energy']
+            df['wphi'] = df['phi'] * df['energy']
+            result = df.groupby([event.instance_label])[
+                ['energy', 'weta', 'wphi']].agg(['mean', 'count'])
+            energy = result[('energy', 'mean')]
+            energy.name = 'energy'
+            nconstituents = result[('energy', 'count')]
+            nconstituents.name = 'nconstituents'
+            eta = result[('weta', 'mean')] / energy
+            eta.name = 'eta'
+            phi = result[('wphi', 'mean')] / energy
+            phi.name = 'phi'
+            if event.weight_name:
+                weights = event.input_event[event.weight_name].values
+            else:
+                weights = None
+            if self.clusterer.use_semantic:
+                xs = event.pred_class_labels
+                ys = event.input_event[event.class_label].values
+                outputs = (xs, xi)
+                targets = (ys, yi)
+            else:
+                outputs = xi
+                targets = yi
+            matched_pred, matched_truth, *_ = iou_match(
+                outputs, targets, weights=weights, ignore_class_labels=(self.clusterer.ignore_class_label,), semantic=self.clusterer.use_semantic, match_highest=match_highest, num_classes=self.experiment.num_classes)
+            if 1 in matched_pred:
+                matched_pred = matched_pred[1]
+                matched_truth = matched_truth[1]
+            else:
+                matched_pred = matched_pred[0]
+                matched_truth = matched_truth[0]
+            for pred_label, truth_label in zip(matched_pred, matched_truth):
+                _truth_hits = event.input_event[yi == truth_label].copy()
+                _pred_hits = event.input_event[xi == pred_label].copy()
+                c_energy = _truth_hits['energy'].sum()
+                _truth_hits['weta'] = _truth_hits['eta'] * _truth_hits['energy']
+                _truth_hits['wphi'] = _truth_hits['phi'] * _truth_hits['energy']
+                c_eta = _truth_hits['weta'].sum() / c_energy
+                c_phi = _truth_hits['wphi'].sum() / c_energy
+                c_n_constituents = len(_truth_hits)
+                c_pred_energy = _pred_hits['energy'].sum()
+                c_response =  c_pred_energy / c_energy
+                truth_clusters.append([c_energy, c_eta, c_phi, c_n_constituents, c_pred_energy, c_response])
+                _pred_hits['weta'] = _pred_hits['eta'] * _pred_hits['energy']
+                _pred_hits['wphi'] = _pred_hits['phi'] * _pred_hits['energy']
+                c_pred_eta = _pred_hits['weta'].sum() / c_pred_energy
+                c_pred_phi = _pred_hits['wphi'].sum() / c_pred_energy
+                c_pred_n_constituents = len(_pred_hits)
+                pred_clusters.append([c_pred_energy, c_pred_eta, c_pred_phi, c_pred_n_constituents])
+                truth_hits.append(_truth_hits)
+                pred_hits.append(_pred_hits)
+
+        truth_clusters = pd.DataFrame(truth_clusters, columns=['energy', 'eta', 'phi', 'n_constituents', 'pred_energy', 'response'])
+        pred_clusters = pd.DataFrame(pred_clusters, columns=['energy', 'eta', 'phi', 'n_constituents'])
+        return truth_clusters, truth_hits, pred_clusters, pred_hits
 
     def response(self, nevents=100, nbins=21, lo=0, hi=20, splits=('val',), out_dir='.', match_highest=False):
         out_dir = self.out_dir / out_dir
@@ -29,7 +97,7 @@ class ClusteringStudy(BaseStudy):
             data_dict[split] = {}
             events = self.experiment.get_events(split=split, n=nevents)
             cluster_dfs, event_dfs = F.response(
-                events, self.clusterer, match_highest)
+                events, self.clusterer, match_highest, num_classes=self.experiment.num_classes)
             data_dict[split]['cluster_dfs'] = cluster_dfs
             data_dict[split]['event_dfs'] = event_dfs
             for k in cluster_dfs:
@@ -109,7 +177,7 @@ class ClusteringStudy(BaseStudy):
             size = None
             weights = None
         _pred_clusters, _truth_clusters, *_ = iou_match(
-            xi, yi, weights=weights)
+            xi, yi, weights=weights, num_classes=self.experiment.num_classes)
         for k in _pred_clusters:
             pred_clusters = _pred_clusters[k].astype(str)
             truth_clusters = _truth_clusters[k].astype(str)

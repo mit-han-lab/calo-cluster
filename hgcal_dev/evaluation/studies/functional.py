@@ -6,7 +6,7 @@ from hgcal_dev.evaluation.metrics.instance import PanopticQuality, iou_match
 from tqdm import tqdm
 
 
-def cluster_width(events, clusterer, match_highest):
+def cluster_width(events, clusterer, match_highest, num_classes):
     for i, event in tqdm(enumerate(events)):
         xi = clusterer.cluster(event)
         yi = event.input_event[event.instance_label].values
@@ -26,7 +26,7 @@ def cluster_width(events, clusterer, match_highest):
             targets = yi
         
         matched_pred, matched_truth, *_ = iou_match(
-            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest)
+            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
         for k in matched_pred:
             if clusterer.use_semantic:
                 yik = yi[ys == k]
@@ -41,7 +41,7 @@ def cluster_width(events, clusterer, match_highest):
             yim_mask = yik == matched_truth[k][..., None]
             xim_mask = xik == matched_pred[k][..., None]
 
-def response(events, clusterer, match_highest):
+def response(events, clusterer, match_highest, num_classes):
     responses = defaultdict(list)
     energies = defaultdict(list)
     unmatched_true = defaultdict(lambda: np.zeros(len(events)))
@@ -62,7 +62,7 @@ def response(events, clusterer, match_highest):
             outputs = xi
             targets = yi
         matched_pred, matched_truth, *_ = iou_match(
-            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest)
+            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
         for k in matched_pred:
             if clusterer.use_semantic:
                 yik = yi[ys == k]
@@ -107,7 +107,7 @@ def response(events, clusterer, match_highest):
     return cluster_dfs, event_dfs
 
 
-def make_bins(x, y, bin_edges, use_standard_error: bool = True):
+def make_bins(x, y, bin_edges, use_standard_error: bool = True, use_median: bool = False):
     "find mean and std error of y within bins of x determined by bin_edges"
     nbins = len(bin_edges)
     means = np.zeros(nbins)
@@ -116,11 +116,15 @@ def make_bins(x, y, bin_edges, use_standard_error: bool = True):
     for i in range(nbins):
         mask = (bin_indices == i)
         y_bin = y[mask]
-        means[i] = np.mean(y_bin)
-        if use_standard_error:
-            errors[i] = np.std(y_bin) / (np.sum(mask))**0.5  # standard error
+        if use_median:
+            means[i] = np.median(y_bin)
+            errors[i] = np.abs(np.percentile(y_bin, 75) - np.percentile(y_bin, 25))
         else:
-            errors[i] = np.std(y_bin)
+            means[i] = np.mean(y_bin)
+            if use_standard_error:
+                errors[i] = np.std(y_bin) / (np.sum(mask))**0.5  # standard error
+            else:
+                errors[i] = np.std(y_bin)
     return means, errors
 
 def pq(event, use_weights, clusterer, task, ignore_class_labels):

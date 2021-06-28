@@ -24,7 +24,7 @@ class PanopticQuality:
 
     def add(self, outputs, targets, weights=None):
         _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(
-            outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_class_labels=self.ignore_class_labels)
+            outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_class_labels=self.ignore_class_labels, num_classes=self.num_classes)
         for k in range(self.num_classes):
             if k not in _xyxinstances:
                 self.tps[k], self.wtps[k], self.ious[k], self.fps[k], self.fns[k], self.wfps[k], self.wfns[k] = - \
@@ -60,7 +60,7 @@ class PanopticQuality:
         return {'sq': sq, 'rq': rq, 'pq': pq, 'tq': tq, 'wrq': wrq, 'wpq': wpq, 'wtq': wtq}
 
 
-def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_class_labels=None, match_highest=False):
+def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_class_labels=None, match_highest=False):
     ''' xi: predicted cluster labels
         yi: true cluster labels
         weights: weight for each sample
@@ -95,7 +95,7 @@ def iou_match(outputs, targets, weights=None, threshold=0.5, semantic=False, ign
     _xmapping = {}
     _ymapping = {}
     _intersections = {}
-    for k in range(len(np.unique(np.concatenate([xs, ys])))):
+    for k in range(num_classes):
 
         if ignore_class_labels is not None and k in ignore_class_labels:
             continue

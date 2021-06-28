@@ -96,6 +96,8 @@ class BaseExperiment():
             for dm in self.datamodule:
                 dm.prepare_data()
                 dm.setup(stage=None)
+            
+            self.num_classes = self.datamodule[0].num_classes
         else:
             self.run_path = self.get_run_path(self.wandb_version)
             cfg_path = self.run_path / 'files' / '.hydra' / 'config.yaml'
@@ -113,6 +115,8 @@ class BaseExperiment():
             self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
             self.datamodule.prepare_data()
             self.datamodule.setup(stage=None)
+
+            self.num_classes = self.datamodule.num_classes
 
         self.plots_dir.mkdir(exist_ok=True, parents=True)
 

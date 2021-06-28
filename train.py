@@ -8,7 +8,7 @@ import pytorch_lightning as pl
 import submitit
 import yaml
 from omegaconf import DictConfig, OmegaConf
-
+from hgcal_dev.models.spvcnn import SPVCNN
 
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')
@@ -27,9 +27,9 @@ def train(cfg: DictConfig) -> None:
         callbacks.append(swa_callback)
 
     # Set up checkpointing.
-    if cfg.init_ckpt is not None:
-        logging.info(f'Loading checkpoint={cfg.init_ckpt}')
-        resume_from_checkpoint = cfg.init_ckpt
+    if cfg.resume_ckpt is not None:
+        logging.info(f'Resuming checkpoint={cfg.resume_ckpt}')
+        resume_from_checkpoint = cfg.resume_ckpt
     else:
         resume_from_checkpoint = None
     checkpoint_callback = hydra.utils.instantiate(cfg.checkpoint)
@@ -55,11 +55,17 @@ def train(cfg: DictConfig) -> None:
             yaml.dump(data, f)
 
     datamodule = hydra.utils.instantiate(cfg.dataset)
-    model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
+
+    if cfg.init_ckpt is not None:
+        model = SPVCNN.load_from_checkpoint(cfg.init_ckpt, **cfg)
+    else:
+        model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
+    
+    
 
     # train
     trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
-                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=0.5, callbacks=callbacks, precision=16, log_every_n_steps=1, terminate_on_nan=True)
+                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=16, log_every_n_steps=1)
     if is_rank_zero():
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)
