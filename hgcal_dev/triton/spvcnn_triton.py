@@ -34,9 +34,9 @@ class TritonSPVCNN:
 
     if self.timing:
       nn_start = time.time()
-
-    embedding = model(features).cpu().numpy()
-    embedding = embedding[inverse_map]
+    with torch.no_grad():
+      embedding = model(features).cpu().numpy()
+      embedding = embedding[inverse_map]
 
     if self.timing:
       nn_end = time.time()
@@ -55,7 +55,7 @@ class TritonSPVCNN:
     if self.timing:
       start = time.time()
 
-    coords = feats_[:3]
+    coords = feats_[:, :3]
     pc_ = np.round(coords / self.voxel_size)
     pc_ -= pc_.min(0, keepdims=1)
     inds, inverse_map = sparse_quantize(pc_,
@@ -63,11 +63,11 @@ class TritonSPVCNN:
                                         return_index=True,
                                         return_invs=True,
                                         ignore_label=-1)
-    pc = pc_[inds]
-    feat = feats_[inds]
+    pc = torch.Tensor(pc_[inds])
+    feat = torch.Tensor(feats_[inds])
 
     features = SparseTensor(feat, pc)
-    inverse_map = SparseTensor(inverse_map, pc_)
+    inverse_map = SparseTensor(torch.Tensor(inverse_map), pc_)
 
     if self.timing:
       end = time.time()
