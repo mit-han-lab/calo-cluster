@@ -15,8 +15,8 @@ def cluster_width(events, clusterer, match_highest, num_classes):
         else:
             weights = None
         if clusterer.use_semantic:
-            xs = event.pred_class_labels
-            ys = event.input_event[event.class_label].values
+            xs = event.pred_semantic_labels
+            ys = event.input_event[event.semantic_label].values
             for k in np.unique(xs):
                 pass
             outputs = (xs, xi)
@@ -26,7 +26,7 @@ def cluster_width(events, clusterer, match_highest, num_classes):
             targets = yi
         
         matched_pred, matched_truth, *_ = iou_match(
-            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
+            outputs, targets, weights=weights, ignore_semantic_labels=(clusterer.ignore_semantic_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
         for k in matched_pred:
             if clusterer.use_semantic:
                 yik = yi[ys == k]
@@ -54,15 +54,15 @@ def response(events, clusterer, match_highest, num_classes):
         else:
             weights = None
         if clusterer.use_semantic:
-            xs = event.pred_class_labels
-            ys = event.input_event[event.class_label].values
+            xs = event.pred_semantic_labels
+            ys = event.input_event[event.semantic_label].values
             outputs = (xs, xi)
             targets = (ys, yi)
         else:
             outputs = xi
             targets = yi
         matched_pred, matched_truth, *_ = iou_match(
-            outputs, targets, weights=weights, ignore_class_labels=(clusterer.ignore_class_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
+            outputs, targets, weights=weights, ignore_semantic_labels=(clusterer.ignore_semantic_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
         for k in matched_pred:
             if clusterer.use_semantic:
                 yik = yi[ys == k]
@@ -127,13 +127,13 @@ def make_bins(x, y, bin_edges, use_standard_error: bool = True, use_median: bool
                 errors[i] = np.std(y_bin)
     return means, errors
 
-def pq(event, use_weights, clusterer, task, ignore_class_labels):
+def pq(event, use_weights, clusterer, task, ignore_semantic_labels):
     pred_instance_labels = clusterer.cluster(event)
     if task == 'panoptic':
-        pq_metric = PanopticQuality(num_classes=event.num_classes, ignore_index=-1, ignore_class_labels=ignore_class_labels)
+        pq_metric = PanopticQuality(num_classes=event.num_classes, ignore_index=-1, ignore_semantic_labels=ignore_semantic_labels)
 
-        outputs = (event.pred_class_labels, pred_instance_labels)
-        targets = (event.input_event[event.class_label].values,
+        outputs = (event.pred_semantic_labels, pred_instance_labels)
+        targets = (event.input_event[event.semantic_label].values,
                 event.input_event[event.instance_label].values)
     elif task == 'instance':
         pq_metric = PanopticQuality(semantic=False, ignore_index=-1)

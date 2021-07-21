@@ -11,11 +11,7 @@ import torchsparse.nn as spnn
 import torchsparse.nn.functional as spf
 from hgcal_dev.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
-from torchsparse.point_tensor import PointTensor
-from torchsparse.sparse_tensor import SparseTensor
-from torchsparse.utils.helpers import *
-from torchsparse.utils.kernel_region import *
-
+from torchsparse.tensor import PointTensor, SparseTensor
 from .utils import *
 
 __all__ = ['SPVCNN']
@@ -45,7 +41,7 @@ class BasicDeconvolutionBlock(nn.Module):
                         outc,
                         kernel_size=ks,
                         stride=stride,
-                        transpose=True), spnn.BatchNorm(outc),
+                        transposed=True), spnn.BatchNorm(outc),
             spnn.ReLU(True))
 
     def forward(self, x):
@@ -285,15 +281,12 @@ class SPVCNN(pl.LightningModule):
             loss = self.semantic_criterion(outputs, targets)
             ret = {'loss': loss}
         elif task == 'instance':
-            if self.hparams.dataset.task == 'panoptic':
-                loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
-            else:
-                loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
+            loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
             ret = {'loss': loss}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-            embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights)
+            embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
             ret = {'loss': loss, 'class_loss': class_loss, 'embed_loss': embed_loss}

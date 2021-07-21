@@ -9,12 +9,12 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import uproot
-from hgcal_dev.utils.sparse_collate import sparse_collate_fn
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from torchsparse import SparseTensor
-from torchsparse.utils import sparse_quantize
+from torchsparse.utils.collate import sparse_collate_fn
+from torchsparse.utils.quantize import sparse_quantize
 from tqdm import tqdm
 
 from ..utils.comm import get_rank
@@ -29,9 +29,8 @@ class BaseDataset(Dataset):
     feats: list = None
     coords: list = None
     weight: str = None
-    class_label: str = 'class'
+    semantic_label: str = 'class'
     instance_label: str = 'instance'
-    ignore_label: int = -1
     scale: bool = False
     std: list = None
     mean: list = None
@@ -43,9 +42,9 @@ class BaseDataset(Dataset):
         event = pd.read_pickle(self.events[index])
         feat_ = event[self.feats].to_numpy()
         if self.task == 'panoptic':
-            labels_ = event[[self.class_label, self.instance_label]].to_numpy()
+            labels_ = event[[self.semantic_label, self.instance_label]].to_numpy()
         elif self.task == 'semantic':
-            labels_ = event[self.class_label].to_numpy()
+            labels_ = event[self.semantic_label].to_numpy()
         elif self.task == 'instance':
             labels_ = event[self.instance_label].to_numpy(
             )
@@ -65,37 +64,22 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, index):
         pc_, feat_, labels_, weights_ = self._get_pc_feat_labels(index)
-        inds, labels, inverse_map = sparse_quantize(pc_,
-                                                    feat_,
-                                                    labels_,
-                                                    return_index=True,
-                                                    return_invs=True,
-                                                    ignore_label=self.ignore_label)
+        _, inds, inverse_map = sparse_quantize(pc_,
+                                               return_index=True,
+                                               return_inverse=True)
         pc = pc_[inds]
         feat = feat_[inds]
-
+        labels = labels_[inds]
         features = SparseTensor(feat, pc)
-
         labels = SparseTensor(labels, pc)
-        labels_ = SparseTensor(labels_, pc_)
         inverse_map = SparseTensor(inverse_map, pc_)
         return_dict = {'features': features, 'labels': labels,
-                       'labels_mapped': labels_, 'inverse_map': inverse_map}
+                       'inverse_map': inverse_map}
         if weights_ is not None:
             weights = weights_[inds]
             weights = SparseTensor(weights, pc)
             return_dict['weights'] = weights
         return return_dict
-
-    def get_inds_labels(self, index):
-        pc_, feat_, labels_, _ = self._get_pc_feat_labels(index)
-        inds, labels, inverse_map = sparse_quantize(pc_,
-                                                    feat_,
-                                                    labels_,
-                                                    return_index=True,
-                                                    return_invs=True,
-                                                    ignore_label=self.ignore_label)
-        return inds, labels
 
     @staticmethod
     def collate_fn(inputs):
@@ -112,7 +96,7 @@ class BaseDataModule(pl.LightningDataModule):
 
     This allows subclasses to define arbitrary transformations that should be performed before serving data,
     e.g., merging, applying selections, reducing noise levels, etc.
-    
+
     When creating a base class, make sure to override make_dataset appropriately."""
 
     num_features: int
@@ -128,6 +112,7 @@ class BaseDataModule(pl.LightningDataModule):
     test_frac: float
     task: str
     num_classes: int
+    ignore_label: int
 
     def __post_init__(self):
         super().__init__()
@@ -235,12 +220,13 @@ class BaseDataModule(pl.LightningDataModule):
 
     def make_dataset(self, events) -> BaseDataset:
         raise NotImplementedError()
-        
+
     def voxel_occupancy(self):
         self.batch_size = 1
         dataloader = self.train_dataloader()
         voxel_occupancies = np.zeros(len(dataloader.dataset))
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader.dataset)):
-            voxel_occupancies[i] = len(batch['inverse_map'].C) / len(batch['features'].C) 
+            voxel_occupancies[i] = len(
+                batch['inverse_map'].C) / len(batch['features'].C)
 
         return voxel_occupancies

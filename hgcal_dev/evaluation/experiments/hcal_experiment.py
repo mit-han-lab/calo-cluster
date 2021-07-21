@@ -4,7 +4,7 @@ from hgcal_dev.clustering.meanshift import MeanShift
 
 class HCalEvent(BaseEvent):
     def __init__(self, input_path, instance_label, pred_path=None, task='panoptic'):
-        super().__init__(input_path, pred_path=pred_path, class_label='hit', instance_label=instance_label, task=task, clusterer=MeanShift(bandwidth=0.01), weight_name='energy')
+        super().__init__(input_path, pred_path=pred_path, semantic_label='hit', instance_label=instance_label, task=task, clusterer=MeanShift(bandwidth=0.01), weight_name='energy')
 
 class HCalExperiment(BaseExperiment):
     def __init__(self, wandb_version, ckpt_name=None):

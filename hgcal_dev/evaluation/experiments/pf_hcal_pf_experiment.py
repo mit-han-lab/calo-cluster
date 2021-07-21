@@ -5,7 +5,7 @@ import pandas as pd
 
 class PFHCalPFHCalEvent(BaseEvent):
     def __init__(self, input_path, pred_path=None, task='instance'):
-        super().__init__(input_path, pred_path=pred_path, class_label='hit', instance_label='trackId', task=task, weight_name='energy')
+        super().__init__(input_path, pred_path=pred_path, semantic_label='hit', instance_label='trackId', task=task, weight_name='energy')
 
     def _load(self):
         input_event = pd.read_pickle(self.input_path)

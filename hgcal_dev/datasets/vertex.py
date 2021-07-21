@@ -24,7 +24,7 @@ class VertexDataset(BaseDataset):
         feats = ['Z']
         coords = ['Eta', 'Phi']
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label='IsPU', instance_label='vertex_id', scale=scale, mean=[-55.67877], std=[10541.643])
+                         semantic_label='IsPU', instance_label='vertex_id', scale=scale, mean=[-55.67877], std=[10541.643])
 
 @dataclass
 class VertexDataModule(BaseDataModule):

@@ -22,7 +22,7 @@ class HCalPFDataset(BaseDataset):
         else:
             raise RuntimeError()
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label='hit', instance_label=instance_label, weight='energy')
+                         semantic_label='hit', instance_label=instance_label, weight='energy')
 
 
 

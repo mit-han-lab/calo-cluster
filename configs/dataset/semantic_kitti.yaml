@@ -1,0 +1,14 @@
+# @package _group_
+_target_: hgcal_dev.datasets.semantic_kitti.SemanticKITTIDataModule
+seed: ${seed}
+num_classes: 19
+task: ${criterion.task}
+root: /home/alexj/data/hgcal-dev/semantic_kitti/dataset/sequences
+num_points: 80000
+num_workers: 8
+voxel_size: 0.05
+num_epochs: ${train.num_epochs}
+batch_size: ${train.batch_size}
+ignore_label: 255
+num_features: 4
+sparse: ${model.sparse}

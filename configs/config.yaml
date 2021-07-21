@@ -13,7 +13,7 @@ log_level: INFO
 val_check_interval: 0.5
 defaults:
   - train: distributed
-  - dataset: hcal_pf
+  - dataset: hcal_tt
   - optimizer: adam
   - criterion: joint_centroid
   - scheduler: one_cycle_lr

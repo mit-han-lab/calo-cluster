@@ -27,11 +27,11 @@ from tqdm import tqdm
 class BaseEvent():
     """Aggregates the input/output/clustering for a single event."""
 
-    def __init__(self, input_path, class_label: str = None, instance_label: str = None, pred_path: Path = None, task: str = 'panoptic', clusterer=MeanShift(), num_classes: int = 2, weight_name: str = None):
+    def __init__(self, input_path, semantic_label: str = None, instance_label: str = None, pred_path: Path = None, task: str = 'panoptic', clusterer=MeanShift(), num_classes: int = 2, weight_name: str = None):
         self.input_path = input_path
         self.pred_path = pred_path
         self.task = task
-        self.class_label = class_label
+        self.semantic_label = semantic_label
         self.instance_label = instance_label
         self._pred_instance_labels = None
         self.num_classes = num_classes
@@ -40,9 +40,14 @@ class BaseEvent():
         self._load()
 
     def _load(self):
+        self._load_input()
+        self._load_predictions()
+
+    def _load_input(self):
         input_event = pd.read_pickle(self.input_path)
         self.input_event = input_event
 
+    def _load_predictions(self):
         self.multiple_models = not issubclass(type(self.pred_path), Path) and type(self.pred_path) != str
 
         if self.multiple_models:
@@ -54,12 +59,12 @@ class BaseEvent():
             event_prediction = np.load(self.pred_path)
 
         if self.task == 'panoptic':
-            self.pred_class_labels = event_prediction['labels']
+            self.pred_semantic_labels = event_prediction['labels']
             self.embedding = event_prediction['embedding']
         elif self.task == 'instance':
             self.embedding = event_prediction['embedding']
         elif self.task == 'semantic':
-            self.pred_class_labels = event_prediction['labels']
+            self.pred_semantic_labels = event_prediction['labels']
 
 
 class BaseExperiment():
@@ -208,7 +213,7 @@ class BaseExperiment():
                                 output_path, labels=labels[mask][inverse_map[im_mask]], embedding=embedding[mask][inverse_map[im_mask]])
 
 
-    def get_events(self, split, n=-1):
+    def get_events(self, split, n=-1, batch_size=512):
         if self.multiple_models:
             datamodule = self.datamodule[1]
         else:
@@ -238,11 +243,11 @@ class BaseExperiment():
                 if len([f for f in d.glob('*.npz')]) != 0:
                     ignore_model_idxs.append(i)
             if len(ignore_model_idxs) != len(pred_dir):
-                self.save_predictions(ignore_model_idxs=ignore_model_idxs)
+                self.save_predictions(ignore_model_idxs=ignore_model_idxs, batch_size=batch_size)
         else:
             pred_dir = self.run_prediction_dir / split
             if len([f for f in pred_dir.glob('*.npz')]) == 0:
-                self.save_predictions()
+                self.save_predictions(batch_size=batch_size)
 
         logging.info('Loading events...')
         for input_path in tqdm(input_paths):

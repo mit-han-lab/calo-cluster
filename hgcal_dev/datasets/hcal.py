@@ -19,15 +19,15 @@ class HCalDataset(BaseDataset):
         else:
             raise RuntimeError()
         super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         class_label='hit', instance_label=instance_label, weight='energy')
+                         semantic_label='hit', instance_label=instance_label, weight='energy')
 
     def _get_pc_feat_labels(self, index):
         event = pd.read_pickle(self.events[index])
         if self.task == 'panoptic':
             block, labels_ = event[self.feats], event[[
-                self.class_label, self.instance_label]].to_numpy()
+                self.semantic_label, self.instance_label]].to_numpy()
         elif self.task == 'semantic':
-            block, labels_ = event[self.feats], event[self.class_label].to_numpy(
+            block, labels_ = event[self.feats], event[self.semantic_label].to_numpy(
             )
         elif self.task == 'instance':
             block, labels_ = event[self.feats], event[self.instance_label].to_numpy(

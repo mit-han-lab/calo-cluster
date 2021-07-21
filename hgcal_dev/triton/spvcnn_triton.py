@@ -1,76 +1,76 @@
-from hgcal_dev.clustering.mean_shift_cosine_gpu import MeanShiftCosine
-from hgcal_dev.models.spvcnn import SPVCNN
-import torch
-import numpy as np
-from torchsparse import SparseTensor
-from torchsparse.utils import sparse_quantize
 import time
 from pathlib import Path
 
+import numpy as np
+import torch
+from hgcal_dev.clustering.mean_shift_cosine_gpu import MeanShiftCosine
+from hgcal_dev.models.spvcnn import SPVCNN
+from torchsparse.tensor import SparseTensor
+from torchsparse.utils import sparse_quantize
+
+
 class TritonSPVCNN:
-  def __init__(self, ckpt_path, bw=0.05, voxel_size=0.1, timing=False) -> None:
-      self.model = SPVCNN.load_from_checkpoint(ckpt_path)
-      self.clusterer = MeanShiftCosine(bandwidth=bw)
-      self.voxel_size = voxel_size
-      self.timing = timing
-      if timing:
-        self.timing_path = Path('timing.txt')
-        if self.timing_path.exists():
-          self.timing_path.unlink()
-  
-  def infer(self, feats: np.array):
-    if self.timing:
-      self.timing_file = self.timing_path.open('a+')
-      start = time.time()
+    def __init__(self, ckpt_path, bw=0.05, voxel_size=0.1, timing=False) -> None:
+        self.model = SPVCNN.load_from_checkpoint(ckpt_path)
+        self.clusterer = MeanShiftCosine(bandwidth=bw)
+        self.voxel_size = voxel_size
+        self.timing = timing
+        if timing:
+            self.timing_path = Path('timing.txt')
+            if self.timing_path.exists():
+                self.timing_path.unlink()
 
-    features, inverse_map = self.make_tensors(feats)
+    def infer(self, feats: np.array):
+        if self.timing:
+            self.timing_file = self.timing_path.open('a+')
+            start = time.time()
 
-    model = self.model
-    model.cuda(0)
-    model.eval()
+        features, inverse_map = self.make_tensors(feats)
 
-    features = features.to(model.device)
-    inverse_map = inverse_map.F.type(torch.long)
+        model = self.model
+        model.cuda(0)
+        model.eval()
 
-    if self.timing:
-      nn_start = time.time()
-    with torch.no_grad():
-      embedding = model(features).cpu().numpy()
-      embedding = embedding[inverse_map]
+        features = features.to(model.device)
+        inverse_map = inverse_map.F.type(torch.long)
 
-    if self.timing:
-      nn_end = time.time()
-      cluster_start = time.time()
+        if self.timing:
+            nn_start = time.time()
+        with torch.no_grad():
+            embedding = model(features).cpu().numpy()
+            embedding = embedding[inverse_map]
 
-    self.clusterer.fit(embedding)
+        if self.timing:
+            nn_end = time.time()
+            cluster_start = time.time()
 
-    if self.timing:
-      end = time.time()
-      self.timing_file.write(f'{nn_end - nn_start} {end - cluster_start} {end - start}\n')
-      self.timing_file.close()
+        self.clusterer.fit(embedding)
 
-    return self.clusterer.labels_
+        if self.timing:
+            end = time.time()
+            self.timing_file.write(
+                f'{nn_end - nn_start} {end - cluster_start} {end - start}\n')
+            self.timing_file.close()
 
-  def make_tensors(self, feats_: np.array):
-    if self.timing:
-      start = time.time()
+        return self.clusterer.labels_
 
-    coords = feats_[:, :3]
-    pc_ = np.round(coords / self.voxel_size)
-    pc_ -= pc_.min(0, keepdims=1)
-    inds, inverse_map = sparse_quantize(pc_,
-                                        feats_,
-                                        return_index=True,
-                                        return_invs=True,
-                                        ignore_label=-1)
-    pc = torch.Tensor(pc_[inds])
-    feat = torch.Tensor(feats_[inds])
+    def make_tensors(self, feats_: np.array):
+        if self.timing:
+            start = time.time()
 
-    features = SparseTensor(feat, pc)
-    inverse_map = SparseTensor(torch.Tensor(inverse_map), pc_)
+        coords = feats_[:, :3]
+        pc_ = np.round(coords / self.voxel_size)
+        pc_ -= pc_.min(0, keepdims=1)
+        _, inds, inverse_map = sparse_quantize(
+            pc_, self.voxel_size, return_index=True, return_inverse=True)
+        pc = torch.Tensor(pc_[inds])
+        feat = torch.Tensor(feats_[inds])
 
-    if self.timing:
-      end = time.time()
-      self.timing_file.write(f'{end - start} ')
+        features = SparseTensor(feat, pc)
+        inverse_map = SparseTensor(torch.Tensor(inverse_map), pc_)
 
-    return features, inverse_map
+        if self.timing:
+            end = time.time()
+            self.timing_file.write(f'{end - start} ')
+
+        return features, inverse_map

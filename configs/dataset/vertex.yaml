@@ -2,7 +2,7 @@
 _target_: hgcal_dev.datasets.vertex.VertexDataModule
 seed: ${seed}
 num_classes: 2
-task: ${criterion.required_data}
+task: ${criterion.task}
 data_dir: /home/alexj/data/hgcal-dev/vertex
 event_frac: 1.0
 train_frac: 0.8
@@ -13,3 +13,4 @@ num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
 num_features: 1
 scale: False
+ignore_label: 0

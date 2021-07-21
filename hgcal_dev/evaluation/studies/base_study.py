@@ -71,29 +71,33 @@ class BaseStudy:
     def _qualitative_plot(self, out_dir, split, i, event):
         plot_df = event.input_event
         task = self.experiment.task
+        if event.weight_name:
+            size = event.weight_name
+        else:
+            size = None
         if task == 'instance' or task == 'panoptic':
             plot_df['pred_instance_labels'] = self.clusterer.cluster(event)
             plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(str)
             plot_df['truth_instance_labels'] = plot_df[event.instance_label].astype(str)
 
-            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_instance_labels', color_discrete_sequence=get_palette(plot_df['pred_instance_labels']))
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_instance_labels', size=size, color_discrete_sequence=get_palette(plot_df['pred_instance_labels']))
             out_path = out_dir / f'{split}_{i}_instance_pred.png'
             fig.write_image(str(out_path), scale=10)
 
-            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='truth_instance_labels', color_discrete_sequence=get_palette(plot_df[event.instance_label]))
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='truth_instance_labels', size=size, color_discrete_sequence=get_palette(plot_df[event.instance_label]))
             out_path = out_dir / f'{split}_{i}_instance_truth.png'
             fig.write_image(str(out_path), scale=10)
 
         if task == 'semantic' or task == 'panoptic':
-            plot_df['pred_semantic_labels'] = event.pred_class_labels
+            plot_df['pred_semantic_labels'] = event.pred_semantic_labels
             plot_df['pred_semantic_labels'] = plot_df['pred_semantic_labels'].astype(str)
-            plot_df['truth_semantic_labels'] = plot_df[event.class_label].astype(str)
+            plot_df['truth_semantic_labels'] = plot_df[event.semantic_label].astype(str)
 
-            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_semantic_labels')
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='pred_semantic_labels', size=size)
             out_path = out_dir / f'{split}_{i}_semantic_pred.png'
             fig.write_image(str(out_path), scale=10)
 
-            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='truth_semantic_labels')
+            fig = px.scatter_3d(plot_df, x='x', y='y', z='z', color='truth_semantic_labels', size=size)
             out_path = out_dir / f'{split}_{i}_semantic_truth.png'
             fig.write_image(str(out_path), scale=10)
 

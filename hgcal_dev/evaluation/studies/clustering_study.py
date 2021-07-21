@@ -45,15 +45,15 @@ class ClusteringStudy(BaseStudy):
             else:
                 weights = None
             if self.clusterer.use_semantic:
-                xs = event.pred_class_labels
-                ys = event.input_event[event.class_label].values
+                xs = event.pred_semantic_labels
+                ys = event.input_event[event.semantic_label].values
                 outputs = (xs, xi)
                 targets = (ys, yi)
             else:
                 outputs = xi
                 targets = yi
             matched_pred, matched_truth, *_ = iou_match(
-                outputs, targets, weights=weights, ignore_class_labels=(self.clusterer.ignore_class_label,), semantic=self.clusterer.use_semantic, match_highest=match_highest, num_classes=self.experiment.num_classes)
+                outputs, targets, weights=weights, ignore_semantic_labels=(self.clusterer.ignore_semantic_label,), semantic=self.clusterer.use_semantic, match_highest=match_highest, num_classes=self.experiment.num_classes)
             if 1 in matched_pred:
                 matched_pred = matched_pred[1]
                 matched_truth = matched_truth[1]
@@ -150,13 +150,13 @@ class ClusteringStudy(BaseStudy):
 
         return data_dict
 
-    def pq(self, nevents=100, use_weights=True, ignore_class_labels=None, split='val'):
+    def pq(self, nevents=100, use_weights=True, ignore_semantic_labels=None, split='val'):
         events = self.experiment.get_events(split=split, n=nevents)
         nevents = len(events)
         results = {}
         for event in tqdm(events):
             pq = F.pq(event, use_weights, self.clusterer,
-                      self.experiment.task, ignore_class_labels)
+                      self.experiment.task, ignore_semantic_labels)
             for k in pq:
                 if k not in results:
                     results[k] = 0.0
@@ -170,9 +170,14 @@ class ClusteringStudy(BaseStudy):
     def _qualitative_plot(self, out_dir, split, i, event):
         xi = self.clusterer.cluster(event)
         yi = event.input_event[event.instance_label].values
+        # TODO: change this so it's not hardcoded
+        hit_mask = (event.input_event[event.semantic_label] == 1).values
+        xi = xi[hit_mask]
+        yi = yi[hit_mask]
         if event.weight_name:
             size = event.weight_name
             weights = event.input_event[event.weight_name].values
+            weights = weights[hit_mask]
         else:
             size = None
             weights = None
@@ -181,7 +186,7 @@ class ClusteringStudy(BaseStudy):
         for k in _pred_clusters:
             pred_clusters = _pred_clusters[k].astype(str)
             truth_clusters = _truth_clusters[k].astype(str)
-            plot_df = event.input_event.copy()
+            plot_df = event.input_event[hit_mask].copy()
             plot_df['pred_instance_labels'] = xi
             plot_df['pred_instance_labels'] = plot_df['pred_instance_labels'].astype(
                 str)
@@ -220,13 +225,13 @@ class ClusteringStudy(BaseStudy):
             fig.write_image(str(out_path), scale=10)
         return super()._qualitative_plot(out_dir, split, i, event)
 
-    def bandwidth_study(self, clusterer_factory, nevents=-1, out_dir='.', x0=0.02, bounds=(0.001, 1.0), use_weights: bool = True, ignore_class_labels: list = None, niter: int = 200, T: float = 0.1, stepsize: float = 0.05):
+    def bandwidth_study(self, clusterer_factory, nevents=-1, out_dir='.', x0=0.02, bounds=(0.001, 1.0), use_weights: bool = True, ignore_semantic_labels: list = None, niter: int = 200, T: float = 0.1, stepsize: float = 0.05):
         out_dir = self.out_dir / out_dir
         out_dir.mkdir(parents=True, exist_ok=True)
         events = self.experiment.get_events(split='train', n=nevents)
 
         optimal_bw, optimal_pq, results = self._optimize_bandwidth(
-            events, clusterer_factory, x0, bounds, use_weights, ignore_class_labels, niter, T, stepsize)
+            events, clusterer_factory, x0, bounds, use_weights, ignore_semantic_labels, niter, T, stepsize)
         print(f'optimal bandwidth = {optimal_bw}, for which pq = {optimal_pq}')
         bws = results.keys()
         pqs = results.values()
@@ -247,7 +252,7 @@ class ClusteringStudy(BaseStudy):
 
         return data_dict, figs_dict
 
-    def _optimize_bandwidth(self, events: list, clusterer_factory, x0: float, bounds: tuple, use_weights: bool, ignore_class_labels: list, niter: int, T: float, stepsize: float):
+    def _optimize_bandwidth(self, events: list, clusterer_factory, x0: float, bounds: tuple, use_weights: bool, ignore_semantic_labels: list, niter: int, T: float, stepsize: float):
         all_results = {}
         n = len(events)
 
@@ -257,7 +262,7 @@ class ClusteringStudy(BaseStudy):
             for event in events:
                 clusterer = clusterer_factory(bw)
                 results = F.pq(event, use_weights, clusterer,
-                               self.experiment.task, ignore_class_labels)
+                               self.experiment.task, ignore_semantic_labels)
                 wpq += results['wpq'] / n
             all_results[bw] = wpq
             return -wpq

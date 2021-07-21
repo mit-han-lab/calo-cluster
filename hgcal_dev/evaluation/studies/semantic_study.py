@@ -13,8 +13,8 @@ class SemanticStudy(BaseStudy):
     
     def confusion_matrix(self, nevents=-1, labels=('hit', 'noise')):
         events = self.experiment.get_events(split='val', n=nevents)
-        y_true = np.concatenate([e.input_event[e.class_label] for e in events])
-        y_pred = np.concatenate([e.pred_class_labels for e in events])
+        y_true = np.concatenate([e.input_event[e.semantic_label] for e in events])
+        y_pred = np.concatenate([e.pred_semantic_labels for e in events])
         F1 = f1_score(y_true, y_pred)
         data = confusion_matrix(y_true, y_pred)
         ax = sn.heatmap(pd.DataFrame(data, labels, labels), annot=True)

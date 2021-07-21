@@ -3,13 +3,13 @@ import numpy as np
 
 class PanopticQuality:
 
-    def __init__(self, *, num_classes=1, ignore_index=None, semantic=True, ignore_class_labels=None):
+    def __init__(self, *, num_classes=1, ignore_index=None, semantic=True, ignore_semantic_labels=None):
         if not semantic:
             num_classes = 1
         self.num_classes = num_classes
         self.ignore_index = ignore_index
         self.semantic = semantic
-        self.ignore_class_labels = ignore_class_labels
+        self.ignore_semantic_labels = ignore_semantic_labels
         self.reset()
 
     def reset(self):
@@ -24,7 +24,7 @@ class PanopticQuality:
 
     def add(self, outputs, targets, weights=None):
         _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(
-            outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_class_labels=self.ignore_class_labels, num_classes=self.num_classes)
+            outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_semantic_labels=self.ignore_semantic_labels, num_classes=self.num_classes)
         for k in range(self.num_classes):
             if k not in _xyxinstances:
                 self.tps[k], self.wtps[k], self.ious[k], self.fps[k], self.fns[k], self.wfps[k], self.wfns[k] = - \
@@ -60,7 +60,7 @@ class PanopticQuality:
         return {'sq': sq, 'rq': rq, 'pq': pq, 'tq': tq, 'wrq': wrq, 'wpq': wpq, 'wtq': wtq}
 
 
-def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_class_labels=None, match_highest=False):
+def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_semantic_labels=None, match_highest=False):
     ''' xi: predicted cluster labels
         yi: true cluster labels
         weights: weight for each sample
@@ -97,7 +97,7 @@ def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semant
     _intersections = {}
     for k in range(num_classes):
 
-        if ignore_class_labels is not None and k in ignore_class_labels:
+        if ignore_semantic_labels is not None and k in ignore_semantic_labels:
             continue
 
         xik = xi * (xs == k)

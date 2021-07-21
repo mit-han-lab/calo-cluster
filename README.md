@@ -17,7 +17,7 @@
 
 ## Installation
 ### Prerequisites
-* [torchsparse](https://github.com/mit-han-lab/torchsparse) (make sure to install it in an environment with CUDA)
+* [torchsparse v1.4.0](https://github.com/mit-han-lab/torchsparse) (make sure to install it in an environment with CUDA)
 
 First, clone this repository: `git clone --recurse-submodules https://github.com/mit-han-lab/hgcal-dev.git `.
 
