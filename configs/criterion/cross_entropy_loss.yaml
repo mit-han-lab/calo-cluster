@@ -1,5 +1,4 @@
-# @package _group_
 task: semantic
 semantic:
   _target_: torch.nn.CrossEntropyLoss
-  ignore_index: ${dataset.ignore_label}
+  ignore_index: ${dataset.semantic_ignore_label}

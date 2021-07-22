@@ -1,4 +1,3 @@
-# @package _group_
 _target_: hgcal_dev.training.optimizers.sgd_factory
 lr: 0.24
 weight_decay: 1e-4

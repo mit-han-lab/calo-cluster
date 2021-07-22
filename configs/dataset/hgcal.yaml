@@ -1,16 +1,17 @@
-# @package _group_
+defaults:
+  - base_dataset
 _target_: hgcal_dev.datasets.hgcal.HGCalDataModule
-seed: ${seed}
+
+# required fields:
 num_classes: 4
-task: ${criterion.task}
-data_dir: /home/alexj/data/hgcal-dev/hgcal
-event_frac: 1.0
-train_frac: 0.8
-test_frac: 0.1
-download: True
-num_workers: 8
-voxel_size: 1.0
-num_epochs: ${train.num_epochs}
-batch_size: ${train.batch_size}
-noise_level: 1.0
 num_features: 5
+voxel_size: 0.05
+
+# dataset-specific fields (should not change):
+
+# data location (modify as needed):
+data_dir: /home/alexj/data/hgcal-dev/hgcal
+download: True
+
+# config fields:
+noise_level: 1.0

@@ -1,3 +1,4 @@
+config_version: 2
 outputs_dir: /home/alexj/training_outputs
 predictions_dir: /home/alexj/predictions
 plots_dir: /home/alexj/plots

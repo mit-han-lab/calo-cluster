@@ -1,4 +1,3 @@
-# @package _group_
 task: instance
 embed:
   _target_: hgcal_dev.training.criterion.CentroidInstanceLoss
@@ -6,4 +5,5 @@ embed:
   delta_d: 1.5
   normalize: True
   use_weights: False
-  ignore_semantic_label: ${dataset.ignore_label}
+  cluster_ignore_label: ${dataset.cluster_ignore_label}
+  semantic_ignore_label: ${dataset.semantic_ignore_label}
