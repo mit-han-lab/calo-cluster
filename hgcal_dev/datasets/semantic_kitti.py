@@ -15,6 +15,7 @@ from torchsparse.utils.collate import sparse_collate_fn
 from torchsparse.utils.quantize import sparse_quantize
 from tqdm import tqdm
 
+from torch.utils.data.dataset import Dataset
 from .base import BaseDataModule, BaseDataset
 
 label_name_mapping = {
@@ -62,13 +63,16 @@ kept_labels = [
 
 
 @dataclass
-class SemanticKITTIDataset:
+class SemanticKITTIDataset(Dataset):
     root: str
     voxel_size: float
     split: str
     task: str
     num_points: int
     sparse: bool
+    event_frac: float
+    train_frac: float
+    test_frac: float
 
     def __post_init__(self):
         if not self.sparse:
@@ -120,6 +124,7 @@ class SemanticKITTIDataset:
         self.reverse_label_name_mapping = reverse_label_name_mapping
         self.num_classes = cnt
         self.angle = 0.0
+        self.files = self.files[:int(self.event_frac*len(self.files))]
 
     @property
     def events(self) -> list:
@@ -222,6 +227,9 @@ class SemanticKITTIDataModule(pl.LightningDataModule):
     voxel_size: float
     num_points: int
     seed: int
+    event_frac: float
+    train_frac: float
+    test_frac: float
     batch_size: int
     num_epochs: int
     num_workers: int

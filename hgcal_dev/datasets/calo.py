@@ -9,7 +9,6 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import uproot
-from numpy.core.arrayprint import str_format
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
@@ -20,27 +19,27 @@ from tqdm import tqdm
 
 from ..utils.comm import get_rank
 
-from typing import Tuple, List
 
 @dataclass
 class BaseDataset(Dataset):
-    """Base torch dataset."""
+    "Base torch dataset."
     voxel_size: float
-    files: List[Path]
+    events: list
     task: str
-    feats: List[str] = None
-    coords: List[str] = None
+    feats: list = None
+    coords: list = None
     weight: str = None
-
+    semantic_label: str = 'class'
+    instance_label: str = 'instance'
     scale: bool = False
     std: list = None
     mean: list = None
 
     def __len__(self):
-        return len(self.files)
+        return len(self.events)
 
     def _get_pc_feat_labels(self, index):
-        event = pd.read_pickle(self.files[index])
+        event = pd.read_pickle(self.events[index])
         feat_ = event[self.feats].to_numpy()
         if self.task == 'panoptic':
             labels_ = event[[self.semantic_label, self.instance_label]].to_numpy()
@@ -91,98 +90,111 @@ class BaseDataset(Dataset):
 class BaseDataModule(pl.LightningDataModule):
     """The base pytorch-lightning data module that handles common data loading tasks.
 
+    If you set self.transformed_data_dir != self.raw_data_dir in a subclass, and self._transformed_data_dir is empty
+    or does not exist, then the function returned by self.get_transform_function will be applied to each raw event
+    and the result will be saved to self.transformed_data_dir when prepare_data is called. 
 
-    This module assumes that the data is organized into a set of files, with one event per file.
-    When creating a base class, make sure to override make_dataset appropriately.
+    This allows subclasses to define arbitrary transformations that should be performed before serving data,
+    e.g., merging, applying selections, reducing noise levels, etc.
 
-    Parameters:
-    seed -- a seed used by the RNGs
-    task -- the type of ML task that will be performed on this dataset (semantic, instance, panoptic)
-    num_epochs -- the number of epochs
-    batch_size -- the batch size
-    sparse -- whether the data should be provided as SparseTensors (for spvcnn), or not. 
-    
-    num_workers -- the number of CPU processes to use for data workers.
+    When creating a base class, make sure to override make_dataset appropriately."""
 
-    event_frac -- the fraction of total data to use
-    train_frac -- the fraction of train data to use
-    test_frac -- the fraction of test data to use
-
-    cluster_ignore_label -- the semantic label that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
-    semantic_ignore_label -- the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
-
-    batch_dim -- the dimension that contains batch information, if sparse=False. If sparse=True, the batch should be stored in the last dimension of the coordinates.
-
-    num_classes -- the number of semantic classes
-    num_features -- the number of features used as input to the ML model
-    voxel_size -- the length of a voxel along one coordinate dimension 
-    """
-
-    seed: int
-    task: str
-    num_epochs: int
+    num_features: int
     batch_size: int
-    sparse: bool
-
+    num_epochs: int
     num_workers: int
-
+    voxel_size: float
+    data_dir: str
+    raw_data_dir: str
+    seed: int
     event_frac: float
     train_frac: float
     test_frac: float
-
-    cluster_ignore_label: int
-    semantic_ignore_label: int
-    
-    batch_dim: int
-
+    task: str
     num_classes: int
-    num_features: int
-    voxel_size: float
-
-
-    @property
-    def files(self) -> List[Path]:
-        raise NotImplementedError()
+    ignore_label: int
 
     def __post_init__(self):
         super().__init__()
 
         self._validate_fracs()
 
+        self.data_dir = Path(self.data_dir)
+        self.raw_data_dir = Path(self.raw_data_dir)
+        self.raw_data_dir.mkdir(parents=True, exist_ok=True)
+        self.transformed_data_dir = self.raw_data_dir
+
+        self._events = None
+        self._raw_events = None
+
+    @property
+    def events(self) -> list:
+        if self._events is None:
+            self._events = []
+            self._events.extend(
+                sorted(self.transformed_data_dir.glob('*.pkl')))
+        return self._events
+
+    @property
+    def raw_events(self) -> list:
+        if self._raw_events is None:
+            self._raw_events = []
+            self._raw_events.extend(sorted(self.raw_data_dir.glob('*.pkl')))
+        return self._raw_events
+
     def _validate_fracs(self):
         fracs = [self.event_frac, self.train_frac, self.test_frac]
         assert all(0.0 <= f <= 1.0 for f in fracs)
         assert self.train_frac + self.test_frac <= 1.0
 
-    def train_val_test_split(self) -> Tuple[List[Path], List[Path], List[Path]]:
-        """Returns train, val, and test file lists
-        
-        Assumes that self.files is defined and there is no preset split in the dataset.
-        If the dataset already has train/val/test files defined, override this function
-        and return them."""
-        files = shuffle(self.files, random_state=42)
-        num_files = int(self.event_frac * len(files))
-        files = files[:num_files]
-        num_train_files = int(self.train_frac * num_files)
-        num_test_files = int(self.test_frac * num_files)
+    def train_val_test_split(self, events):
+        events = shuffle(events, random_state=42)
+        num_events = int(self.event_frac * len(events))
+        events = events[:num_events]
+        num_train_events = int(self.train_frac * num_events)
+        num_test_events = int(self.test_frac * num_events)
 
-        train_files = files[:num_train_files]
-        val_files = files[num_train_files:-num_test_files]
-        test_files = files[-num_test_files:]
+        train_events = events[:num_train_events]
+        val_events = events[num_train_events:-num_test_events]
+        test_events = events[-num_test_events:]
 
-        return train_files, val_files, test_files
+        return train_events, val_events, test_events
 
-    def setup(self, stage: str = None) -> None:
-        train_files, val_files, test_files = self.train_val_test_split()
+    def make_transformed_data(self, ncpus=32):
+        transform = self.get_transform_function()
+        logging.info(f'Making transformed data at {self.transformed_data_dir}')
+        with mp.Pool(ncpus) as p:
+            with tqdm(total=len(self.raw_events)) as pbar:
+                for _ in p.imap_unordered(transform, self.raw_events):
+                    pbar.update()
+
+    def raw_data_exists(self) -> bool:
+        return len(set(self.raw_data_dir.glob('*'))) != 0
+
+    def transformed_data_exists(self) -> bool:
+        return len(set(self.transformed_data_dir.glob('*'))) != 0
+
+    def prepare_data(self) -> None:
+        if not self.transformed_data_exists():
+            logging.info(
+                f'transformed dataset not found at {self.transformed_data_dir}.')
+            if not self.raw_data_exists():
+                logging.error(f'Raw dataset not found at {self.raw_data_dir}.')
+                raise RuntimeError()
+            self.make_transformed_data()
+
+    def setup(self, stage=None) -> None:
+        train_events, val_events, test_events = self.train_val_test_split(
+            self.events)
 
         logging.debug(f'setting seed={self.seed}')
         pl.seed_everything(self.seed)
 
         if stage == 'fit' or stage is None:
-            self.train_dataset = self.make_dataset(train_files)
-            self.val_dataset = self.make_dataset(val_files)
+            self.train_dataset = self.make_dataset(train_events)
+            self.val_dataset = self.make_dataset(val_events)
         if stage == 'test' or stage is None:
-            self.test_dataset = self.make_dataset(test_files)
+            self.test_dataset = self.make_dataset(test_events)
 
     def dataloader(self, dataset: BaseDataset) -> DataLoader:
         return DataLoader(
@@ -202,11 +214,14 @@ class BaseDataModule(pl.LightningDataModule):
     def test_dataloader(self) -> DataLoader:
         return self.dataloader(self.test_dataset)
 
-    def voxel_occupancy(self) -> np.array:
-        """Returns the average voxel occupancy for each batch in the train dataloader."""
-        if not self.sparse:
-            raise RuntimeError('voxel_occupancy called, but dataset is not sparse!')
+    def get_transform_function(self):
+        """In subclasses, should return a function that accepts an event path as its sole argument."""
+        raise NotImplementedError()
 
+    def make_dataset(self, events) -> BaseDataset:
+        raise NotImplementedError()
+
+    def voxel_occupancy(self):
         self.batch_size = 1
         dataloader = self.train_dataloader()
         voxel_occupancies = np.zeros(len(dataloader.dataset))
@@ -215,6 +230,3 @@ class BaseDataModule(pl.LightningDataModule):
                 batch['inverse_map'].C) / len(batch['features'].C)
 
         return voxel_occupancies
-
-    def make_dataset(self, files: List[Path]) -> BaseDataset:
-        raise NotImplementedError()
