@@ -5,5 +5,5 @@ embed:
   delta_d: 1.5
   normalize: True
   use_weights: False
-  cluster_ignore_label: ${dataset.cluster_ignore_label}
-  semantic_ignore_label: ${dataset.semantic_ignore_label}
+  ignore_label: ${dataset.cluster_ignore_label}
+  batch_dim: ${dataset.batch_dim}

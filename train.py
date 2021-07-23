@@ -75,7 +75,6 @@ def train(cfg: DictConfig) -> None:
 def hydra_main(cfg: DictConfig) -> None:
     # Set up python logging.
     logger = logging.getLogger()
-    breakpoint()
     if is_rank_zero():
         logger.setLevel(cfg.log_level)
         logging.info(OmegaConf.to_yaml(cfg))

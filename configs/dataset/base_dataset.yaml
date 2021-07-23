@@ -16,6 +16,9 @@ cluster_ignore_label: null
 # the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
 semantic_ignore_label: null
 
+# the dimension that contains batch information (only relevant if sparse=False)
+batch_dim: 0
+
 # required fields (set to null if not relevant to dataset):
 num_classes: ???
 num_features: ???
