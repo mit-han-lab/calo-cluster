@@ -20,71 +20,89 @@ from tqdm import tqdm
 
 from ..utils.comm import get_rank
 
-from typing import Tuple, List
+from typing import Tuple, List, Any, Callable, Dict, Union
 
 @dataclass
 class BaseDataset(Dataset):
-    """Base torch dataset."""
-    voxel_size: float
+    """Base torch dataset.
+    
+    A subclass of this dataset needs to:
+    1. override _get_numpy().
+    2. override collate_fn if a different collate method is required for the dataset."""
     files: List[Path]
+    voxel_size: float
+    
     task: str
-    feats: List[str] = None
-    coords: List[str] = None
-    weight: str = None
 
-    scale: bool = False
-    std: list = None
-    mean: list = None
+    scale: bool
+    mean: List[float]
+    std: List[float]
+
+    def __post_init__(self):
+        super().__init__()
 
     def __len__(self):
         return len(self.files)
 
-    def _get_pc_feat_labels(self, index):
-        event = pd.read_pickle(self.files[index])
-        feat_ = event[self.feats].to_numpy()
-        if self.task == 'panoptic':
-            labels_ = event[[self.semantic_label, self.instance_label]].to_numpy()
-        elif self.task == 'semantic':
-            labels_ = event[self.semantic_label].to_numpy()
-        elif self.task == 'instance':
-            labels_ = event[self.instance_label].to_numpy(
-            )
-        else:
-            raise RuntimeError(f'Unknown task = "{self.task}"')
-        pc_ = np.round(event[self.coords].to_numpy() / self.voxel_size)
-        pc_ -= pc_.min(0, keepdims=1)
+    def _get_numpy(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
+        """Returns (features, labels, weights, coordinates) for a given file index.
+        
+        Override this function."""
+        raise NotImplementedError()
 
+
+    def _get_numpy_scaled(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
+        """Simple wrapper for _get_numpy that scales the features if self.scale is true."""
+        features, labels, weights, coordinates = self._get_numpy(index)
+        
         if self.scale:
-            feat_ = (feat_ - np.array(self.mean)) / np.array(self.std)
+            features = (features - np.array(self.mean)) / np.array(self.std)
 
-        if self.weight is not None:
-            weights_ = event[self.weight].to_numpy()
-        else:
-            weights_ = None
-        return pc_, feat_, labels_, weights_
+        return features, labels, weights, coordinates
 
-    def __getitem__(self, index):
-        pc_, feat_, labels_, weights_ = self._get_pc_feat_labels(index)
-        _, inds, inverse_map = sparse_quantize(pc_,
-                                               return_index=True,
-                                               return_inverse=True)
-        pc = pc_[inds]
-        feat = feat_[inds]
+    def _get_sparse_tensors(self, index: int) -> Dict[str, SparseTensor]:
+        features_, labels_, weights_, coordinates_ = self._get_numpy_scaled(index)
+        coordinates_ = np.round(coordinates_ / self.voxel_size)
+        coordinates_ -= coordinates_.min(0, keepdims=1)
+
+        _, inds, inverse_map = sparse_quantize(coordinates_,
+                                        return_index=True,
+                                        return_inverse=True)
+        coordinates = coordinates_[inds]
+        features = features_[inds]
         labels = labels_[inds]
-        features = SparseTensor(feat, pc)
-        labels = SparseTensor(labels, pc)
-        inverse_map = SparseTensor(inverse_map, pc_)
-        return_dict = {'features': features, 'labels': labels,
-                       'inverse_map': inverse_map}
-        if weights_ is not None:
+        features = SparseTensor(features, coordinates)
+        labels = SparseTensor(labels, coordinates)
+        inverse_map = SparseTensor(inverse_map, coordinates_)
+        
+        if weights_ is not None: 
             weights = weights_[inds]
-            weights = SparseTensor(weights, pc)
-            return_dict['weights'] = weights
+            weights = SparseTensor(weights, coordinates)
+            
+        return_dict = {'features': features, 'labels': labels,
+                       'inverse_map': inverse_map, 'weights': weights}
         return return_dict
 
-    @staticmethod
-    def collate_fn(inputs):
-        return sparse_collate_fn(inputs)
+    def get_numpy(self, index: int) -> Dict[str, np.array]:
+        features, labels, weights, _ = self._get_numpy_scaled(index)
+        return_dict = {'features': features, 'labels': labels, 'weights': weights}
+
+        return return_dict
+
+
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        if self.sparse:
+            return self._get_sparse_tensors(index)
+        else:
+            return self.get_numpy(index)
+
+    @property
+    def collate_fn(self) -> Callable[[List[Any]], Any]:
+        """Returns a function that collates data into batches for the dataloader."""
+        if self.sparse:
+            return sparse_collate_fn
+        else:
+            return None
 
 
 @dataclass
@@ -108,6 +126,10 @@ class BaseDataModule(pl.LightningDataModule):
     train_frac -- the fraction of train data to use
     test_frac -- the fraction of test data to use
 
+    scale -- if true, use standard scaling on the features (x = (x - mean) / std)
+    mean -- the means of the features, to be used for scaling
+    std -- the standard deviations of the features, to be used for scaling
+
     cluster_ignore_label -- the semantic label that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
     semantic_ignore_label -- the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
 
@@ -129,6 +151,10 @@ class BaseDataModule(pl.LightningDataModule):
     event_frac: float
     train_frac: float
     test_frac: float
+
+    scale: bool
+    mean: List[float]
+    std: List[float]
 
     cluster_ignore_label: int
     semantic_ignore_label: int
@@ -154,7 +180,7 @@ class BaseDataModule(pl.LightningDataModule):
         assert all(0.0 <= f <= 1.0 for f in fracs)
         assert self.train_frac + self.test_frac <= 1.0
 
-    def train_val_test_split(self) -> Tuple[List[Path], List[Path], List[Path]]:
+    def train_val_test_split(self, stage: str) -> Tuple[Union[List[Path], None], Union[List[Path], None], Union[List[Path], None]]:
         """Returns train, val, and test file lists
         
         Assumes that self.files is defined and there is no preset split in the dataset.
@@ -173,16 +199,16 @@ class BaseDataModule(pl.LightningDataModule):
         return train_files, val_files, test_files
 
     def setup(self, stage: str = None) -> None:
-        train_files, val_files, test_files = self.train_val_test_split()
+        train_files, val_files, test_files = self.train_val_test_split(stage)
 
         logging.debug(f'setting seed={self.seed}')
         pl.seed_everything(self.seed)
 
         if stage == 'fit' or stage is None:
-            self.train_dataset = self.make_dataset(train_files)
-            self.val_dataset = self.make_dataset(val_files)
+            self.train_dataset = self.make_dataset(train_files, split='train')
+            self.val_dataset = self.make_dataset(val_files, split='val')
         if stage == 'test' or stage is None:
-            self.test_dataset = self.make_dataset(test_files)
+            self.test_dataset = self.make_dataset(test_files, split='test')
 
     def dataloader(self, dataset: BaseDataset) -> DataLoader:
         return DataLoader(
@@ -216,5 +242,5 @@ class BaseDataModule(pl.LightningDataModule):
 
         return voxel_occupancies
 
-    def make_dataset(self, files: List[Path]) -> BaseDataset:
+    def make_dataset(self, files: List[Path], split: str) -> BaseDataset:
         raise NotImplementedError()

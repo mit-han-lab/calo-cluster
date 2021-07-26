@@ -1,14 +1,15 @@
 import multiprocessing as mp
 from dataclasses import dataclass
 from functools import partial
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import uproot
 from tqdm import tqdm
 
-from .hcal import HCalDataModule
 from .base import BaseDataset
+from .hcal import HCalDataModule
 
 
 class HCalTTDataset(BaseDataset):
@@ -30,8 +31,8 @@ class HCalTTDataset(BaseDataset):
 
 @dataclass
 class HCalTTDataModule(HCalDataModule):
-    def make_dataset(self, events) -> HCalTTDataset:
-        return HCalTTDataset(self.voxel_size, events, self.task, self.instance_label, self.feats, self.coords)
+    def make_dataset(self, files: List[Path], split: str) -> HCalTTDataset:
+        return HCalTTDataset(self.voxel_size, files, self.task, self.instance_label, self.feats, self.coords)
 
     @staticmethod
     def root_to_pickle(root_data_path, raw_data_dir, noise_id=-1):

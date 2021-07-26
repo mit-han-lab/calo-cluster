@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,6 @@ from torchsparse.utils.collate import sparse_collate_fn
 from torchsparse.utils.quantize import sparse_quantize
 from tqdm import tqdm
 
-from torch.utils.data.dataset import Dataset
 from .base import BaseDataModule, BaseDataset
 
 label_name_mapping = {
@@ -63,42 +63,75 @@ kept_labels = [
 
 
 @dataclass
-class SemanticKITTIDataset(Dataset):
-    root: str
-    voxel_size: float
+class SemanticKITTIDataset(BaseDataset):
     split: str
-    task: str
     num_points: int
-    sparse: bool
-    event_frac: float
-    train_frac: float
-    test_frac: float
+    label_map: np.array
 
     def __post_init__(self):
-        if not self.sparse:
-            self.collate_fn = None
-        self.weight = None
-        self.seqs = []
-        if self.split == 'train':
-            self.seqs = [
-                '00', '01', '02', '03', '04', '05', '06', '07', '09', '10'
-            ]
-        elif self.split == 'val':
-            self.seqs = ['08']
-        elif self.split == 'test':
-            self.seqs = [
-                '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'
-            ]
+        self.angle = 0.0
+        super().__post_init__()
 
-        self.files = []
-        for seq in self.seqs:
-            seq_files = sorted(
-                os.listdir(os.path.join(self.root, seq, 'velodyne')))
-            seq_files = [
-                os.path.join(self.root, seq, 'velodyne', x) for x in seq_files
-            ]
-            self.files.extend(seq_files)
+    def set_angle(self, angle):
+        self.angle = angle
 
+    def _get_numpy(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
+        with open(self.files[index], 'rb') as b:
+            block_ = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
+        block = np.zeros_like(block_)
+
+        if 'train' in self.split:
+            theta = np.random.uniform(0, 2 * np.pi)
+            scale_factor = np.random.uniform(0.95, 1.05)
+            rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
+                                [-np.sin(theta),
+                                 np.cos(theta), 0], [0, 0, 1]])
+
+            block[:, :3] = np.dot(block_[:, :3], rot_mat) * scale_factor
+        else:
+            theta = self.angle
+            transform_mat = np.array([[np.cos(theta),
+                                       np.sin(theta), 0],
+                                      [-np.sin(theta),
+                                       np.cos(theta), 0], [0, 0, 1]])
+            block[...] = block_[...]
+            block[:, :3] = np.dot(block[:, :3], transform_mat)
+
+        block[:, 3] = block_[:, 3]
+
+        label_file = str(self.files[index]).replace('velodyne', 'labels').replace(
+            '.bin', '.label')
+        if os.path.exists(label_file):
+            with open(label_file, 'rb') as a:
+                all_labels = np.fromfile(a, dtype=np.int32).reshape(-1)
+        else:
+            all_labels = np.zeros(block.shape[0]).astype(np.int32)
+
+        if self.task == 'semantic':
+            labels = self.label_map[all_labels & 0xFFFF].astype(np.int64)
+        elif self.task == 'instance':
+            labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
+        elif self.task == 'panoptic':
+            semantic_labels = self.label_map[all_labels & 0xFFFF].astype(
+                np.int64)
+            instance_labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
+            labels = np.stack((semantic_labels, instance_labels), axis=-1)
+
+
+        if len(block) > self.num_points:
+                inds = np.random.choice(np.arange(len(block)), self.num_points, replace=False)
+                block = block[inds]
+                labels = labels[inds]
+
+        return block, labels, None, block[:, :3]
+
+
+@dataclass
+class SemanticKITTIDataModule(BaseDataModule):
+    root: str
+    num_points: int
+
+    def __post_init__(self):
         reverse_label_name_mapping = {}
         self.label_map = np.zeros(260)
         cnt = 0
@@ -122,163 +155,36 @@ class SemanticKITTIDataset(Dataset):
                     self.label_map[label_id] = 255
 
         self.reverse_label_name_mapping = reverse_label_name_mapping
-        self.num_classes = cnt
-        self.angle = 0.0
-        self.files = self.files[:int(self.event_frac*len(self.files))]
+        assert self.num_classes == cnt
 
-    @property
-    def events(self) -> list:
-        return [Path(f) for f in self.files]
+        super().__post_init__()
 
-    def set_angle(self, angle):
-        self.angle = angle
+    def _get_files(self, seqs):
+        files = []
+        for seq in seqs:
+            seq_files = sorted(
+                os.listdir(os.path.join(self.root, seq, 'velodyne')))
+            seq_files = [
+                os.path.join(self.root, seq, 'velodyne', x) for x in seq_files
+            ]
+            files.extend(seq_files)
 
-    def __len__(self):
-        return len(self.files)
+        return [Path(f) for f in files]
 
-    def __getitem__(self, index):
-        with open(self.files[index], 'rb') as b:
-            block_ = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
-        block = np.zeros_like(block_)
+    def train_val_test_split(self):
+        train_seqs = ['00', '01', '02', '03', '04', '05', '06', '07', '09', '10']
+        val_seqs = ['08']
+        test_seqs = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21']
 
-        if 'train' in self.split:
-            theta = np.random.uniform(0, 2 * np.pi)
-            scale_factor = np.random.uniform(0.95, 1.05)
-            rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
-                                [-np.sin(theta),
-                                 np.cos(theta), 0], [0, 0, 1]])
+        train_files = self._get_files(train_seqs)
+        val_files = self._get_files(val_seqs)
+        test_files = self._get_files(test_seqs)
 
-            block[:, :3] = np.dot(block_[:, :3], rot_mat) * scale_factor
-        else:
-            theta = self.angle
-            transform_mat = np.array([[np.cos(theta),
-                                       np.sin(theta), 0],
-                                      [-np.sin(theta),
-                                       np.cos(theta), 0], [0, 0, 1]])
-            block[...] = block_[...]
-            block[:, :3] = np.dot(block[:, :3], transform_mat)
+        train_files = train_files[:len(train_files)*self.event_frac]
+        val_files = val_files[:len(val_files)*self.event_frac]
+        test_files = test_files[:len(test_files)*self.event_frac]
+           
+        return train_files, val_files, test_files
 
-        block[:, 3] = block_[:, 3]
-        if self.sparse:
-            pc_ = np.round(block[:, :3] / self.voxel_size).astype(np.int32)
-        else:
-            pc_ = block[:, :3].astype(np.int32)
-        pc_ -= pc_.min(0, keepdims=1)
-
-        label_file = self.files[index].replace('velodyne', 'labels').replace(
-            '.bin', '.label')
-        if os.path.exists(label_file):
-            with open(label_file, 'rb') as a:
-                all_labels = np.fromfile(a, dtype=np.int32).reshape(-1)
-        else:
-            all_labels = np.zeros(pc_.shape[0]).astype(np.int32)
-
-        if self.task == 'semantic':
-            labels_ = self.label_map[all_labels & 0xFFFF].astype(np.int64)
-        elif self.task == 'instance':
-            labels_ = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
-        elif self.task == 'panoptic':
-            semantic_labels = self.label_map[all_labels & 0xFFFF].astype(
-                np.int64)
-            instance_labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
-            labels_ = np.stack((semantic_labels, instance_labels), axis=-1)
-        feat_ = block
-
-        if self.sparse:
-            _, inds, inverse_map = sparse_quantize(pc_,
-                                                return_index=True,
-                                                return_inverse=True)
-
-            if 'train' in self.split:
-                if len(inds) > self.num_points:
-                    inds = np.random.choice(inds, self.num_points, replace=False)
-
-            pc = pc_[inds]
-            feat = feat_[inds]
-            labels = labels_[inds]
-            lidar = SparseTensor(feat, pc)
-            labels = SparseTensor(labels, pc)
-            inverse_map = SparseTensor(inverse_map, pc_)
-
-            return {
-                'features': lidar,
-                'labels': labels,
-                'inverse_map': inverse_map,
-                'file_name': self.files[index]
-            }
-        else:
-            if len(feat_) > self.num_points:
-                inds = np.random.choice(np.arange(len(feat_)), self.num_points, replace=False)
-                feat_ = feat_[inds]
-                labels_ = labels_[inds]
-            return {
-                    'features': feat_,
-                    'labels': labels_
-            }
-
-    @staticmethod
-    def collate_fn(inputs):
-        return sparse_collate_fn(inputs)
-
-
-@dataclass
-class SemanticKITTIDataModule(pl.LightningDataModule):
-    root: str
-    voxel_size: float
-    num_points: int
-    seed: int
-    event_frac: float
-    train_frac: float
-    test_frac: float
-    batch_size: int
-    num_epochs: int
-    num_workers: int
-    num_classes: int
-    task: str
-    ignore_label: int
-    num_features: int
-    sparse: bool
-
-    def __post_init__(self):
-        super().__init__()
-
-    def setup(self, stage=None) -> None:
-
-        logging.debug(f'setting seed={self.seed}')
-        pl.seed_everything(self.seed)
-
-        if stage == 'fit' or stage is None:
-            self.train_dataset = SemanticKITTIDataset(
-                self.root, self.voxel_size, num_points=self.num_points, split='train', task=self.task, sparse=self.sparse)
-            self.val_dataset = SemanticKITTIDataset(
-                self.root, self.voxel_size, num_points=self.num_points, split='val', task=self.task, sparse=self.sparse)
-        if stage == 'test' or stage is None:
-            self.test_dataset = SemanticKITTIDataset(
-                self.root, self.voxel_size, num_points=self.num_points, split='test', task=self.task, sparse=self.sparse)
-
-    def dataloader(self, dataset: BaseDataset) -> DataLoader:
-        return DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            collate_fn=dataset.collate_fn,
-            worker_init_fn=lambda worker_id: np.random.seed(self.seed + worker_id))
-
-    def train_dataloader(self) -> DataLoader:
-        return self.dataloader(self.train_dataset)
-
-    def val_dataloader(self) -> DataLoader:
-        return self.dataloader(self.val_dataset)
-
-    def test_dataloader(self) -> DataLoader:
-        return self.dataloader(self.test_dataset)
-
-    def voxel_occupancy(self):
-        self.batch_size = 1
-        dataloader = self.train_dataloader()
-        voxel_occupancies = np.zeros(len(dataloader.dataset))
-        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader.dataset)):
-            voxel_occupancies[i] = len(batch['inverse_map'].C) / len(batch['features'].C) 
-
-        return voxel_occupancies
+    def make_dataset(self, files: List[Path], split: str) -> BaseDataset:
+        return SemanticKITTIDataset(files, self.voxel_size, self.task, self.scale, self.mean, self.std, self.split, self.num_points, self.label_map)
