@@ -38,6 +38,8 @@ class BaseDataset(Dataset):
     mean: List[float]
     std: List[float]
 
+    sparse: bool
+
     def __post_init__(self):
         super().__init__()
 
@@ -78,6 +80,8 @@ class BaseDataset(Dataset):
         if weights_ is not None: 
             weights = weights_[inds]
             weights = SparseTensor(weights, coordinates)
+        else:
+            weights = None
             
         return_dict = {'features': features, 'labels': labels,
                        'inverse_map': inverse_map, 'weights': weights}
@@ -153,11 +157,11 @@ class BaseDataModule(pl.LightningDataModule):
     test_frac: float
 
     scale: bool
-    mean: List[float]
-    std: List[float]
+    mean: Union[List[float], None]
+    std: Union[List[float], None]
 
     cluster_ignore_label: int
-    semantic_ignore_label: int
+    semantic_ignore_label: Union[int, None]
     
     batch_dim: int
 
@@ -180,7 +184,7 @@ class BaseDataModule(pl.LightningDataModule):
         assert all(0.0 <= f <= 1.0 for f in fracs)
         assert self.train_frac + self.test_frac <= 1.0
 
-    def train_val_test_split(self, stage: str) -> Tuple[Union[List[Path], None], Union[List[Path], None], Union[List[Path], None]]:
+    def train_val_test_split(self) -> Tuple[Union[List[Path], None], Union[List[Path], None], Union[List[Path], None]]:
         """Returns train, val, and test file lists
         
         Assumes that self.files is defined and there is no preset split in the dataset.
@@ -199,7 +203,7 @@ class BaseDataModule(pl.LightningDataModule):
         return train_files, val_files, test_files
 
     def setup(self, stage: str = None) -> None:
-        train_files, val_files, test_files = self.train_val_test_split(stage)
+        train_files, val_files, test_files = self.train_val_test_split()
 
         logging.debug(f'setting seed={self.seed}')
         pl.seed_everything(self.seed)

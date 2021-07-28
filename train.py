@@ -7,19 +7,34 @@ import hydra
 import pytorch_lightning as pl
 import submitit
 import yaml
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, open_dict
 from hgcal_dev.models.spvcnn import SPVCNN
 
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')
-
     if cfg.overfit:
         overfit_batches = 1
         cfg.train.batch_size = 1
+        cfg.checkpoint.save_top_k = 0
     else:
         overfit_batches = 0.0
     
     callbacks = []
+
+    # Set up criterion task.
+    with open_dict(cfg):
+        semantic = 'semantic_criterion' in cfg
+        instance = 'embed_criterion' in cfg
+        if semantic and instance:
+            cfg.criterion.task = 'panoptic'
+        elif semantic:
+            cfg.criterion.task = 'semantic'
+        elif instance:
+            cfg.criterion.task = 'instance'
+        else:
+            raise RuntimeError('semantic_criterion and/or embed_criterion must be set!')
+        cfg.dataset.task = cfg.criterion.task
+
 
     # Set up SWA.
     if cfg.swa.active:
@@ -55,11 +70,10 @@ def train(cfg: DictConfig) -> None:
             yaml.dump(data, f)
 
     datamodule = hydra.utils.instantiate(cfg.dataset)
-
     if cfg.init_ckpt is not None:
         model = SPVCNN.load_from_checkpoint(cfg.init_ckpt, **cfg)
     else:
-        model = hydra.utils.instantiate(cfg.model.target, cfg=cfg)
+        model = hydra.utils.instantiate(cfg.model.target, cfg)
     
     
 

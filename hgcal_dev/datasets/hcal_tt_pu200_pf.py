@@ -1,6 +1,7 @@
 import multiprocessing as mp
 from dataclasses import dataclass
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
@@ -8,31 +9,23 @@ import pandas as pd
 import uproot
 from tqdm import tqdm
 
-from .base import BaseDataset
-from .hcal import HCalDataModule
+from .calo import CaloDataModule, CaloDataset
 
 
-class HCalTTDataset(BaseDataset):
-    def __init__(self, voxel_size, events, task, instance_label, feats, coords):
-        if instance_label == 'truth':
-            raise NotImplementedError()
-            #instance_label = 'trackId'
-        elif instance_label == 'antikt':
-            raise NotImplementedError()
-            #instance_label = 'RHAntiKtCluster_reco'
-        elif instance_label == 'pf':
-            instance_label = 'PFcluster0Id'
-        else:
-            raise RuntimeError()
-        super().__init__(voxel_size, events, task, feats=feats, coords=coords,
-                         semantic_label='pf_hit', instance_label=instance_label, weight='energy')
+class HCalTTPU200PFDataset(CaloDataset):
+    def __init__(self, **kwargs):
+        super().__init__(instance_label='PFcluster0Id', semantic_label='pf_hit', scale=False, mean=None, std=None, weight='energy', **kwargs)
 
 
 
 @dataclass
-class HCalTTDataModule(HCalDataModule):
-    def make_dataset(self, files: List[Path], split: str) -> HCalTTDataset:
-        return HCalTTDataset(self.voxel_size, files, self.task, self.instance_label, self.feats, self.coords)
+class HCalTTPU200PFDataModule(CaloDataModule):
+    noise_id: int
+    min_hits_per_cluster: int
+    min_cluster_energy: float
+
+    def make_dataset(self, files: List[Path], split: str) -> HCalTTPU200PFDataset:
+        return HCalTTPU200PFDataset(voxel_size=self.voxel_size, files=files, task=self.task, feats=self.feats, coords=self.coords, sparse=self.sparse)
 
     @staticmethod
     def root_to_pickle(root_data_path, raw_data_dir, noise_id=-1):
@@ -89,3 +82,8 @@ class HCalTTDataModule(HCalDataModule):
         phi = angle_agg[('wphi', 'sum')] / energy
         phi.name = 'phi'
         return pd.concat([energy, eta, phi, nconstituents], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
+
+
+    def get_transform_function(self):
+            transformed_data_dir = self.raw_data_dir / f'min_energy_{self.min_cluster_energy}_min_hits_{self.min_hits_per_cluster}'
+            return partial(self._apply_transform, min_cluster_energy=self.min_cluster_energy, min_hits_per_cluster=self.min_hits_per_cluster, noise_id=self.noise_id, transformed_data_dir=transformed_data_dir)

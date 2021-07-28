@@ -15,13 +15,15 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, weights, use_weigh
         if normalize:
             outputs = outputs / (torch.linalg.norm(outputs, axis=1) + 1e-8)[...,None]
 
-        B = labels.shape[0]
+        
         # Iterate over each event within the batch.
         if subbatch_indices is None:
             d = batch_dim
+            B = labels.shape[d]
             subbatch = ((outputs[(slice(None),)*d+(i,)], labels[(slice(None),)*d+(i,)], weights[(slice(None),)*d+(i,)]) for i in torch.arange(B))
         else:
             unique_subbatch_indices = torch.unique(subbatch_indices)
+            B = unique_subbatch_indices.shape[0]
             def get_subbatch():
                 for subbatch_idx in unique_subbatch_indices:
                     subbatch_mask = subbatch_indices == subbatch_idx
@@ -67,6 +69,8 @@ class CentroidInstanceLoss(nn.Module):
         if method not in ['all', 'ignore', 'separate']:
             raise ValueError('invalid method!')
         self.method = method
+        if method in ['ignore', 'separate']:
+            assert ignore_label is not None
         self.ignore_label = ignore_label
         self.batch_dim = batch_dim
 
@@ -76,10 +80,12 @@ class CentroidInstanceLoss(nn.Module):
         elif self.method == 'ignore':
             mask = semantic_labels != self.ignore_label
             if subbatch_indices is not None:
-                subbatch_indices = subbatch_indices[mask]
+                s_subbatch_indices = subbatch_indices[mask]
+            else:
+                s_subbatch_indices = None
             if weights is not None:
                 weights = weights[mask]
-            loss = centroid_instance_loss(outputs[mask], labels[mask], subbatch_indices, weights, self.use_weights, self.normalize, self.delta_d, self.delta_v, self.batch_dim)
+            loss = centroid_instance_loss(outputs[mask], labels[mask], s_subbatch_indices, weights, self.use_weights, self.normalize, self.delta_d, self.delta_v, self.batch_dim)
         elif self.method == 'separate':
             loss = 0.0
             unique_semantic_labels = torch.unique(semantic_labels)
@@ -88,18 +94,32 @@ class CentroidInstanceLoss(nn.Module):
                     continue
                 mask = (semantic_labels == semantic_label)
                 if subbatch_indices is not None:
-                    subbatch_indices = subbatch_indices[mask]
+                    s_subbatch_indices = subbatch_indices[mask]
+                else:
+                    s_subbatch_indices = None
                 if weights is not None:
                     weights = weights[mask]
-                loss += centroid_instance_loss(outputs[mask], labels[mask], subbatch_indices, weights, self.use_weights, self.normalize, self.delta_d, self.delta_v, self.batch_dim)
+                loss += centroid_instance_loss(outputs[mask], labels[mask], s_subbatch_indices, weights, self.use_weights, self.normalize, self.delta_d, self.delta_v, self.batch_dim)
         return loss
                 
 def main():
-    criterion = CentroidInstanceLoss(normalize=False)
+    criterion = CentroidInstanceLoss(normalize=False, method='all')
     outputs = torch.arange(10, dtype=float32).reshape((5, 2))
     labels = torch.Tensor([2, 0, 2, 1, 2])
     subbatch_indices = torch.Tensor([0, 0, 0, 0, 0])
-    print(criterion(outputs, labels, subbatch_indices))
+    print(outputs)
+    print(labels)
+    #print(criterion(outputs, labels, subbatch_indices))
+
+    criterion = CentroidInstanceLoss(normalize=False, method='ignore', ignore_label=0)
+    outputs = torch.arange(10, dtype=float32).reshape((5, 2))
+    labels = torch.Tensor([2, 0, 2, 1, 2])
+    subbatch_indices = torch.Tensor([0, 0, 0, 0, 0])
+    semantic_labels = torch.Tensor([1, 1, 1, 0, 1])
+    print(outputs)
+    print(labels)
+    print(semantic_labels)
+    print(criterion(outputs, labels, subbatch_indices, semantic_labels=semantic_labels))
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,6 @@
+# @package _global_
 defaults:
-  - cross_entropy_loss
-  - centroid_separate
-task: panoptic
-alpha: 1.0
+  - override /semantic_criterion: cross_entropy_loss
+  - override /embed_criterion: centroid_separate
+criterion:
+  alpha: 1.0

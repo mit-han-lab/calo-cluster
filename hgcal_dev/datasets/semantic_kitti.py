@@ -180,11 +180,11 @@ class SemanticKITTIDataModule(BaseDataModule):
         val_files = self._get_files(val_seqs)
         test_files = self._get_files(test_seqs)
 
-        train_files = train_files[:len(train_files)*self.event_frac]
-        val_files = val_files[:len(val_files)*self.event_frac]
-        test_files = test_files[:len(test_files)*self.event_frac]
+        train_files = train_files[:int(len(train_files)*self.event_frac)]
+        val_files = val_files[:int(len(val_files)*self.event_frac)]
+        test_files = test_files[:int(len(test_files)*self.event_frac)]
            
         return train_files, val_files, test_files
 
     def make_dataset(self, files: List[Path], split: str) -> BaseDataset:
-        return SemanticKITTIDataset(files, self.voxel_size, self.task, self.scale, self.mean, self.std, self.split, self.num_points, self.label_map)
+        return SemanticKITTIDataset(files=files, voxel_size=self.voxel_size, task=self.task, scale=self.scale, mean=self.mean, std=self.std, sparse=self.sparse, split=split, num_points=self.num_points, label_map=self.label_map)

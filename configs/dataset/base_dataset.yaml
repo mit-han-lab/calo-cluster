@@ -1,5 +1,4 @@
 seed: ${seed}
-task: ${criterion.task}
 num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
 sparse: ${model.sparse}
@@ -19,7 +18,7 @@ std: null
 # the semantic label that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
 cluster_ignore_label: null
 # the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
-semantic_ignore_label: null
+semantic_ignore_label: -100
 
 # the dimension that contains batch information (only relevant if sparse=False)
 batch_dim: 0

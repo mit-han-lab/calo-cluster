@@ -1,6 +1,6 @@
 defaults:
   - base_dataset
-_target_: hgcal_dev.datasets.hcal_tt_pf.HCalTTPFDataModule
+_target_: hgcal_dev.datasets.hcal_tt_pu200_pf.HCalTTPU200PFDataModule
 
 # required fields:
 num_classes: 2

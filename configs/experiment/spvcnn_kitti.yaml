@@ -1,5 +1,0 @@
-# @package _global_
-defaults:
-  - override /model: spvcnn
-  - override /dataset: semantic_kitti 
-  - override /criterion: [joint_centroid,centroid_separate]

@@ -1,5 +1,4 @@
 defaults:
   - base_centroid
 
-embed:
-  method: 'separate'
+method: 'ignore'

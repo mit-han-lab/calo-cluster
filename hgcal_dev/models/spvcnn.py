@@ -94,10 +94,10 @@ class SPVCNN(pl.LightningModule):
         assert task in ('instance', 'semantic', 'panoptic')
         if task == 'instance' or task == 'panoptic':
             self.embed_criterion = hydra.utils.instantiate(
-                self.hparams.criterion.embed)
+                self.hparams.embed_criterion)
         if task == 'semantic' or task == 'panoptic':
             self.semantic_criterion = hydra.utils.instantiate(
-                self.hparams.criterion.semantic)
+                self.hparams.semantic_criterion)
 
         cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
 
@@ -259,7 +259,7 @@ class SPVCNN(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
         if self.scheduler_factory is not None:
-            scheduler = self.scheduler_factory(optimizer, self.num_training_steps)
+            scheduler = self.scheduler_factory(optimizer, self.num_training_steps())
             scheduler = {'scheduler': scheduler, 'interval': 'step', 'frequency': 1}
             return [optimizer], [scheduler]
         else:
@@ -270,8 +270,9 @@ class SPVCNN(pl.LightningModule):
         targets = batch['labels'].F.long()
         outputs = self(inputs)
         subbatch_indices = inputs.C[..., -1]
-        if 'weights' in batch:
-            weights = batch['weights'].F
+        weights = batch['weights']
+        if type(weights) is SparseTensor:
+            weights = weights.F
         else:
             weights = None
         sync_dist = (split != 'train')
@@ -304,7 +305,6 @@ class SPVCNN(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, split='test')
 
-    @property
     def num_training_steps(self) -> int:
         """Total training steps inferred from datamodule and devices."""
         if self.trainer.max_steps:

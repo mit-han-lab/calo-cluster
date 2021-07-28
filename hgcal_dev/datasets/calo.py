@@ -22,11 +22,11 @@ from tqdm import tqdm
 @dataclass
 class CaloDataset(BaseDataset):
     "A generic calorimeter torch dataset."
-    feats: list = None
-    coords: list = None
-    weight: str = None
-    semantic_label: str = 'class'
-    instance_label: str = 'instance'
+    feats: list
+    coords: list
+    weight: str
+    semantic_label: str
+    instance_label: str
 
     def _get_df(self, index: int) -> pd.DataFrame:
         df = pd.read_pickle(self.files[index])
@@ -36,6 +36,7 @@ class CaloDataset(BaseDataset):
         df = self._get_df(index)
         features = df[self.feats].to_numpy()
         if self.task == 'panoptic':
+            breakpoint()
             labels = df[[self.semantic_label, self.instance_label]].to_numpy()
         elif self.task == 'semantic':
             labels = df[self.semantic_label].to_numpy()
@@ -66,10 +67,11 @@ class CaloDataModule(BaseDataModule):
     data_dir: str
     raw_data_dir: str
 
-    def __post_init__(self):
-        super().__init__()
+    feats: List[str]
+    coords: List[str]
 
-        self._validate_fracs()
+    def __post_init__(self):
+        super().__post_init__()
 
         self.data_dir = Path(self.data_dir)
         self.raw_data_dir = Path(self.raw_data_dir)
