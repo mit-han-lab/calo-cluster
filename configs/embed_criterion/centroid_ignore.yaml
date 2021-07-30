@@ -2,3 +2,4 @@ defaults:
   - base_centroid
 
 method: 'ignore'
+requires_semantic: true

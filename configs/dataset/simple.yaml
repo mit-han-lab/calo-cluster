@@ -3,14 +3,15 @@ defaults:
 _target_: hgcal_dev.datasets.simple.SimpleDataModule
 
 # required fields:
-num_classes: null
-num_features: 3
-voxel_size: 0.1
+num_classes: 2
+num_features: 4
+voxel_size: 0.05
 
 # dataset-specific fields (should not change):
 
 # data location (modify as needed):
 data_dir: /home/alexj/data/hgcal-dev/simple
-raw_data_dir: /home/alexj/data/hgcal-dev/simple
 
 # config fields:
+feats: ['x', 'y', 'z', 'E']
+coords: ['x', 'y', 'z']

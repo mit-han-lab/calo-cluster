@@ -81,7 +81,7 @@ class ResidualBlock(nn.Module):
 class SPVCNN(pl.LightningModule):
     def __init__(self, cfg: OmegaConf):
         super().__init__()
-        self.hparams = cfg
+        self.hparams.update(cfg)
         if is_rank_zero():
             self.save_hyperparameters(cfg)
 
@@ -282,7 +282,10 @@ class SPVCNN(pl.LightningModule):
             loss = self.semantic_criterion(outputs, targets)
             ret = {'loss': loss}
         elif task == 'instance':
-            loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
+            if self.hparams.embed_criterion.requires_semantic:
+                embed_loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
+            else:
+                loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
             ret = {'loss': loss}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])

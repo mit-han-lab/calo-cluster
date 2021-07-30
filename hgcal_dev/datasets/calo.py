@@ -34,20 +34,19 @@ class CaloDataset(BaseDataset):
 
     def _get_numpy(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
         df = self._get_df(index)
-        features = df[self.feats].to_numpy()
+        features = df[self.feats].to_numpy(dtype=np.half)
         if self.task == 'panoptic':
-            breakpoint()
-            labels = df[[self.semantic_label, self.instance_label]].to_numpy()
+            labels = df[[self.semantic_label, self.instance_label]]
         elif self.task == 'semantic':
-            labels = df[self.semantic_label].to_numpy()
+            labels = df[self.semantic_label]
         elif self.task == 'instance':
-            labels = df[self.instance_label].to_numpy()
+            labels = df[self.instance_label]
         else:
             raise RuntimeError(f'Unknown task = "{self.task}"')
-        coordinates = df[self.coords].to_numpy()
+        coordinates = df[self.coords].to_numpy(dtype=np.half)
 
         if self.weight is not None:
-            weights = df[self.weight].to_numpy()
+            weights = df[self.weight].to_numpy(dtype=np.half)
         else:
             weights = None
         return features, labels, weights, coordinates

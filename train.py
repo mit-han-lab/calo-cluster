@@ -16,7 +16,10 @@ def train(cfg: DictConfig) -> None:
         overfit_batches = 1
         cfg.train.batch_size = 1
         cfg.checkpoint.save_top_k = 0
+        limit_val_batches = 0.0
+        cfg.checkpoint.save_last = False
     else:
+        limit_val_batches = 1.0
         overfit_batches = 0.0
     
     callbacks = []
@@ -33,7 +36,11 @@ def train(cfg: DictConfig) -> None:
             cfg.criterion.task = 'instance'
         else:
             raise RuntimeError('semantic_criterion and/or embed_criterion must be set!')
-        cfg.dataset.task = cfg.criterion.task
+
+        if instance and cfg.embed_criterion.requires_semantic:
+            cfg.dataset.task = 'panoptic'
+        else:
+            cfg.dataset.task = cfg.criterion.task
 
 
     # Set up SWA.
@@ -48,6 +55,7 @@ def train(cfg: DictConfig) -> None:
     else:
         resume_from_checkpoint = None
     checkpoint_callback = hydra.utils.instantiate(cfg.checkpoint)
+    callbacks.append(checkpoint_callback)
 
     # Set up learning rate monitor.
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')
@@ -75,11 +83,8 @@ def train(cfg: DictConfig) -> None:
     else:
         model = hydra.utils.instantiate(cfg.model.target, cfg)
     
-    
-
     # train
-    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, checkpoint_callback=checkpoint_callback,
-                         resume_from_checkpoint=resume_from_checkpoint, deterministic=True, distributed_backend=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=16, log_every_n_steps=1)
+    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, accelerator=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, limit_val_batches=limit_val_batches, callbacks=callbacks, precision=16, log_every_n_steps=1)
     if is_rank_zero():
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)

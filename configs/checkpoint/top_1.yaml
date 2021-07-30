@@ -4,3 +4,4 @@
   save_top_k: 1
   monitor: val_loss
   save_last: True
+  auto_insert_metric_name: False
