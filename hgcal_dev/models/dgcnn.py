@@ -165,7 +165,10 @@ class DGCNN(pl.LightningModule):
             loss = self.semantic_criterion(outputs, targets)
             ret = {'loss': loss}
         elif task == 'instance':
-            loss = self.embed_criterion(outputs, targets, subbatch_indices=None, weights=weights)
+            if self.hparams.criterion.requires_semantic:
+                loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices=None, weights=weights, semantic_labels=targets[:, 0])
+            else:
+                loss = self.embed_criterion(outputs, targets, subbatch_indices=None, weights=weights)
             ret = {'loss': loss}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])

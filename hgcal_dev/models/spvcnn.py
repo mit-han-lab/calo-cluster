@@ -282,18 +282,19 @@ class SPVCNN(pl.LightningModule):
             loss = self.semantic_criterion(outputs, targets)
             ret = {'loss': loss}
         elif task == 'instance':
-            if self.hparams.embed_criterion.requires_semantic:
-                embed_loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
+            if self.hparams.criterion.requires_semantic:
+                loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             else:
                 loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
-            ret = {'loss': loss}
+            self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
+            ret = {'loss': loss, 'embed_loss': loss.detach()}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
             embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
-            ret = {'loss': loss, 'class_loss': class_loss, 'embed_loss': embed_loss}
+            ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss, sync_dist=sync_dist)

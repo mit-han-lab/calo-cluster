@@ -2,4 +2,3 @@ defaults:
   - base_centroid
 
 method: 'separate'
-requires_semantic: true

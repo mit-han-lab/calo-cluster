@@ -5,4 +5,3 @@ normalize: True
 use_weights: False
 ignore_label: ${dataset.cluster_ignore_label}
 batch_dim: ${dataset.batch_dim}
-requires_semantic: False
