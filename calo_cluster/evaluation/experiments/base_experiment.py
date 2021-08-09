@@ -27,16 +27,11 @@ from tqdm import tqdm
 class BaseEvent():
     """Aggregates the input/output/clustering for a single event."""
 
-    def __init__(self, input_path, semantic_label: str = None, instance_label: str = None, pred_path: Path = None, task: str = 'panoptic', clusterer=MeanShift(), num_classes: int = 2, weight_name: str = None):
+    def __init__(self, input_path, pred_path: Path, task: str):
         self.input_path = input_path
         self.pred_path = pred_path
         self.task = task
-        self.semantic_label = semantic_label
-        self.instance_label = instance_label
         self._pred_instance_labels = None
-        self.num_classes = num_classes
-        self.clusterer = clusterer
-        self.weight_name = weight_name
         self._load()
 
     def _load(self):
@@ -48,15 +43,7 @@ class BaseEvent():
         self.input_event = input_event
 
     def _load_predictions(self):
-        self.multiple_models = not issubclass(type(self.pred_path), Path) and type(self.pred_path) != str
-
-        if self.multiple_models:
-            event_prediction = {}
-            event_prediction['labels'] = np.load(self.pred_path[0])['labels']
-            event_prediction['embedding'] = np.load(
-                self.pred_path[1])['embedding']
-        else:
-            event_prediction = np.load(self.pred_path)
+        event_prediction = np.load(self.pred_path)
 
         if self.task == 'panoptic':
             self.pred_semantic_labels = event_prediction['labels']
@@ -69,66 +56,30 @@ class BaseEvent():
 
 class BaseExperiment():
     def __init__(self, wandb_version, ckpt_name=None):
-        ''' If separate semantic and instance segmentation models are used, wandb_version and ckpt_name can be lists. 
-            The first element should be the semantic model, while the second should be the instance model.'''
-
-        self.multiple_models = type(wandb_version) != str
         self.wandb_version = wandb_version
             
-        if self.multiple_models:
-            assert ckpt_name is None or len(wandb_version) == len(ckpt_name)
-            self.run_path = [self.get_run_path(v) for v in self.wandb_version]
-            cfg_path = [p / 'files' / '.hydra' /
-                        'config.yaml' for p in self.run_path]
-            self.cfg = [OmegaConf.load(p) for p in cfg_path]
-            if ckpt_name is None:
-                ckpt_name = [None] * len(self.cfg)
-            ckpts = [self._get_ckpt(cfg, name)
-                     for cfg, name in zip(self.cfg, ckpt_name)]
-            self.ckpt_path = [p for p, _ in ckpts]
-            self.ckpt_name = [name for _, name in ckpts]
-            self.run_prediction_dir = [Path(
-                cfg.predictions_dir) / cfg.wandb.version / name for cfg, name in zip(self.cfg, self.ckpt_name)]
-            for run_prediction_dir in self.run_prediction_dir:
-                run_prediction_dir.mkdir(exist_ok=True, parents=True)
-            self.model = [SPVCNN.load_from_checkpoint(
-                str(p)) for p in self.ckpt_path]
+        self.run_path = self.get_run_path(self.wandb_version)
+        cfg_path = self.run_path / 'files' / '.hydra' / 'config.yaml'
+        self.cfg = OmegaConf.load(cfg_path)
+        self.ckpt_path, self.ckpt_name = self._get_ckpt(
+            self.cfg, ckpt_name)
+        self.run_prediction_dir = Path(
+            self.cfg.predictions_dir) / self.cfg.wandb.version / self.ckpt_name
+        self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
+        self.model = SPVCNN.load_from_checkpoint(str(self.ckpt_path))
 
-            plots_dir = Path(self.cfg[1].plots_dir)
-            self.plots_dir = plots_dir / '_'.join(self.wandb_version) / '_'.join(self.ckpt_name)
+        plots_dir = Path(self.cfg.plots_dir)
+        self.plots_dir = plots_dir / self.wandb_version / self.ckpt_name
 
-            self.datamodule = [hydra.utils.instantiate(cfg.dataset) for cfg in self.cfg]
-            for dm in self.datamodule:
-                dm.prepare_data()
-                dm.setup(stage=None)
-            
-            self.num_classes = self.datamodule[0].num_classes
-        else:
-            self.run_path = self.get_run_path(self.wandb_version)
-            cfg_path = self.run_path / 'files' / '.hydra' / 'config.yaml'
-            self.cfg = OmegaConf.load(cfg_path)
-            self.ckpt_path, self.ckpt_name = self._get_ckpt(
-                self.cfg, ckpt_name)
-            self.run_prediction_dir = Path(
-                self.cfg.predictions_dir) / self.cfg.wandb.version / self.ckpt_name
-            self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
-            self.model = SPVCNN.load_from_checkpoint(str(self.ckpt_path))
+        self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
+        self.datamodule.prepare_data()
+        self.datamodule.setup(stage=None)
 
-            plots_dir = Path(self.cfg.plots_dir)
-            self.plots_dir = plots_dir / self.wandb_version / self.ckpt_name
-
-            self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
-            self.datamodule.prepare_data()
-            self.datamodule.setup(stage=None)
-
-            self.num_classes = self.datamodule.num_classes
+        self.num_classes = self.datamodule.num_classes
 
         self.plots_dir.mkdir(exist_ok=True, parents=True)
 
-        if self.multiple_models:
-            self.task = 'panoptic'
-        else:
-            self.task = self.cfg.criterion.task
+        self.task = self.cfg.criterion.task
 
     def _get_ckpt(self, cfg, ckpt_name):
         ckpt_dir = Path(cfg.outputs_dir) / cfg.wandb.project / \
@@ -155,23 +106,17 @@ class BaseExperiment():
         wandb_dir = outputs_dir / 'wandb'
         for run_dir in wandb_dir.iterdir():
             if wandb_version in run_dir.stem:
+                logging.info(f'run_dir = {run_dir}')
                 return run_dir
         raise RuntimeError(
             f'run with wandb_version={wandb_version} not found; is {wandb_dir} correct?')
 
-    def save_predictions(self, batch_size=512, ignore_model_idxs=None):
-        if self.multiple_models:
-            for i, (model, datamodule, run_prediction_dir, cfg) in enumerate(zip(self.model, self.datamodule, self.run_prediction_dir, self.cfg)):
-                if i in ignore_model_idxs:
-                    continue
-                self._save_predictions(
-                    model, datamodule, run_prediction_dir, cfg, batch_size)
-        else:
-            self._save_predictions(
-                self.model, self.datamodule, self.run_prediction_dir, self.cfg, batch_size)
+    def save_predictions(self, batch_size=512, num_workers=32):
+        self._save_predictions(
+            self.model, self.datamodule, self.run_prediction_dir, self.cfg, batch_size, num_workers)
 
-    def _save_predictions(self, model, datamodule, run_prediction_dir, cfg, batch_size=512):
-        datamodule.num_workers = 32
+    def _save_predictions(self, model, datamodule, run_prediction_dir, cfg, batch_size=512, num_workers=32):
+        datamodule.num_workers = num_workers
         datamodule.batch_size = batch_size
         model.cuda(0)
         model.eval()
@@ -180,7 +125,7 @@ class BaseExperiment():
             output_dir = run_prediction_dir / split
             output_dir.mkdir(exist_ok=True, parents=True)
             with torch.no_grad():
-                for i, batch in tqdm(enumerate(dataloader), total=math.ceil(len(dataloader.dataset.events) / datamodule.batch_size)):
+                for i, batch in tqdm(enumerate(dataloader), total=math.ceil(len(dataloader.dataset.files) / datamodule.batch_size)):
                     features = batch['features'].to(model.device)
                     inverse_map = batch['inverse_map'].F.type(torch.long)
                     subbatch_idx = features.C[..., -1]
@@ -196,7 +141,7 @@ class BaseExperiment():
                         labels = torch.argmax(out_c, dim=1).cpu().numpy()
                         embedding = out_e.cpu().numpy()
                     for j in torch.unique(subbatch_idx):
-                        event_path = dataloader.dataset.events[i *
+                        event_path = dataloader.dataset.files[i *
                                                                datamodule.batch_size + j]
                         event_name = event_path.stem
                         output_path = output_dir / event_name
@@ -229,25 +174,16 @@ class BaseExperiment():
             raise NotImplementedError()
 
         if n == -1:
-            input_paths = dataloader.dataset.events
+            input_paths = dataloader.dataset.files
         else:
-            m = len(dataloader.dataset.events)
-            input_paths = dataloader.dataset.events[m-n:m]
+            m = len(dataloader.dataset.files)
+            input_paths = dataloader.dataset.files[m-n:m]
 
         events = []
 
-        if self.multiple_models:
-            pred_dir = [d / split for d in self.run_prediction_dir]
-            ignore_model_idxs = []
-            for i, d in enumerate(pred_dir):
-                if len([f for f in d.glob('*.npz')]) != 0:
-                    ignore_model_idxs.append(i)
-            if len(ignore_model_idxs) != len(pred_dir):
-                self.save_predictions(ignore_model_idxs=ignore_model_idxs, batch_size=batch_size)
-        else:
-            pred_dir = self.run_prediction_dir / split
-            if len([f for f in pred_dir.glob('*.npz')]) == 0:
-                self.save_predictions(batch_size=batch_size)
+        pred_dir = self.run_prediction_dir / split
+        if len([f for f in pred_dir.glob('*.npz')]) == 0:
+            self.save_predictions(batch_size=batch_size)
 
         logging.info('Loading events...')
         for input_path in tqdm(input_paths):
@@ -260,5 +196,5 @@ class BaseExperiment():
                 input_path, pred_path))
         return events
 
-    def make_event(input_path, pred_path):
-        raise NotImplementedError()
+    def make_event(self, input_path, pred_path):
+        return BaseEvent(input_path, pred_path, self.task)
