@@ -26,10 +26,53 @@ from sklearn.metrics import auc, confusion_matrix, roc_curve
 from tqdm import tqdm
 
 
+label_name_mapping = {
+    0: 'unlabeled',
+    1: 'outlier',
+    10: 'car',
+    11: 'bicycle',
+    13: 'bus',
+    15: 'motorcycle',
+    16: 'on-rails',
+    18: 'truck',
+    20: 'other-vehicle',
+    30: 'person',
+    31: 'bicyclist',
+    32: 'motorcyclist',
+    40: 'road',
+    44: 'parking',
+    48: 'sidewalk',
+    49: 'other-ground',
+    50: 'building',
+    51: 'fence',
+    52: 'other-structure',
+    60: 'lane-marking',
+    70: 'vegetation',
+    71: 'trunk',
+    72: 'terrain',
+    80: 'pole',
+    81: 'traffic-sign',
+    99: 'other-object',
+    252: 'moving-car',
+    253: 'moving-bicyclist',
+    254: 'moving-person',
+    255: 'moving-motorcyclist',
+    256: 'moving-on-rails',
+    257: 'moving-bus',
+    258: 'moving-truck',
+    259: 'moving-other-vehicle'
+}
+
+kept_labels = [
+    'road', 'sidewalk', 'parking', 'other-ground', 'building', 'car', 'truck',
+    'bicycle', 'motorcycle', 'other-vehicle', 'vegetation', 'trunk', 'terrain',
+    'person', 'bicyclist', 'motorcyclist', 'fence', 'pole', 'traffic-sign'
+]
+
 class SemanticKITTIEvent(BaseEvent):
-    def __init__(self, input_path, label_map, pred_path=None, task='panoptic'):
+    def __init__(self, input_path, pred_path, task, label_map):
         self.label_map = label_map
-        super().__init__(input_path, pred_path=pred_path, semantic_label='label_id', instance_label='instance_id', task=task, clusterer=MeanShift(bandwidth=0.01), weight_name='energy')
+        super().__init__(input_path, pred_path=pred_path, task=task)
 
     def _load_input(self):
         with self.input_path.open('rb') as b:
@@ -67,6 +110,30 @@ class SemanticKITTIEvent(BaseEvent):
 
 class SemanticKITTIExperiment(BaseExperiment):
     def __init__(self, wandb_version, ckpt_name=None):
+        reverse_label_name_mapping = {}
+        self.label_map = np.zeros(260)
+        cnt = 0
+        for label_id in label_name_mapping:
+            if label_id > 250:
+                if label_name_mapping[label_id].replace('moving-',
+                                                        '') in kept_labels:
+                    self.label_map[label_id] = reverse_label_name_mapping[
+                        label_name_mapping[label_id].replace('moving-', '')]
+                else:
+                    self.label_map[label_id] = 255
+            elif label_id == 0:
+                self.label_map[label_id] = 255
+            else:
+                if label_name_mapping[label_id] in kept_labels:
+                    self.label_map[label_id] = cnt
+                    reverse_label_name_mapping[
+                        label_name_mapping[label_id]] = cnt
+                    cnt += 1
+                else:
+                    self.label_map[label_id] = 255
+
+        self.reverse_label_name_mapping = reverse_label_name_mapping
+        assert self.num_classes == cnt
         super().__init__(wandb_version, ckpt_name=ckpt_name)
 
     def make_event(self, input_path, pred_path):
