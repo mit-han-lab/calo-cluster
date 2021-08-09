@@ -23,6 +23,8 @@ from plotly.subplots import make_subplots
 from sklearn.metrics import auc, confusion_matrix, roc_curve
 from tqdm import tqdm
 
+from calo_cluster.training.config import fix_config
+
 
 class BaseEvent():
     """Aggregates the input/output/clustering for a single event."""
@@ -61,6 +63,7 @@ class BaseExperiment():
         self.run_path = self.get_run_path(self.wandb_version)
         cfg_path = self.run_path / 'files' / '.hydra' / 'config.yaml'
         self.cfg = OmegaConf.load(cfg_path)
+        fix_config(self.cfg)
         self.ckpt_path, self.ckpt_name = self._get_ckpt(
             self.cfg, ckpt_name)
         self.run_prediction_dir = Path(
@@ -106,7 +109,7 @@ class BaseExperiment():
         wandb_dir = outputs_dir / 'wandb'
         for run_dir in wandb_dir.iterdir():
             if wandb_version in run_dir.stem:
-                logging.info(f'run_dir = {run_dir}')
+                print(f'run_dir = {run_dir}')
                 return run_dir
         raise RuntimeError(
             f'run with wandb_version={wandb_version} not found; is {wandb_dir} correct?')
@@ -142,7 +145,7 @@ class BaseExperiment():
                         embedding = out_e.cpu().numpy()
                     for j in torch.unique(subbatch_idx):
                         event_path = dataloader.dataset.files[i *
-                                                               datamodule.batch_size + j]
+                                                               datamodule.batch_size + int(j.cpu().numpy())]
                         event_name = event_path.stem
                         output_path = output_dir / event_name
                         mask = (subbatch_idx == j).cpu().numpy()
@@ -159,10 +162,7 @@ class BaseExperiment():
 
 
     def get_events(self, split, n=-1, batch_size=512):
-        if self.multiple_models:
-            datamodule = self.datamodule[1]
-        else:
-            datamodule = self.datamodule
+        datamodule = self.datamodule
 
         if split == 'train':
             dataloader = datamodule.train_dataloader()
@@ -188,10 +188,7 @@ class BaseExperiment():
         logging.info('Loading events...')
         for input_path in tqdm(input_paths):
             event_name = input_path.stem
-            if self.multiple_models:
-                pred_path = [d / f'{event_name}.npz' for d in pred_dir]
-            else:
-                pred_path = pred_dir / f'{event_name}.npz'
+            pred_path = pred_dir / f'{event_name}.npz'
             events.append(self.make_event(
                 input_path, pred_path))
         return events
