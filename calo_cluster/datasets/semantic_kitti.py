@@ -123,7 +123,6 @@ class SemanticKITTIDataset(BaseDataset):
                 block = block[inds]
                 labels = labels[inds]
 
-        block = block.astype(np.half)
         return block, labels, None, block[:, :3]
 
 
