@@ -10,8 +10,13 @@ import yaml
 from omegaconf import DictConfig, OmegaConf, open_dict
 from hgcal_dev.models.spvcnn import SPVCNN
 
+from hgcal_dev.training.config import fix_config
+
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')
+
+    fix_config(cfg)
+
     if cfg.overfit:
         overfit_batches = 1
         cfg.train.batch_size = 1
@@ -21,28 +26,6 @@ def train(cfg: DictConfig) -> None:
         overfit_batches = 0.0
     
     callbacks = []
-
-    # Set up criterion task.
-    with open_dict(cfg):
-        semantic = 'semantic_criterion' in cfg
-        instance = 'embed_criterion' in cfg
-        if semantic and instance:
-            cfg.criterion.task = 'panoptic'
-        elif semantic:
-            cfg.criterion.task = 'semantic'
-        elif instance:
-            cfg.criterion.task = 'instance'
-        else:
-            raise RuntimeError('semantic_criterion and/or embed_criterion must be set!')
-
-        cfg.dataset.task = cfg.criterion.task
-
-        if instance:
-            requires_semantic = cfg.embed_criterion.method in ['ignore', 'separate']
-            cfg.criterion.requires_semantic = requires_semantic
-            if requires_semantic:
-                cfg.dataset.task = 'panoptic'
-                
 
 
     # Set up SWA.
@@ -86,7 +69,7 @@ def train(cfg: DictConfig) -> None:
         model = hydra.utils.instantiate(cfg.model.target, cfg)
     
     # train
-    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, accelerator=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=16, log_every_n_steps=1)
+    trainer = pl.Trainer(gpus=cfg.train.gpus, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=True, accelerator=cfg.train.distributed_backend, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=32, log_every_n_steps=1)
     if is_rank_zero():
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     trainer.fit(model=model, datamodule=datamodule)

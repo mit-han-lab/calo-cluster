@@ -159,20 +159,38 @@ class SPVCNN(pl.LightningModule):
             )
         ])
 
-        self.up4 = nn.ModuleList([
-            BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
-            nn.Sequential(
-                ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                              dilation=1),
-                ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
-            )
-        ])
 
         if task == 'semantic' or task == 'panoptic':
-            self.classifier = nn.Sequential(nn.Linear(cs[8],
+            self.c_up4 = nn.ModuleList([
+                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
+                nn.Sequential(
+                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
+                                dilation=1),
+                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
+                )
+            ])
+            self.c_point_transform = nn.Sequential(
+                nn.Linear(cs[6], cs[8]),
+                nn.BatchNorm1d(cs[8]),
+                nn.ReLU(True),
+            )
+            self.c_lin = nn.Sequential(nn.Linear(cs[8],
                                                       self.hparams.dataset.num_classes))
         if task == 'instance' or task == 'panoptic':
-            self.embedder = nn.Sequential(nn.Linear(cs[8],
+            self.e_up4 = nn.ModuleList([
+                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
+                nn.Sequential(
+                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
+                                dilation=1),
+                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
+                )
+            ])
+            self.e_point_transform = nn.Sequential(
+                nn.Linear(cs[6], cs[8]),
+                nn.BatchNorm1d(cs[8]),
+                nn.ReLU(True),
+            )
+            self.e_lin = nn.Sequential(nn.Linear(cs[8],
                                                     self.hparams.model.embed_dim))
 
         self.point_transforms = nn.ModuleList([
@@ -185,22 +203,36 @@ class SPVCNN(pl.LightningModule):
                 nn.Linear(cs[4], cs[6]),
                 nn.BatchNorm1d(cs[6]),
                 nn.ReLU(True),
-            ),
-            nn.Sequential(
-                nn.Linear(cs[6], cs[8]),
-                nn.BatchNorm1d(cs[8]),
-                nn.ReLU(True),
             )
         ])
 
         self.weight_initialization()
         self.dropout = nn.Dropout(0.3, True)
 
+    def classifier(self, y3, x0, z2):
+        y4 = self.c_up4[0](y3)
+        y4 = torchsparse.cat([y4, x0])
+        y4 = self.c_up4[1](y4)
+        z3 = voxel_to_point(y4, z2)
+        z3.F = z3.F + self.c_point_transform(z2.F)
+        return self.c_lin(z3.F)
+
+    def embedder(self, y3, x0, z2):
+        y4 = self.e_up4[0](y3)
+        y4 = torchsparse.cat([y4, x0])
+        y4 = self.e_up4[1](y4)
+        z3 = voxel_to_point(y4, z2)
+        z3.F = z3.F + self.e_point_transform(z2.F)
+        return self.e_lin(z3.F)
+
     def weight_initialization(self):
         for m in self.modules():
             if isinstance(m, nn.BatchNorm1d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+
+    def num_inf_or_nan(self, x):
+        return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
 
     def forward(self, x):
         # x: SparseTensor z: PointTensor
@@ -239,19 +271,19 @@ class SPVCNN(pl.LightningModule):
         y3 = torchsparse.cat([y3, x1])
         y3 = self.up3[1](y3)
 
-        y4 = self.up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
-        y4 = self.up4[1](y4)
-        z3 = voxel_to_point(y4, z2)
-        z3.F = z3.F + self.point_transforms[2](z2.F)
-
         task = self.hparams.criterion.task
         if task == 'semantic':
-            out = self.classifier(z3.F)
+            #tmp_out = self.classifier(y3, x0, z2)
+            #if torch.isnan(tmp_out).sum() != 0:
+            #    breakpoint()
+            out = self.classifier(y3, x0, z2)
         elif task == 'instance':
-            out = self.embedder(z3.F)
+            #tmp_out = self.embedder(y3, x0, z2)
+            #if torch.isnan(tmp_out).sum() != 0:
+            #    breakpoint()
+            out = self.embedder(y3, x0, z2)
         elif task == 'panoptic':
-            out = (self.classifier(z3.F), self.embedder(z3.F))
+            out = (self.classifier(y3, x0, z2), self.embedder(y3, x0, z2))
         else:
             raise RuntimeError("invalid task!")
         return out
@@ -280,7 +312,8 @@ class SPVCNN(pl.LightningModule):
         task = self.hparams.criterion.task
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
-            ret = {'loss': loss}
+            self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
+            ret = {'loss': loss, 'class_loss': loss.detach()}
         elif task == 'instance':
             if self.hparams.criterion.requires_semantic:
                 loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
