@@ -31,7 +31,7 @@ class HCalTTPU200PFDataModule(CaloDataModule):
     def root_to_pickle(root_data_path, raw_data_dir, noise_id=-1):
         ni = 0
         for f in tqdm(sorted(root_data_path.glob('*_pu.root'))):
-            root_dir = uproot.rootio.open(f)
+            root_dir = uproot.open(f)
             root_events = root_dir.get('Events;1')
             df = pd.DataFrame()
             for k, v in root_events[b'RecHit'].items():

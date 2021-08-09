@@ -19,3 +19,4 @@ notebooks/wandb
 *.png
 *.txt
 notebooks
+hgcal_dev.egg-info/PKG-INFO
