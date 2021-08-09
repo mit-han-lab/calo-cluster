@@ -3,8 +3,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from hgcal_dev.clustering.mean_shift_cosine_gpu import MeanShiftCosine
-from hgcal_dev.models.spvcnn import SPVCNN
+from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
+from calo_cluster.models.spvcnn import SPVCNN
 from torchsparse.tensor import SparseTensor
 from torchsparse.utils import sparse_quantize
 

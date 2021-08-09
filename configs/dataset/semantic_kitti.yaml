@@ -1,6 +1,6 @@
 defaults:
   - base_dataset
-_target_: hgcal_dev.datasets.semantic_kitti.SemanticKITTIDataModule
+_target_: calo_cluster.datasets.semantic_kitti.SemanticKITTIDataModule
 
 # required fields:
 num_classes: 19
@@ -12,7 +12,7 @@ cluster_ignore_label: 255
 semantic_ignore_label: 255
 
 # data location (modify as needed):
-root: /home/alexj/data/hgcal-dev/semantic_kitti/dataset/sequences
+root: /data/semantic_kitti/dataset/sequences
 
 # config fields:
 num_points: 80000

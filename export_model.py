@@ -1,17 +1,17 @@
-from hgcal_dev.evaluation.studies.clustering_study import ClusteringStudy
-from hgcal_dev.evaluation.experiments.antikt_hcal_experiment import AntiKtHCalExperiment
-from hgcal_dev.evaluation.experiments.hcal_pf_experiment import HCalPFExperiment
-from hgcal_dev.evaluation.experiments.pf_hcal_pf_experiment import PFHCalPFExperiment
-from hgcal_dev.evaluation.studies.panoptic_study import PanopticStudy
-from hgcal_dev.clustering.meanshift import MeanShift
-from hgcal_dev.clustering.identity_clusterer import IdentityClusterer
-from hgcal_dev.datasets.hcal_pf import HCalPFDataModule
+from calo_cluster.evaluation.studies.clustering_study import ClusteringStudy
+from calo_cluster.evaluation.experiments.antikt_hcal_experiment import AntiKtHCalExperiment
+from calo_cluster.evaluation.experiments.hcal_pf_experiment import HCalPFExperiment
+from calo_cluster.evaluation.experiments.pf_hcal_pf_experiment import PFHCalPFExperiment
+from calo_cluster.evaluation.studies.panoptic_study import PanopticStudy
+from calo_cluster.clustering.meanshift import MeanShift
+from calo_cluster.clustering.identity_clusterer import IdentityClusterer
+from calo_cluster.datasets.hcal_pf import HCalPFDataModule
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import seaborn as sn
-from hgcal_dev.evaluation.utils import get_palette
-from hgcal_dev.evaluation.studies import functional as F
+from calo_cluster.evaluation.utils import get_palette
+from calo_cluster.evaluation.studies import functional as F
 
 
 def main():

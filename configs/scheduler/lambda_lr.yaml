@@ -1,1 +1,1 @@
-_target_: hgcal_dev.training.schedulers.lambda_lr_factory
+_target_: calo_cluster.training.schedulers.lambda_lr_factory

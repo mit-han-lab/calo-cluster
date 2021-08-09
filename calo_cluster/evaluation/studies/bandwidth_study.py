@@ -4,9 +4,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import plotly.express as px
-from hgcal_dev.clustering.meanshift import MeanShift
-from hgcal_dev.metrics.instance import PanopticQuality
-from hgcal_dev.evaluation.experiment import Experiment
+from calo_cluster.clustering.meanshift import MeanShift
+from calo_cluster.metrics.instance import PanopticQuality
+from calo_cluster.evaluation.experiment import Experiment
 from PyPDF2 import PdfFileMerger
 from scipy.optimize import basinhopping
 from tqdm import tqdm

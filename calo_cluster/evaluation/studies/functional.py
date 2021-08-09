@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-from hgcal_dev.evaluation.metrics.instance import PanopticQuality, iou_match
+from calo_cluster.evaluation.metrics.instance import PanopticQuality, iou_match
 from tqdm import tqdm
 
 

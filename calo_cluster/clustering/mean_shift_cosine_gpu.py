@@ -20,7 +20,7 @@ import math
 from random import shuffle
 
 import numpy as np
-from hgcal_dev.clustering.batch_seed import meanshift_torch
+from calo_cluster.clustering.batch_seed import meanshift_torch
 from sklearn.base import BaseEstimator, ClusterMixin
 from sklearn.metrics.pairwise import pairwise_distances_argmin
 from sklearn.neighbors import NearestNeighbors

@@ -1,5 +1,5 @@
-from hgcal_dev.evaluation.studies.semantic_study import SemanticStudy
-from hgcal_dev.evaluation.studies.clustering_study import ClusteringStudy
+from calo_cluster.evaluation.studies.semantic_study import SemanticStudy
+from calo_cluster.evaluation.studies.clustering_study import ClusteringStudy
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 import seaborn as sn

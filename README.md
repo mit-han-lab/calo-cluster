@@ -3,7 +3,7 @@
 ## Directory structure
     .
     ├── configs -- configuration files for hydra
-    ├── hgcal_dev
+    ├── calo_cluster
     │   ├── clustering
     │   ├── datasets -- pytorch lightning data modules
     │   ├── evaluation -- visualization, evaluation, performance studies, etc.

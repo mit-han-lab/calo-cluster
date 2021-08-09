@@ -10,7 +10,7 @@ import pandas as pd
 import pytorch_lightning as pl
 import torch
 import uproot
-from hgcal_dev.datasets.base import BaseDataModule, BaseDataset
+from calo_cluster.datasets.base import BaseDataModule, BaseDataset
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torchsparse import SparseTensor

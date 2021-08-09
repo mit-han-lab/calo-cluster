@@ -1,4 +1,4 @@
-name: hgcal_dev
+name: calo_cluster
 channels:
   - metric-learning
   - pytorch
@@ -231,4 +231,4 @@ dependencies:
     - colorspacious==1.1.2
     - subprocess32==3.5.4
     - wandb==0.10.14
-prefix: /home/alexj/miniconda3/envs/hgcal_dev
+prefix: /home/alexj/miniconda3/envs/calo_cluster

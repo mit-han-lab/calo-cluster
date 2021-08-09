@@ -1,6 +1,6 @@
 defaults:
   - base_dataset
-_target_: hgcal_dev.datasets.hcal_tt_pu200_pf.HCalTTPU200PFDataModule
+_target_: calo_cluster.datasets.hcal_tt_pu200_pf.HCalTTPU200PFDataModule
 
 # required fields:
 num_classes: 2
@@ -12,8 +12,8 @@ noise_id: -1
 cluster_ignore_label: 0
 
 # data location (modify as needed):
-data_dir: /home/alexj/data/hgcal-dev/hcal_tt_pu200_pf
-raw_data_dir: /home/alexj/data/hgcal-dev/hcal_tt_pu200_pf/min_energy_0.0_min_hits_0
+data_dir: /data/hcal_tt_pu200_pf
+raw_data_dir: /data/hcal_tt_pu200_pf/min_energy_0.0_min_hits_0
 
 # config fields:
 feats: ['x', 'y', 'z', 'time', 'energy']

@@ -1,5 +1,5 @@
 target:
-  _target_: hgcal_dev.models.dgcnn.DGCNN
+  _target_: calo_cluster.models.dgcnn.DGCNN
 embed_dim: 8
 seed: ${seed}
 dropout: 0.5

@@ -1,4 +1,4 @@
-from hgcal_dev.utils.comm import is_rank_zero
+from calo_cluster.utils.comm import is_rank_zero
 import logging
 import shutil
 from pathlib import Path
@@ -8,9 +8,9 @@ import pytorch_lightning as pl
 import submitit
 import yaml
 from omegaconf import DictConfig, OmegaConf, open_dict
-from hgcal_dev.models.spvcnn import SPVCNN
+from calo_cluster.models.spvcnn import SPVCNN
 
-from hgcal_dev.training.config import fix_config
+from calo_cluster.training.config import fix_config
 
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')

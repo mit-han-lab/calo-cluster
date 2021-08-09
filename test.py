@@ -1,6 +1,6 @@
 import argparse
 
-from hgcal_dev.evaluation.experiments.base_experiment import BaseExperiment
+from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 
 
 def main() -> None:

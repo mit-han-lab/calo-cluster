@@ -1,5 +1,5 @@
 target:
-  _target_: hgcal_dev.models.spvcnn.SPVCNN
+  _target_: calo_cluster.models.spvcnn.SPVCNN
 pres: 1.0
 vres: 1.0
 cr: 1.0

@@ -1,15 +1,15 @@
-import hgcal_dev.evaluation.studies.functional as F
+import calo_cluster.evaluation.studies.functional as F
 import numpy as np
 import pandas as pd
 import plotly
 import plotly.express as px
-from hgcal_dev.evaluation.metrics.instance import iou_match
-from hgcal_dev.evaluation.studies.base_study import BaseStudy
-from hgcal_dev.evaluation.utils import get_palette
+from calo_cluster.evaluation.metrics.instance import iou_match
+from calo_cluster.evaluation.studies.base_study import BaseStudy
+from calo_cluster.evaluation.utils import get_palette
 from scipy.optimize import basinhopping
 from tqdm import tqdm
 
-from hgcal_dev.evaluation.experiments.base_experiment import BaseExperiment
+from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 
 class ClusteringStudy(BaseStudy):
 
@@ -282,7 +282,7 @@ def main():
     # print(f'xclusters={xclusters}')
     # print(f'yclusters={yclusters}')
     # print(f'ious={ious}')
-    from hgcal_dev.evaluation.experiments.simple_experiment import \
+    from calo_cluster.evaluation.experiments.simple_experiment import \
         SimpleExperiment
     exp = SimpleExperiment('dhc9f7wl')
     study = ClusteringStudy(exp)

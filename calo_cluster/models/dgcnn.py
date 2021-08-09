@@ -20,7 +20,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from hgcal_dev.utils.comm import is_rank_zero
+from calo_cluster.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
 import hydra
 

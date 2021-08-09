@@ -9,7 +9,7 @@ import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
 import torchsparse.nn.functional as spf
-from hgcal_dev.utils.comm import is_rank_zero
+from calo_cluster.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
 from torchsparse.tensor import PointTensor, SparseTensor
 from .utils import *

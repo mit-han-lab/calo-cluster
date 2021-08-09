@@ -1,7 +1,7 @@
 from PyPDF2 import PdfFileMerger
 from pathlib import Path
 import sys
-sys.path.append('/home/alexj/hgcal-dev/hgcal_dev/evaluation/glasbey')
+sys.path.append('/home/alexj/hgcal-dev/calo_cluster/evaluation/glasbey')
 from glasbey import Glasbey
 import numpy as np
 import logging

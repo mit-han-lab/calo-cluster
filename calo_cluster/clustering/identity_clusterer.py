@@ -1,4 +1,4 @@
-from hgcal_dev.clustering.base_clusterer import BaseClusterer
+from calo_cluster.clustering.base_clusterer import BaseClusterer
 
 
 class IdentityClusterer(BaseClusterer):

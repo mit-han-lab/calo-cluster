@@ -1,7 +1,7 @@
   
 from sklearn import cluster
-from hgcal_dev.clustering.mean_shift_cosine_gpu import MeanShiftCosine
-from hgcal_dev.clustering.base_clusterer import BaseClusterer
+from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
+from calo_cluster.clustering.base_clusterer import BaseClusterer
 import numpy as np
 
 class MeanShift(BaseClusterer):

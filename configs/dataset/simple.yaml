@@ -1,6 +1,6 @@
 defaults:
   - base_dataset
-_target_: hgcal_dev.datasets.simple.SimpleDataModule
+_target_: calo_cluster.datasets.simple.SimpleDataModule
 
 # required fields:
 num_classes: 2
@@ -11,7 +11,7 @@ voxel_size: 0.05
 cluster_ignore_label: 0
 
 # data location (modify as needed):
-data_dir: /home/alexj/data/hgcal-dev/simple
+data_dir: /data/simple
 
 # config fields:
 feats: ['x', 'y', 'z', 'E']

@@ -1,5 +1,5 @@
-from hgcal_dev.evaluation.experiments.base_experiment import BaseExperiment, BaseEvent
-from hgcal_dev.clustering.meanshift import MeanShift
+from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment, BaseEvent
+from calo_cluster.clustering.meanshift import MeanShift
 
 class SimpleEvent(BaseEvent):
     def __init__(self, input_path, pred_path=None):
@@ -24,8 +24,8 @@ def main():
     import plotly.express as px
     import multiprocessing as mp
     from functools import partial
-    from hgcal_dev.evaluation.studies.base_study import BaseStudy
-    from hgcal_dev.clustering.meanshift import MeanShift
+    from calo_cluster.evaluation.studies.base_study import BaseStudy
+    from calo_cluster.clustering.meanshift import MeanShift
     from sklearn.manifold import TSNE
 
     exp = SimpleExperiment('2p1ewhmz', 'epoch=14-step=59999.ckpt')

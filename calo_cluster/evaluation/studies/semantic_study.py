@@ -1,4 +1,4 @@
-from hgcal_dev.evaluation.studies.base_study import BaseStudy
+from calo_cluster.evaluation.studies.base_study import BaseStudy
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, f1_score
 import seaborn as sn

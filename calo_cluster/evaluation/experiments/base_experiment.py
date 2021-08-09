@@ -16,8 +16,8 @@ import plotly.graph_objects as go
 import torch
 import wandb
 import yaml
-from hgcal_dev.clustering.meanshift import MeanShift
-from hgcal_dev.models.spvcnn import SPVCNN
+from calo_cluster.clustering.meanshift import MeanShift
+from calo_cluster.models.spvcnn import SPVCNN
 from omegaconf import OmegaConf
 from plotly.subplots import make_subplots
 from sklearn.metrics import auc, confusion_matrix, roc_curve

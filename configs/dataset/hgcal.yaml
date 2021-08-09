@@ -1,6 +1,6 @@
 defaults:
   - base_dataset
-_target_: hgcal_dev.datasets.hgcal.HGCalDataModule
+_target_: calo_cluster.datasets.hgcal.HGCalDataModule
 
 # required fields:
 num_classes: 4
@@ -10,7 +10,7 @@ voxel_size: 0.05
 # dataset-specific fields (should not change):
 
 # data location (modify as needed):
-data_dir: /home/alexj/data/hgcal-dev/hgcal
+data_dir: /data/hgcal
 download: True
 
 # config fields:

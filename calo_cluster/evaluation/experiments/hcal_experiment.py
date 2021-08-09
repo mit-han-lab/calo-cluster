@@ -1,6 +1,6 @@
 from re import L
-from hgcal_dev.evaluation.experiments.base_experiment import BaseExperiment, BaseEvent
-from hgcal_dev.clustering.meanshift import MeanShift
+from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment, BaseEvent
+from calo_cluster.clustering.meanshift import MeanShift
 
 class HCalEvent(BaseEvent):
     def __init__(self, input_path, instance_label, pred_path=None, task='panoptic'):

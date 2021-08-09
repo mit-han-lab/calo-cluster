@@ -1,7 +1,8 @@
 config_version: 2
-outputs_dir: /home/alexj/training_outputs
-predictions_dir: /home/alexj/predictions
-plots_dir: /home/alexj/plots
+base_dir: /home/alexj
+outputs_dir: ${base_dir}/training_outputs
+predictions_dir: ${base_dir}/predictions
+plots_dir: ${base_dir}/plots
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
