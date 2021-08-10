@@ -136,4 +136,4 @@ class SemanticKITTIExperiment(BaseExperiment):
         super().__init__(wandb_version, ckpt_name=ckpt_name)
 
     def make_event(self, input_path, pred_path):
-        return SemanticKITTIEvent(input_path=input_path, pred_path=pred_path, task=self.task)
+        return SemanticKITTIEvent(input_path=input_path, pred_path=pred_path, task=self.task, label_map=self.label_map)

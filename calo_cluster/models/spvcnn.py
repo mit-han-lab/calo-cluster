@@ -85,6 +85,8 @@ class SPVCNN(pl.LightningModule):
         if is_rank_zero():
             self.save_hyperparameters(cfg)
 
+        #self.hparams.optimizer._target_ = 'calo_cluster.training.optimizers.adam_factory'
+        #self.hparams.scheduler._target_ = 'calo_cluster.training.schedulers.one_cycle_lr_factory'
         self.optimizer_factory = hydra.utils.instantiate(
             self.hparams.optimizer)
         self.scheduler_factory = hydra.utils.instantiate(

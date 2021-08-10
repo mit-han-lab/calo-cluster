@@ -37,12 +37,12 @@ class BaseEvent():
         self._load()
 
     def _load(self):
-        self._load_input()
+        self.input_event = self._load_input()
         self._load_predictions()
 
     def _load_input(self):
         input_event = pd.read_pickle(self.input_path)
-        self.input_event = input_event
+        return input_event
 
     def _load_predictions(self):
         event_prediction = np.load(self.pred_path)
@@ -125,6 +125,8 @@ class BaseExperiment():
         model.eval()
 
         for split, dataloader in zip(('test', 'val', 'train'), (datamodule.test_dataloader(), datamodule.val_dataloader(), datamodule.train_dataloader())):
+            if split != 'val':
+                continue
             output_dir = run_prediction_dir / split
             output_dir.mkdir(exist_ok=True, parents=True)
             with torch.no_grad():

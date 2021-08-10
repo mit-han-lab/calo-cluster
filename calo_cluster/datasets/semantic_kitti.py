@@ -118,7 +118,7 @@ class SemanticKITTIDataset(BaseDataset):
             labels = np.stack((semantic_labels, instance_labels), axis=-1)
 
 
-        if len(block) > self.num_points:
+        if 'train' in self.split and len(block) > self.num_points:
                 inds = np.random.choice(np.arange(len(block)), self.num_points, replace=False)
                 block = block[inds]
                 labels = labels[inds]
