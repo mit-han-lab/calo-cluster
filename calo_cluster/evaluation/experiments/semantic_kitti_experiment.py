@@ -133,7 +133,6 @@ class SemanticKITTIExperiment(BaseExperiment):
                     self.label_map[label_id] = 255
 
         self.reverse_label_name_mapping = reverse_label_name_mapping
-        assert self.num_classes == cnt
         super().__init__(wandb_version, ckpt_name=ckpt_name)
 
     def make_event(self, input_path, pred_path):

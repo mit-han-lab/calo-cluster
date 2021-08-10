@@ -1,13 +1,14 @@
-from pytorch_lightning.metrics.functional.classification import average_precision, iou
+from torchmetrics import IoU
+from tqdm import tqdm
 import torch
 
-
-def match_instances(pred, target):
-    pass
-
-def mAP(pred, target):
-    classes = torch.unique(target)
-    ap = torch.zeros(classes.shape[0])
-    for i, c in enumerate(torch.unique(target)):
-        ap[i] = average_precision(pred, target, pos_label=c)
-    return torch.mean(ap)
+def mIoU(evts, num_classes, semantic_label, ignore_index=None, absent_score=1.0):
+    assert ignore_index >= 0 and ignore_index < num_classes
+    iou = IoU(num_classes=num_classes, ignore_index=ignore_index, absent_score=absent_score)
+    for evt in tqdm(evts):
+        target = torch.tensor(evt.input_event[semantic_label].to_numpy(), dtype=torch.long)
+        preds = torch.tensor(evt.pred_semantic_labels, dtype=torch.long)
+        iou(preds, target)
+    result = iou.compute()
+    print(f'\nmIoU = {result}')
+    return result
