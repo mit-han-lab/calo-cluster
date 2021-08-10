@@ -15,19 +15,20 @@ from .hcal_tt_pu200_pf import HCalTTPU200PFDataModule
 class HCalZllJetsDataset(CaloDataset):
     def __init__(self, instance_label, **kwargs):
         if instance_label == 'truth':
-            raise NotImplementedError()
-            #instance_label = 'trackId'
+            semantic_label = 'hit'
+            instance_label = 'trackId'
         elif instance_label == 'antikt':
             raise NotImplementedError()
             #instance_label = 'RHAntiKtCluster_reco'
         elif instance_label == 'pf':
+            semantic_label = 'pf_hit'
             instance_label = 'PFcluster0Id'
         else:
             raise RuntimeError()
         scale = False
         mean = None
         std = None
-        super().__init__(semantic_label='pf_hit', instance_label=instance_label, scale=scale, mean=mean, std=std, weight='energy', **kwargs)
+        super().__init__(semantic_label=semantic_label, instance_label=instance_label, scale=scale, mean=mean, std=std, weight='energy', **kwargs)
 
 
 @dataclass
