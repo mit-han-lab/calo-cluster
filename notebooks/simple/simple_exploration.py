@@ -1,5 +1,5 @@
 # %%
-from hgcal_dev.datasets.simple import SimpleDataModule
+from calo_cluster.datasets.simple import SimpleDataModule
 from pathlib import Path
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf

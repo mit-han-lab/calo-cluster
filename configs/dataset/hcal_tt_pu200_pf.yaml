@@ -8,6 +8,7 @@ num_features: 5
 voxel_size: 0.1
 
 # dataset-specific fields (should not change):
+noise_id: -99
 cluster_ignore_label: 0
 
 # data location (modify as needed):
