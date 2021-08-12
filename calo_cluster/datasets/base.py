@@ -2,41 +2,49 @@ import logging
 import multiprocessing as mp
 from dataclasses import dataclass
 from functools import partial
+from itertools import repeat
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Tuple, Union
 
+import hydra
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
 import torch
 import uproot
+from hydra import compose, initialize_config_dir
 from numpy.core.arrayprint import str_format
+from omegaconf import OmegaConf
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from torchsparse import SparseTensor
 from torchsparse.utils.collate import sparse_collate_fn
-from torchsparse.utils.quantize import sparse_quantize
 from tqdm import tqdm
 
 from ..utils.comm import get_rank
+from ..utils.quantize import sparse_quantize
 
-from typing import Tuple, List, Any, Callable, Dict, Union
 
 @dataclass
 class BaseDataset(Dataset):
     """Base torch dataset.
-    
+
     A subclass of this dataset needs to:
     1. override _get_numpy().
     2. override collate_fn if a different collate method is required for the dataset."""
     files: List[Path]
     voxel_size: float
-    
+
     task: str
 
-    scale: bool
-    mean: List[float]
-    std: List[float]
+    transform_features: bool
+    features_loc: List[float]
+    features_scale: List[float]
+
+    transform_coords: bool
+    coords_loc: List[float]
+    coords_scale: List[float]
 
     sparse: bool
 
@@ -48,51 +56,56 @@ class BaseDataset(Dataset):
 
     def _get_numpy(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
         """Returns (features, labels, weights, coordinates) for a given file index.
-        
+
         Override this function."""
         raise NotImplementedError()
 
-
     def _get_numpy_scaled(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
-        """Simple wrapper for _get_numpy that scales the features if self.scale is true."""
+        """Simple wrapper for _get_numpy that scales the features/coords."""
         features, labels, weights, coordinates = self._get_numpy(index)
-        
-        if self.scale:
-            features = (features - np.array(self.mean)) / np.array(self.std)
+
+        if self.transform_features:
+            features = (features - np.array(self.features_loc)) / \
+                np.array(self.features_scale)
+
+        if self.transform_coords:
+            coordinates = (coordinates - np.array(self.coords_loc)
+                           ) / np.array(self.coords_scale)
 
         return features, labels, weights, coordinates
 
     def _get_sparse_tensors(self, index: int) -> Dict[str, SparseTensor]:
-        features_, labels_, weights_, coordinates_ = self._get_numpy_scaled(index)
+        features_, labels_, weights_, coordinates_ = self._get_numpy_scaled(
+            index)
         coordinates_ = np.round(coordinates_ / self.voxel_size)
         coordinates_ -= coordinates_.min(0, keepdims=1)
 
         _, inds, inverse_map = sparse_quantize(coordinates_,
-                                        return_index=True,
-                                        return_inverse=True)
+                                               return_index=True,
+                                               return_inverse=True)
         coordinates = coordinates_[inds]
         features = features_[inds]
         labels = labels_[inds]
         features = SparseTensor(features, coordinates)
         labels = SparseTensor(labels, coordinates)
         inverse_map = SparseTensor(inverse_map, coordinates_)
-        
-        if weights_ is not None: 
+
+        if weights_ is not None:
             weights = weights_[inds]
             weights = SparseTensor(weights, coordinates)
         else:
             weights = None
-            
+
         return_dict = {'features': features, 'labels': labels,
                        'inverse_map': inverse_map, 'weights': weights}
         return return_dict
 
     def get_numpy(self, index: int) -> Dict[str, np.array]:
         features, labels, weights, _ = self._get_numpy_scaled(index)
-        return_dict = {'features': features, 'labels': labels, 'weights': weights}
+        return_dict = {'features': features,
+                       'labels': labels, 'weights': weights}
 
         return return_dict
-
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
         if self.sparse:
@@ -123,16 +136,15 @@ class BaseDataModule(pl.LightningDataModule):
     num_epochs -- the number of epochs
     batch_size -- the batch size
     sparse -- whether the data should be provided as SparseTensors (for spvcnn), or not. 
-    
+
     num_workers -- the number of CPU processes to use for data workers.
 
     event_frac -- the fraction of total data to use
     train_frac -- the fraction of train data to use
     test_frac -- the fraction of test data to use
 
-    scale -- if true, use standard scaling on the features (x = (x - mean) / std)
-    mean -- the means of the features, to be used for scaling
-    std -- the standard deviations of the features, to be used for scaling
+    transform_features -- if true, use scaling on the features (x = (x - features_loc) / features_scale)
+    transform_coords -- same as transform_features, but for coords
 
     cluster_ignore_label -- the semantic label that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
     semantic_ignore_label -- the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
@@ -156,19 +168,22 @@ class BaseDataModule(pl.LightningDataModule):
     train_frac: float
     test_frac: float
 
-    scale: bool
-    mean: Union[List[float], None]
-    std: Union[List[float], None]
+    transform_features: bool
+    features_loc: Union[List[float], None]
+    features_scale: Union[List[float], None]
+
+    transform_coords: bool
+    coords_loc: Union[List[float], None]
+    coords_scale: Union[List[float], None]
 
     cluster_ignore_label: int
     semantic_ignore_label: Union[int, None]
-    
+
     batch_dim: int
 
     num_classes: int
     num_features: int
     voxel_size: float
-
 
     @property
     def files(self) -> List[Path]:
@@ -186,7 +201,7 @@ class BaseDataModule(pl.LightningDataModule):
 
     def train_val_test_split(self) -> Tuple[Union[List[Path], None], Union[List[Path], None], Union[List[Path], None]]:
         """Returns train, val, and test file lists
-        
+
         Assumes that self.files is defined and there is no preset split in the dataset.
         If the dataset already has train/val/test files defined, override this function
         and return them."""
@@ -232,10 +247,11 @@ class BaseDataModule(pl.LightningDataModule):
     def test_dataloader(self) -> DataLoader:
         return self.dataloader(self.test_dataset)
 
-    def voxel_occupancy(self) -> np.array:
+    def _voxel_occupancy(self) -> np.array:
         """Returns the average voxel occupancy for each batch in the train dataloader."""
         if not self.sparse:
-            raise RuntimeError('voxel_occupancy called, but dataset is not sparse!')
+            raise RuntimeError(
+                'voxel_occupancy called, but dataset is not sparse!')
 
         self.batch_size = 1
         dataloader = self.train_dataloader()
@@ -246,5 +262,29 @@ class BaseDataModule(pl.LightningDataModule):
 
         return voxel_occupancies
 
+    @staticmethod
+    def voxel_occupancy(voxel_size, dataset):
+        with initialize_config_dir(config_dir='/home/alexj/hgcal-dev/configs'):
+            cfg = compose(config_name='config', overrides=[
+                          f'dataset={dataset}', f'dataset.voxel_size={voxel_size}', 'dataset.sparse=True', 'train=single_gpu', 'dataset.num_workers=0'])
+            dm = hydra.utils.instantiate(cfg.dataset, task='instance')
+        dm.prepare_data()
+        dm.setup('fit')
+        return dm._voxel_occupancy()
+
     def make_dataset(self, files: List[Path], split: str) -> BaseDataset:
         raise NotImplementedError()
+
+    def make_dataset_kwargs(self) -> dict:
+        kwargs = {
+            'voxel_size': self.voxel_size,
+            'task': self.task,
+            'sparse': self.sparse,
+            'transform_features': self.transform_features,
+            'features_loc': self.features_loc,
+            'features_scale': self.features_scale,
+            'transform_coords': self.transform_coords,
+            'coords_loc': self.coords_loc,
+            'coords_scale': self.coords_scale
+        }
+        return kwargs

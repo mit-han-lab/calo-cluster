@@ -124,3 +124,12 @@ class CaloDataModule(BaseDataModule):
     def get_transform_function(self):
         """In subclasses, should return a function that accepts an event path as its sole argument."""
         raise NotImplementedError()
+
+    def make_dataset_kwargs(self) -> dict:
+        kwargs = {
+            'feats': self.feats,
+            'coords': self.coords
+        }
+        kwargs.update(super().make_dataset_kwargs())
+        return kwargs
+                

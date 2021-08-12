@@ -14,7 +14,7 @@ from .calo import CaloDataModule, CaloDataset
 
 class HCalTTPU200PFDataset(CaloDataset):
     def __init__(self, **kwargs):
-        super().__init__(instance_label='PFcluster0Id', semantic_label='pf_hit', scale=False, mean=None, std=None, weight='energy', **kwargs)
+        super().__init__(instance_label='PFcluster0Id', semantic_label='pf_hit', weight='energy', **kwargs)
 
 
 
@@ -25,7 +25,8 @@ class HCalTTPU200PFDataModule(CaloDataModule):
     min_cluster_energy: float
 
     def make_dataset(self, files: List[Path], split: str) -> HCalTTPU200PFDataset:
-        return HCalTTPU200PFDataset(voxel_size=self.voxel_size, files=files, task=self.task, feats=self.feats, coords=self.coords, sparse=self.sparse)
+        kwargs = self.make_dataset_kwargs()
+        return HCalTTPU200PFDataset(files=files, **kwargs)
 
     @staticmethod
     def root_to_pickle(root_data_path, raw_data_dir, noise_id=-1):

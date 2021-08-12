@@ -1,0 +1,20 @@
+defaults:
+  - base_dataset
+_target_: calo_cluster.datasets.vertex.VertexDataModule
+
+# required fields:
+num_classes: 2
+num_features: 6
+voxel_size: 0.05
+
+# dataset-specific fields (should not change):
+cluster_ignore_label: -1
+
+# data location (modify as needed):
+data_dir: /data/vertex/raw
+
+# config fields:
+feats: ['d0', 'z0', 'phi', 'theta', 'qp', 'time']
+coords: ['d0', 'z0', 'phi', 'theta', 'qp']
+# one of: {reco, truth}
+instance_label: reco

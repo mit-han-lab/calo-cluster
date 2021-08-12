@@ -25,10 +25,7 @@ class HCalZllJetsDataset(CaloDataset):
             instance_label = 'PFcluster0Id'
         else:
             raise RuntimeError()
-        scale = False
-        mean = None
-        std = None
-        super().__init__(semantic_label=semantic_label, instance_label=instance_label, scale=scale, mean=mean, std=std, weight='energy', **kwargs)
+        super().__init__(semantic_label=semantic_label, instance_label=instance_label, weight='energy', **kwargs)
 
 
 @dataclass
@@ -36,7 +33,15 @@ class HCalZllJetsDataModule(HCalTTPU200PFDataModule):
     instance_label: str
 
     def make_dataset(self, files: List[Path], split: str) -> HCalZllJetsDataset:
-        return HCalZllJetsDataset(files=files, voxel_size=self.voxel_size, task=self.task, feats=self.feats, coords=self.coords, instance_label=self.instance_label, sparse=self.sparse)
+        kwargs = self.make_dataset_kwargs()
+        return HCalZllJetsDataset(files=files, **kwargs)
+
+    def make_dataset_kwargs(self) -> dict:
+        kwargs = {
+            'instance_label': self.instance_label
+        }
+        kwargs.update(super().make_dataset_kwargs())
+        return kwargs
 
     @staticmethod
     def root_to_pickle(root_data_path, raw_data_dir, noise_id=-99, pf_noise_id=-1):
