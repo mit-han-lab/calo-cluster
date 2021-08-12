@@ -3,39 +3,43 @@
 ## Directory structure
     .
     ├── configs -- configuration files for hydra
-    ├── hgcal_dev
+    ├── calo_cluster
     │   ├── clustering
     │   ├── datasets -- pytorch lightning data modules
     │   ├── evaluation -- visualization, evaluation, performance studies, etc.
     │   ├── models -- pytorch lightning models
-    │   ├── modules -- spvnas modules
     │   ├── training -- various helper functions for training
-    ├── environment.yml -- conda environment file
     ├── setup.py
-    ├── test.py -- script to save predictions from trained model (can be done from a jupyter notebook, as well)
+    ├── test.py -- script to save predictions from trained model (can be done from a notebook, as well)
     ├── train.py -- script to train model
 
 ## Installation
 ### Prerequisites
-* [torchsparse v1.4.0](https://github.com/mit-han-lab/torchsparse) (make sure to install it in an environment with CUDA)
+* CUDA 10.2.
+* [torchsparse v1.4.0](https://github.com/mit-han-lab/torchsparse) (instructions to install this are below, but you may need to first install the Google Sparse Hash library as described in the torchsparse github)
 
-First, clone this repository: `git clone --recurse-submodules https://github.com/mit-han-lab/hgcal-dev.git `.
+First, clone this repository: `git clone --recurse-submodules https://github.com/mit-han-lab/calo-cluster.git `.
 
-A conda `environment.yml` file is provided; use it to create an environment by running `conda env create -f environment.yml`. Make sure torchsparse is available in this environment; you can run `pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git` within the environment to install it. Then, run `pip install -e .` to install the hgcal-dev package. 
+Then, run the following commands to create a conda environment with the necessary packages:
+```
+conda create -n calo_cluster python=3.8
+conda activate calo_cluster
+conda install numpy pandas plotly jupyter tqdm yaml matplotlib seaborn scitkit-learn
+conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+conda install pytorch-lightning submitit uproot -c conda-forge
+pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
+pip install --upgrade --pre hydra-core
+pip install --upgrade wandb
+```
 
-Next, modify the following hard-coded paths in the config files:
-1. configs/config.yaml -- `outputs_dir` and `predictions_dir`
-2. configs/dataset/* -- `data_dir` and `raw_data_dir`
+By default, all data should be in `/data` (check the dataset configs & modify if necessary -- you can run `sudo mkdir -m777 /data` to make this directory accessible to all users). You similarly may wish to modify the paths in configs/config.yaml.
 
-The lightning data modules will download and extract the relevant datasets automatically the first time you run training. However, if you prefer to download them manually, they are available at:
-* hcal -- https://cernbox.cern.ch/index.php/s/s19K02E9SAkxTeg/download
-* hgcal -- https://cernbox.cern.ch/index.php/s/ocpNBUygDnMP3tx/download
-* simple (toy dataset) -- https://cernbox.cern.ch/index.php/s/4mMbz29aSqg1EeX/download
-
-If you download the datasets manually, please place them in the appropriate `data_dir` from above.
+The datasets are available at:
+* vertex -- https://cernbox.cern.ch/index.php/s/WKySWaNStTH3y49/download
+* simple (toy dataset) -- https://cernbox.cern.ch/index.php/s/f3G7FPipgm5f5Ai/download
 
 ## Training
-Configuration and command-line arguments are handled using [hydra](https://hydra.cc/docs/intro/). Logging is handled by [wandb](https://www.wandb.com/) (contact me and I can add you to the wandb team). Training is done using [pytorch-lightning](https://pytorch-lightning.readthedocs.io/en/latest/). For training, the most commonly-used arguments are `criterion`, `dataset`, `train`, and `wandb.name`. For example, to train spvcnn on the toy data for instance segmentation using a single gpu, you can run `python train.py dataset=simple criterion=centroid train=single_gpu wandb.name="simple_test"`. Model checkpoints will be saved in `outputs_dir/{project}/{id}/checkpoints`.
+Configuration and command-line arguments are handled using [hydra](https://hydra.cc/docs/intro/). Logging is handled by [wandb](https://www.wandb.com/) (contact me and I can add you to the wandb team). Training is done using [pytorch-lightning](https://pytorch-lightning.readthedocs.io/en/latest/). For training, the most commonly-used arguments are `embed_criterion`, `semantic_criterion`, `dataset`, `train`, `model`, and `wandb.name`. See the configs for a better understanding. For example, to train spvcnn on the toy data for instance segmentation using a single gpu, you can run `python train.py dataset=simple ~semantic_criterion train=single_gpu wandb.name="simple_instance_test" model.cr=0.5 train.num_epochs=5`. Model checkpoints will be saved in `{outputs_dir}/{project}/{id}/checkpoints`.
 
 ## Evaluation
 See `notebooks/simple/simple_instance` for an example of how you can evaluate performance once you have trained a model.

@@ -1,4 +1,3 @@
-# @package _group_
 active: True
 callback:
   _target_: pytorch_lightning.callbacks.StochasticWeightAveraging

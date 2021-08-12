@@ -1,16 +1,18 @@
-# @package _group_
-_target_: hgcal_dev.datasets.simple.SimpleDataModule
-seed: ${seed}
+defaults:
+  - base_dataset
+_target_: calo_cluster.datasets.simple.SimpleDataModule
+
+# required fields:
 num_classes: 2
-task: ${criterion.task}
-data_dir: /home/alexj/data/hgcal-dev/simple
-raw_data_dir: /home/alexj/data/hgcal-dev/simple
-event_frac: 1.0
-train_frac: 0.8
-test_frac: 0.1
-num_workers: 8
-voxel_size: 0.1
-num_epochs: ${train.num_epochs}
-batch_size: ${train.batch_size}
-num_features: 3
-ignore_label: 0
+num_features: 4
+voxel_size: 0.05
+
+# dataset-specific fields (should not change):
+cluster_ignore_label: 0
+
+# data location (modify as needed):
+data_dir: /data/simple
+
+# config fields:
+feats: ['x', 'y', 'z', 'E']
+coords: ['x', 'y', 'z']

@@ -1,6 +1,7 @@
-outputs_dir: /home/alexj/training_outputs
-predictions_dir: /home/alexj/predictions
-plots_dir: /home/alexj/plots
+config_version: 2
+outputs_dir: /training_outputs
+predictions_dir: /predictions
+plots_dir: /plots
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -13,8 +14,10 @@ log_level: INFO
 val_check_interval: 0.5
 defaults:
   - train: distributed
-  - dataset: hcal_tt
+  - dataset: hcal_tt_pu200_pf
   - optimizer: adam
+  - semantic_criterion: cross_entropy_loss
+  - embed_criterion: centroid_separate
   - criterion: joint_centroid
   - scheduler: one_cycle_lr
   - model: spvcnn

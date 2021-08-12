@@ -1,13 +1,6 @@
-# @package _group_
-task: panoptic
-alpha: 1.0
-semantic:
-  _target_: torch.nn.CrossEntropyLoss
-  ignore_index: ${dataset.ignore_label}
-embed:
-  _target_: hgcal_dev.training.criterion.CentroidInstanceLoss
-  delta_v: 0.5
-  delta_d: 1.5
-  normalize: True
-  use_weights: False
-  ignore_semantic_label: ${dataset.ignore_label}
+# @package _global_
+defaults:
+  - override /semantic_criterion: cross_entropy_loss
+  - override /embed_criterion: centroid_separate
+criterion:
+  alpha: 1.0

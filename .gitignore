@@ -7,7 +7,7 @@ outputs/*
 *.out
 lightning_logs
 *-checkpoint.ipynb
-hgcal_dev.egg-info
+calo_cluster.egg-info
 test_simple_dataset.py
 notebooks/metric_test.ipynb
 notebooks/dataset_test.ipynb
@@ -18,4 +18,4 @@ notebooks/shmargin_test.ipynb
 notebooks/wandb
 *.png
 *.txt
-notebooks
+hgcal_dev.egg-info/PKG-INFO
