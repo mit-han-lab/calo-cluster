@@ -79,4 +79,13 @@ class SimpleDataModule(BaseDataModule):
             df.to_pickle(event_path)
 
     def make_dataset(self, files: List[Path], split: str) -> SimpleDataset:
-        return SimpleDataset(files=files, voxel_size=self.voxel_size, task=self.task, feats=self.feats, coords=self.coords, sparse=self.sparse, scale=self.scale, mean=self.mean, std=self.std)
+        kwargs = self.make_dataset_kwargs()
+        return SimpleDataset(files=files, **kwargs)
+
+    def make_dataset_kwargs(self) -> dict:
+        kwargs = {
+            'feats': self.feats,
+            'coords': self.coords
+        }
+        kwargs.update(super().make_dataset_kwargs())
+        return kwargs

@@ -1,1 +1,2 @@
 _target_: calo_cluster.training.schedulers.lambda_lr_factory
+last_epoch: -1

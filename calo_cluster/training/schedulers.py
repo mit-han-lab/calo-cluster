@@ -17,8 +17,7 @@ def lr_lambda(k, num_training_steps):
                                  num_training_steps))
 
 
-def lambda_lr_factory():
-    last_epoch = -1
+def lambda_lr_factory(last_epoch):
     return lambda optimizer, num_training_steps: LambdaLR(optimizer, functools.partial(lr_lambda, num_training_steps=num_training_steps), last_epoch)
 
 def one_cycle_lr_factory(max_lr, last_epoch):

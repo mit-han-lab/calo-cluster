@@ -110,8 +110,10 @@ class SemanticKITTIDataset(BaseDataset):
         if self.task == 'semantic':
             labels = self.label_map[all_labels & 0xFFFF].astype(np.int64)
         elif self.task == 'instance':
+            #breakpoint()
             labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
         elif self.task == 'panoptic':
+            #breakpoint()
             semantic_labels = self.label_map[all_labels & 0xFFFF].astype(
                 np.int64)
             instance_labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
@@ -123,6 +125,7 @@ class SemanticKITTIDataset(BaseDataset):
                 block = block[inds]
                 labels = labels[inds]
 
+        #breakpoint()
         return block, labels, None, block[:, :3]
 
 
@@ -187,4 +190,13 @@ class SemanticKITTIDataModule(BaseDataModule):
         return train_files, val_files, test_files
 
     def make_dataset(self, files: List[Path], split: str) -> BaseDataset:
-        return SemanticKITTIDataset(files=files, voxel_size=self.voxel_size, task=self.task, scale=self.scale, mean=self.mean, std=self.std, sparse=self.sparse, split=split, num_points=self.num_points, label_map=self.label_map)
+        kwargs = self.make_dataset_kwargs()
+        return SemanticKITTIDataset(files=files, split=split, **kwargs)
+
+    def make_dataset_kwargs(self) -> dict:
+        kwargs = {
+            'num_points': self.num_points,
+            'label_map': self.label_map
+        }
+        kwargs.update(super().make_dataset_kwargs())
+        return kwargs
