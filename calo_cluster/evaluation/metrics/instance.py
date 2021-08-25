@@ -33,8 +33,6 @@ class PanopticQuality:
                 self.tps[k] += np.sum(len(_xyxinstances[k]))
                 self.wtps[k] += np.sum(_intersections[k])
                 self.ious[k] += np.sum(_ious[k])
-                # The iou for each (true, pred) cluster pair is weighted according to each hit, s.t. iou ~= 1 implies that high weight hits are present in the intersection.
-                # However, each cluster is still valued equally.
 
                 self.fps[k] += np.sum(_xmatched[k] == False)
                 self.fns[k] += np.sum(_ymatched[k] == False)
