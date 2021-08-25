@@ -111,12 +111,12 @@ class SemanticKITTIDataset(BaseDataset):
             labels = self.label_map[all_labels & 0xFFFF].astype(np.int64)
         elif self.task == 'instance':
             #breakpoint()
-            labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
+            labels = ((all_labels >> 16) & 0xFFFF).astype(np.int64)
         elif self.task == 'panoptic':
             #breakpoint()
             semantic_labels = self.label_map[all_labels & 0xFFFF].astype(
                 np.int64)
-            instance_labels = ((all_labels >> 4) & 0xFFFF).astype(np.int64)
+            instance_labels = ((all_labels >> 16) & 0xFFFF).astype(np.int64)
             labels = np.stack((semantic_labels, instance_labels), axis=-1)
 
 

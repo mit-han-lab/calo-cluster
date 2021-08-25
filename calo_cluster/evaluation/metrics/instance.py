@@ -219,5 +219,5 @@ if __name__ == '__main__':
     yi = np.array(yi, dtype=np.int64).reshape(1, -1)
     evaluator = PanopticQuality(num_classes=4, ignore_index=-1)
     evaluator.add((xs, xi), (ys, yi))
-    _, _, pq, _, _, _, _ = evaluator.compute()
+    pq = evaluator.compute()['pq']
     print('PQ:', pq.item(), pq.item() == 0.47916666666666663)

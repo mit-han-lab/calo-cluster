@@ -322,6 +322,7 @@ class SPVCNN(pl.LightningModule):
             else:
                 loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
             self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
+            
             ret = {'loss': loss, 'embed_loss': loss.detach()}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
@@ -329,7 +330,10 @@ class SPVCNN(pl.LightningModule):
             embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss
-            ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
+            if type(class_loss) is not float and type(embed_loss) is not float:
+                ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
+            else:
+                ret = {'loss': loss}
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss, sync_dist=sync_dist)
