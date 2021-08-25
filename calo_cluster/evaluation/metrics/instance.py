@@ -154,7 +154,7 @@ def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semant
             indices[np.argmax(ious_per_y, axis=1)] = 1
             indices = indices.astype(bool)
         else:
-            indices = ious > 0.5
+            indices = ious > threshold
 
         xmatched[[xmapping[k] for k in xyxinstances[indices]]] = True
         ymatched[[ymapping[k] for k in xyyinstances[indices]]] = True
