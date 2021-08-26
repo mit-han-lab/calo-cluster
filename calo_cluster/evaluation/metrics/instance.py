@@ -13,6 +13,7 @@ class PanopticQuality:
         self.reset()
 
     def reset(self):
+        self.is_present = np.full(self.num_classes, fill_value=False)
         self.tps = np.zeros(self.num_classes, dtype=np.float64)
         self.fps = np.zeros(self.num_classes, dtype=np.float64)
         self.fns = np.zeros(self.num_classes, dtype=np.float64)
@@ -26,10 +27,8 @@ class PanopticQuality:
         _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(
             outputs, targets, weights=weights, threshold=0.5, semantic=self.semantic, ignore_index=self.ignore_index, ignore_semantic_labels=self.ignore_semantic_labels, num_classes=self.num_classes)
         for k in range(self.num_classes):
-            if k not in _xyxinstances:
-                self.tps[k], self.wtps[k], self.ious[k], self.fps[k], self.fns[k], self.wfps[k], self.wfns[k] = - \
-                    1, -1, -1, -1, -1, -1, -1
-            else:
+            if k in _xyxinstances:
+                self.is_present[k] = True
                 self.tps[k] += np.sum(len(_xyxinstances[k]))
                 self.wtps[k] += np.sum(_intersections[k])
                 self.ious[k] += np.sum(_ious[k])
@@ -41,7 +40,7 @@ class PanopticQuality:
                 self.wfns[k] += np.sum(_yareas[k][_ymatched[k] == False])
 
     def compute(self):
-        m = self.tps != -1
+        m = self.is_present
 
         sq = self.ious / np.maximum(self.tps, 1e-15)
         rq = self.tps / np.maximum(self.tps +
