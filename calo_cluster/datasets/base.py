@@ -146,7 +146,7 @@ class BaseDataModule(pl.LightningDataModule):
     transform_features -- if true, use scaling on the features (x = (x - features_loc) / features_scale)
     transform_coords -- same as transform_features, but for coords
 
-    cluster_ignore_label -- the semantic label that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
+    cluster_ignore_labels -- the semantic labels that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
     semantic_ignore_label -- the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
 
     batch_dim -- the dimension that contains batch information, if sparse=False. If sparse=True, the batch should be stored in the last dimension of the coordinates.
@@ -176,7 +176,7 @@ class BaseDataModule(pl.LightningDataModule):
     coords_loc: Union[List[float], None]
     coords_scale: Union[List[float], None]
 
-    cluster_ignore_label: int
+    cluster_ignore_labels: List[int]
     semantic_ignore_label: Union[int, None]
 
     batch_dim: int

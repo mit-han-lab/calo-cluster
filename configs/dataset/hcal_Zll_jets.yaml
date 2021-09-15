@@ -9,7 +9,7 @@ voxel_size: 0.1
 
 # dataset-specific fields (should not change):
 noise_id: -99
-cluster_ignore_label: 0
+cluster_ignore_label: [0,]
 
 # data location (modify as needed):
 data_dir: /data/hcal_Zll_jets

@@ -19,8 +19,8 @@ transform_coords: False
 coords_loc: null
 coords_scale: null
 
-# the semantic label that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
-cluster_ignore_label: null
+# the semantic labels that should be ignored when clustering (needs to be supported by clusterer) and in embed criterion (needs to be supported by embed criterion)
+cluster_ignore_labels: null
 # the semantic label that should be ignored in semantic segmentation criterion (needs to be supported by semantic criterion)
 semantic_ignore_label: -100
 

@@ -17,7 +17,7 @@ def fix_config(cfg: DictConfig) -> None:
         cfg.dataset.task = cfg.criterion.task
 
         if instance:
-            requires_semantic = cfg.embed_criterion.method in ['ignore', 'separate']
+            requires_semantic = ('method' not in cfg.embed_criterion) or cfg.embed_criterion.method in ['ignore', 'separate']
             cfg.criterion.requires_semantic = requires_semantic
             if requires_semantic:
                 cfg.dataset.task = 'panoptic'

@@ -1,6 +1,6 @@
 defaults:
   - base_dataset
-_target_: calo_cluster.datasets.semantic_kitti.SemanticKITTIDataModule
+_target_: calo_cluster.datasets.semantic_kitti_offset.SemanticKITTIOffsetDataModule
 
 # required fields:
 num_classes: 19
@@ -8,7 +8,7 @@ num_features: 4
 voxel_size: 0.05
 
 # dataset-specific fields (should not change):
-cluster_ignore_labels: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 255]
+valid_labels: [0, 1, 2, 3, 4, 5, 6, 7]
 semantic_ignore_label: 255
 
 # data location (modify as needed):

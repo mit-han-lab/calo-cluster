@@ -8,7 +8,7 @@ num_features: 6
 voxel_size: 0.05
 
 # dataset-specific fields (should not change):
-cluster_ignore_label: -1
+cluster_ignore_labels: [-1,]
 
 # data location (modify as needed):
 data_dir: /data/vertex/raw

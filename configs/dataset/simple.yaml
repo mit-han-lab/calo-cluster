@@ -8,7 +8,7 @@ num_features: 4
 voxel_size: 0.05
 
 # dataset-specific fields (should not change):
-cluster_ignore_label: 0
+cluster_ignore_labels: [0,]
 
 # data location (modify as needed):
 data_dir: /data/simple

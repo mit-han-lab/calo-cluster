@@ -2,4 +2,4 @@ _target_: calo_cluster.training.criterion.CentroidInstanceLoss
 delta_v: 0.5
 delta_d: 1.5
 normalize: True
-ignore_label: ${dataset.cluster_ignore_label}
+ignore_labels: ${dataset.cluster_ignore_labels}

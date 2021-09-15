@@ -18,6 +18,8 @@ from tqdm import tqdm
 
 from .base import BaseDataModule, BaseDataset
 
+from .base_offset import BaseOffsetDataset
+
 label_name_mapping = {
     0: 'unlabeled',
     1: 'outlier',
@@ -61,9 +63,29 @@ kept_labels = [
     'person', 'bicyclist', 'motorcyclist', 'fence', 'pole', 'traffic-sign'
 ]
 
+things_ids = set([10, 11, 15, 18, 20, 30, 31, 32, 252, 253, 254, 255, 258, 259])
+
+def calc_xyz_middle(xyz):
+    return np.array([
+        (np.max(xyz[:, 0]) + np.min(xyz[:, 0])) / 2.0,
+        (np.max(xyz[:, 1]) + np.min(xyz[:, 1])) / 2.0,
+        (np.max(xyz[:, 2]) + np.min(xyz[:, 2])) / 2.0
+    ], dtype=np.float32)
+
+def nb_aggregate_pointwise_center_offset(offsets, xyz, labels):
+    for i in np.unique(labels):
+        if (i & 0xFFFF) not in things_ids:
+            continue
+        i_indices = (labels == i).reshape(-1)
+        xyz_i = xyz[i_indices]
+        if xyz_i.shape[0] <= 0:
+            continue
+        mean_xyz = calc_xyz_middle(xyz_i)
+        offsets[i_indices] = mean_xyz - xyz_i
+    return offsets
 
 @dataclass
-class SemanticKITTIDataset(BaseDataset):
+class SemanticKITTIOffsetDataset(BaseOffsetDataset):
     split: str
     num_points: int
     label_map: np.array
@@ -107,29 +129,32 @@ class SemanticKITTIDataset(BaseDataset):
         else:
             all_labels = np.zeros(block.shape[0]).astype(np.int32)
 
-        if self.task == 'semantic':
-            labels = self.label_map[all_labels & 0xFFFF].astype(np.int32)
-        elif self.task == 'instance':
-            labels = ((all_labels >> 16) & 0xFFFF).astype(np.int32)
-        elif self.task == 'panoptic':
-            semantic_labels = self.label_map[all_labels & 0xFFFF].astype(
+        semantic_labels = self.label_map[all_labels & 0xFFFF].astype(
                 np.int32)
-            instance_labels = ((all_labels >> 16) & 0xFFFF).astype(np.int32)
+        instance_labels = ((all_labels >> 16) & 0xFFFF).astype(np.int32)
+        offsets = np.zeros([block.shape[0], 3], dtype=np.float32)
+        offsets = nb_aggregate_pointwise_center_offset(offsets, block[:, :3], all_labels)
+        if self.task == 'semantic':
+            labels = semantic_labels
+        elif self.task == 'instance':
+            labels = instance_labels
+        elif self.task == 'panoptic':
             labels = np.stack((semantic_labels, instance_labels), axis=-1)
-
 
         if 'train' in self.split and len(block) > self.num_points:
                 inds = np.random.choice(np.arange(len(block)), self.num_points, replace=False)
                 block = block[inds]
                 labels = labels[inds]
-
-        return block, labels, None, block[:, :3]
+                offsets = offsets[inds]
+        
+        return block, labels, None, block[:, :3], offsets
 
 
 @dataclass
-class SemanticKITTIDataModule(BaseDataModule):
+class SemanticKITTIOffsetDataModule(BaseDataModule):
     root: str
     num_points: int
+    valid_labels: List[int]
 
     def __post_init__(self):
         reverse_label_name_mapping = {}
@@ -156,7 +181,6 @@ class SemanticKITTIDataModule(BaseDataModule):
 
         self.reverse_label_name_mapping = reverse_label_name_mapping
         assert self.num_classes == cnt
-        breakpoint()
         super().__post_init__()
 
     def _get_files(self, seqs):
@@ -188,7 +212,7 @@ class SemanticKITTIDataModule(BaseDataModule):
 
     def make_dataset(self, files: List[Path], split: str) -> BaseDataset:
         kwargs = self.make_dataset_kwargs()
-        return SemanticKITTIDataset(files=files, split=split, **kwargs)
+        return SemanticKITTIOffsetDataset(files=files, split=split, **kwargs)
 
     def make_dataset_kwargs(self) -> dict:
         kwargs = {

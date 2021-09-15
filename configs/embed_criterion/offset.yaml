@@ -1,0 +1,2 @@
+_target_: calo_cluster.training.criterion.OffsetInstanceLoss
+valid_labels: ${dataset.valid_labels}
