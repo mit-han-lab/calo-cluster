@@ -77,16 +77,19 @@ class BaseOffsetDataset(Dataset):
     def _get_sparse_tensors(self, index: int) -> Dict[str, SparseTensor]:
         features_, labels_, weights_, coordinates_, offsets_ = self._get_numpy_scaled(
             index)
+        pc = coordinates_
         coordinates_ = np.round(coordinates_ / self.voxel_size)
         coordinates_ -= coordinates_.min(0, keepdims=1)
 
         _, inds, inverse_map = sparse_quantize(coordinates_,
                                                return_index=True,
                                                return_inverse=True)
+        pc = pc[inds]
         coordinates = coordinates_[inds]
         features = features_[inds]
         labels = labels_[inds]
         offsets = offsets_[inds]
+        pc = SparseTensor(pc, coordinates)
         features = SparseTensor(features, coordinates)
         labels = SparseTensor(labels, coordinates)
         offsets = SparseTensor(offsets, coordinates)
@@ -99,7 +102,7 @@ class BaseOffsetDataset(Dataset):
             weights = None
 
         return_dict = {'features': features, 'labels': labels,
-                       'inverse_map': inverse_map, 'weights': weights, 'offsets': offsets}
+                       'inverse_map': inverse_map, 'weights': weights, 'offsets': offsets, 'coordinates': pc}
         return return_dict
 
     def get_numpy(self, index: int) -> Dict[str, np.array]:
