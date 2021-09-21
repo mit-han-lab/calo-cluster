@@ -12,6 +12,7 @@ import torchsparse.nn.functional as spf
 from calo_cluster.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
 from torchsparse.tensor import PointTensor, SparseTensor
+
 from .utils import *
 
 __all__ = ['SPVCNN']
@@ -78,12 +79,14 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class SPVCNN_backbone(nn.Module):
-    def __init__(self, cfg: OmegaConf):
-        cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
+class SPVCNN_backbone(pl.LightningModule):
+    def __init__(self, cs, num_features, pres, vres):
+        super().__init__()
+        self.pres = pres
+        self.vres = vres
 
         self.stem = nn.Sequential(
-            spnn.Conv3d(self.hparams.dataset.num_features,
+            spnn.Conv3d(num_features,
                         cs[0], kernel_size=3, stride=1),
             spnn.BatchNorm(cs[0]), spnn.ReLU(True),
             spnn.Conv3d(cs[0], cs[0], kernel_size=3, stride=1),
@@ -154,6 +157,7 @@ class SPVCNN_backbone(nn.Module):
         ])
 
         self.weight_initialization()
+        self.dropout = nn.Dropout(0.3, True)
 
     def weight_initialization(self):
         for m in self.modules():
@@ -165,8 +169,8 @@ class SPVCNN_backbone(nn.Module):
         # x: SparseTensor z: PointTensor
         z = PointTensor(x.F, x.C.float())
 
-        x0 = initial_voxelize(z, self.hparams.model.pres,
-                              self.hparams.model.vres)
+        x0 = initial_voxelize(z, self.pres,
+                              self.vres)
 
         x0 = self.stem(x0)
         z0 = voxel_to_point(x0, z, nearest=False)
@@ -198,10 +202,165 @@ class SPVCNN_backbone(nn.Module):
         y3 = torchsparse.cat([y3, x1])
         y3 = self.up3[1](y3)
 
-        return y3, z2, x0
+        return x0, y3, z2
 
+class SPVCNN_classifier_head(nn.Module):
+    def __init__(self, cs, num_classes):
+        super().__init__()
+        self.c_up4 = nn.ModuleList([
+                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
+                nn.Sequential(
+                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
+                                dilation=1),
+                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
+                )
+        ])
+        self.c_point_transform = nn.Sequential(
+                nn.Linear(cs[6], cs[8]),
+                nn.BatchNorm1d(cs[8]),
+                nn.ReLU(True),
+        )
+        self.c_lin = nn.Sequential(nn.Linear(cs[8], num_classes))
 
-class SPVCNN(pl.LightningModule):
+        self.weight_initialization()
+
+    def weight_initialization(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, x0, y, z):
+        y4 = self.c_up4[0](y)
+        y4 = torchsparse.cat([y4, x0])
+        y4 = self.c_up4[1](y4)
+        z3 = voxel_to_point(y4, z)
+        z3.F = z3.F + self.c_point_transform(z.F)
+        return self.c_lin(z3.F)
+
+class SPVCNN_embedder_head(nn.Module):
+    def __init__(self, cs, embed_dim):
+        super().__init__()
+        self.e_up4 = nn.ModuleList([
+            BasicDeconvolutionBlock(cs[2], cs[3], ks=2, stride=2),
+            nn.Sequential(
+                ResidualBlock(cs[3] + cs[0], cs[3], ks=3, stride=1,
+                            dilation=1),
+                ResidualBlock(cs[3], cs[3], ks=3, stride=1, dilation=1),
+            )
+        ])
+        self.e_point_transform = nn.Sequential(
+            nn.Linear(cs[1], cs[3]),
+            nn.BatchNorm1d(cs[3]),
+            nn.ReLU(True),
+        )
+        self.e_lin = nn.Sequential(nn.Linear(cs[3], embed_dim))
+
+        self.weight_initialization()
+
+    def weight_initialization(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+    def forward(self, x0, y, z):
+        y4 = self.e_up4[0](y)
+        y4 = torchsparse.cat([y4, x0])
+        y4 = self.e_up4[1](y4)
+        z3 = voxel_to_point(y4, z)
+        z3.F = z3.F + self.e_point_transform(z.F)
+        return self.e_lin(z3.F)
+
+class SPVCNN_sem(pl.LightningModule):
+    def __init__(self, cfg: OmegaConf):
+        super().__init__()
+        self.hparams.update(cfg)
+        if is_rank_zero():
+            self.save_hyperparameters(cfg)
+        assert self.hparams.criterion.task == 'semantic'
+
+        self.optimizer_factory = hydra.utils.instantiate(
+            self.hparams.optimizer)
+        self.scheduler_factory = hydra.utils.instantiate(
+            self.hparams.scheduler)
+
+        self.semantic_criterion = hydra.utils.instantiate(self.hparams.semantic_criterion)
+        
+        cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
+        self.backbone = SPVCNN_backbone(cs, self.hparams.dataset.num_features, self.hparams.model.pres, self.hparams.model.vres)
+        self.classifier = SPVCNN_classifier_head(cs, self.hparams.dataset.num_classes)
+
+        self.weight_initialization()
+
+    def weight_initialization(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+    
+    def forward(self, x):
+        # x: SparseTensor z: PointTensor
+        x0, y, z = self.backbone(x)
+        out = self.classifier(x0, y, z)    
+        return out
+
+    def configure_optimizers(self):
+        optimizer = self.optimizer_factory(self.parameters())
+        if self.scheduler_factory is not None:
+            scheduler = self.scheduler_factory(optimizer, self.num_training_steps())
+            scheduler = {'scheduler': scheduler, 'interval': 'step', 'frequency': 1}
+            return [optimizer], [scheduler]
+        else:
+            return optimizer
+
+    def step(self, batch, batch_idx, split):
+        inputs = batch['features']
+        targets = batch['labels'].F.long()
+        outputs = self(inputs)
+        subbatch_indices = inputs.C[..., -1]
+        weights = batch['weights']
+        if type(weights) is SparseTensor:
+            weights = weights.F
+        else:
+            weights = None
+        sync_dist = (split != 'train')
+
+        loss = self.semantic_criterion(outputs, targets)
+        self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
+        ret = {'loss': loss, 'class_loss': loss.detach()}
+        self.log(f'{split}_loss', loss, sync_dist=sync_dist)
+        return ret
+
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, split='train')
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, split='val')
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, split='test')
+
+    def num_training_steps(self) -> int:
+        """Total training steps inferred from datamodule and devices."""
+        if self.trainer.max_steps:
+            return self.trainer.max_steps
+
+        limit_batches = self.trainer.limit_train_batches
+        batches = len(self.train_dataloader())
+        batches = min(batches, limit_batches) if isinstance(limit_batches, int) else int(limit_batches * batches)     
+
+        num_devices = max(1, self.trainer.num_gpus, self.trainer.num_processes)
+        if self.trainer.tpu_cores:
+            num_devices = max(num_devices, self.trainer.tpu_cores)
+
+        effective_accum = self.trainer.accumulate_grad_batches * num_devices
+        num_steps = (batches // effective_accum) * self.trainer.max_epochs 
+        num_steps += batches * self.trainer.max_epochs - num_steps * effective_accum
+        print(f'num steps = {num_steps}')
+        return num_steps
+            
+class SPVCNN_mst(pl.LightningModule):
     def __init__(self, cfg: OmegaConf):
         super().__init__()
         self.hparams.update(cfg)
@@ -215,93 +374,28 @@ class SPVCNN(pl.LightningModule):
         self.scheduler_factory = hydra.utils.instantiate(
             self.hparams.scheduler)
 
-        task = self.hparams.criterion.task
-        assert task in ('instance', 'semantic', 'panoptic')
-        if task == 'instance' or task == 'panoptic':
-            self.embed_criterion = hydra.utils.instantiate(
-                self.hparams.embed_criterion)
-        if task == 'semantic' or task == 'panoptic':
-            self.semantic_criterion = hydra.utils.instantiate(
-                self.hparams.semantic_criterion)
+        assert self.hparams.criterion.task == 'panoptic'
+        sem_model = SPVCNN_sem.load_from_checkpoint(cfg.model.sem_path)
+        sem_model.freeze()
+        self.backbone = sem_model.backbone
+        self.classifier = sem_model.classifier
 
-        
+        cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
+        self.embedder = SPVCNN_embedder_head(cs, self.hparams.model.embed_dim) 
 
-
-        if task == 'semantic' or task == 'panoptic':
-            self.c_up4 = nn.ModuleList([
-                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
-                nn.Sequential(
-                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                                dilation=1),
-                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
-                )
-            ])
-            self.c_point_transform = nn.Sequential(
-                nn.Linear(cs[6], cs[8]),
-                nn.BatchNorm1d(cs[8]),
-                nn.ReLU(True),
-            )
-            self.c_lin = nn.Sequential(nn.Linear(cs[8],
-                                                      self.hparams.dataset.num_classes))
-        if task == 'instance' or task == 'panoptic':
-            self.e_up4 = nn.ModuleList([
-                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
-                nn.Sequential(
-                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                                dilation=1),
-                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
-                )
-            ])
-            self.e_point_transform = nn.Sequential(
-                nn.Linear(cs[6], cs[8]),
-                nn.BatchNorm1d(cs[8]),
-                nn.ReLU(True),
-            )
-            self.e_lin = nn.Sequential(nn.Linear(cs[8],
-                                                    self.hparams.model.embed_dim))
-
-        self.weight_initialization()
-        self.dropout = nn.Dropout(0.3, True)
-
-    def classifier(self, x0, y, z):
-        y4 = self.c_up4[0](y)
-        y4 = torchsparse.cat([y4, x0])
-        y4 = self.c_up4[1](y4)
-        z3 = voxel_to_point(y4, z)
-        z3.F = z3.F + self.c_point_transform(z.F)
-        return self.c_lin(z3.F)
-
-    def embedder(self, y3, x0, z2):
-        y4 = self.e_up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
-        y4 = self.e_up4[1](y4)
-        z3 = voxel_to_point(y4, z2)
-        z3.F = z3.F + self.e_point_transform(z2.F)
-        return self.e_lin(z3.F)
-
-    def weight_initialization(self):
-        for m in self.modules():
-            if isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+        self.embed_criterion = hydra.utils.instantiate(self.hparams.embed_criterion)
 
     def num_inf_or_nan(self, x):
         return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
 
     def forward(self, x):
         # x: SparseTensor z: PointTensor
-        x0, y, z, = self.backbone(x)
-
-
-        task = self.hparams.criterion.task
-        if task == 'semantic':
-            out = self.classifier(x0, y, z)
-        elif task == 'instance':
-            out = self.embedder(x0, y, z)
-        elif task == 'panoptic':
-            out = (self.classifier(x0, y, z), self.embedder(x0, y, z))
-        else:
-            raise RuntimeError("invalid task!")
+        self.backbone.eval()
+        self.classifier.eval()
+        with torch.no_grad():
+            x0, y, z = self.backbone(x)
+            c_out = self.classifier(x0, y, z)
+        out = (c_out, self.embedder(x0, y, z))    
         return out
 
     def configure_optimizers(self):

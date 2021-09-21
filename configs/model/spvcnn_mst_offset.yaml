@@ -1,0 +1,10 @@
+target:
+  _target_: calo_cluster.models.spvcnn_mst_offset.SPVCNN
+pres: 1.0
+vres: 1.0
+cr: 0.5
+cs: [32, 128, 96, 96]
+embed_dim: 3
+seed: ${seed}
+sparse: True
+sem_path: ???

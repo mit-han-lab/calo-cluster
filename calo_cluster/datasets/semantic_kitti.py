@@ -156,7 +156,6 @@ class SemanticKITTIDataModule(BaseDataModule):
 
         self.reverse_label_name_mapping = reverse_label_name_mapping
         assert self.num_classes == cnt
-        breakpoint()
         super().__post_init__()
 
     def _get_files(self, seqs):
