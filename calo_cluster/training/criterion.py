@@ -56,7 +56,7 @@ class OffsetInstanceLoss(nn.Module):
         if self.valid_labels is not None:
             if self.valid_labels.device != semantic_labels.device:
                 self.valid_labels = self.valid_labels.to(semantic_labels.device)
-            valid = ~(semantic_labels[..., None] == self.valid_labels).any(-1)
+            valid = (semantic_labels[..., None] == self.valid_labels).any(-1)
         else:
             valid = torch.ones_like(semantic_labels).type(torch.bool)
         loss = offset_loss(pt_offsets, gt_offsets, valid)
