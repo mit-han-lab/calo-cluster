@@ -8,29 +8,23 @@ import pandas as pd
 import uproot
 from tqdm import tqdm
 
-from .calo import CaloDataset
+from mixins.combine_labels import CombineLabelsMixin
+from mixins.sparse import SparseDatasetMixin
+from mixins.offset import OffsetDatasetMixin
+from mixins.scaled import ScaledDatasetMixin
+from mixins.hcal_Zll_jets import HCalZllJetsMixin
 from .hcal_tt_pu200_pf import HCalTTPU200PFDataModule
 
 
-class HCalZllJetsDataset(CaloDataset):
-    def __init__(self, instance_label, **kwargs):
-        if instance_label == 'truth':
-            semantic_label = 'hit'
-            instance_label = 'trackId'
-        elif instance_label == 'antikt':
-            raise NotImplementedError()
-            #instance_label = 'RHAntiKtCluster_reco'
-        elif instance_label == 'pf':
-            semantic_label = 'pf_hit'
-            instance_label = 'PFcluster0Id'
-        else:
-            raise RuntimeError()
-        super().__init__(semantic_label=semantic_label, instance_label=instance_label, weight='energy', **kwargs)
+class HCalZllJetsDataset(CombineLabelsMixin, SparseDatasetMixin, ScaledDatasetMixin, HCalZllJetsMixin):
+    pass
 
+class HCalZllJetsOffsetDataset(CombineLabelsMixin, SparseDatasetMixin, OffsetDatasetMixin, ScaledDatasetMixin, HCalZllJetsMixin):
+    pass
 
 @dataclass
 class HCalZllJetsDataModule(HCalTTPU200PFDataModule):
-    instance_label: str
+    instance_target: str
 
     def make_dataset(self, files: List[Path], split: str) -> HCalZllJetsDataset:
         kwargs = self.make_dataset_kwargs()
@@ -38,7 +32,7 @@ class HCalZllJetsDataModule(HCalTTPU200PFDataModule):
 
     def make_dataset_kwargs(self) -> dict:
         kwargs = {
-            'instance_label': self.instance_label
+            'instance_target': self.instance_target
         }
         kwargs.update(super().make_dataset_kwargs())
         return kwargs
