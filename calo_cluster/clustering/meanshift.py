@@ -18,12 +18,14 @@ class MeanShift(BaseClusterer):
         if self.use_semantic:
             cluster_labels = np.full_like(semantic_labels, fill_value=-1)
             unique_semantic_labels = np.unique(semantic_labels)
+            i = 0
             for l in unique_semantic_labels:
                 if l in self.ignore_semantic_labels:
                     continue
                 mask = (semantic_labels == l)
                 self.clusterer.fit(embedding[mask])
-                cluster_labels[mask] = self.clusterer.labels_
+                cluster_labels[mask] = self.clusterer.labels_ + i
+                i += np.unique(self.clusterer.labels_).shape[0]
         else:
             self.clusterer.fit(embedding)
             cluster_labels = self.clusterer.labels_
