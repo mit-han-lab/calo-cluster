@@ -328,6 +328,7 @@ class SPVCNNOffset(pl.LightningModule):
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
+            breakpoint()
             embed_loss = self.embed_criterion(outputs[1], offsets, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + self.hparams.criterion.alpha * embed_loss

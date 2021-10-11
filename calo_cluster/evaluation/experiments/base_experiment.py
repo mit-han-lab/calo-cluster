@@ -22,6 +22,7 @@ from omegaconf import OmegaConf
 from plotly.subplots import make_subplots
 from sklearn.metrics import auc, confusion_matrix, roc_curve
 from tqdm import tqdm
+import importlib
 
 from calo_cluster.training.config import fix_config
 
@@ -69,7 +70,7 @@ class BaseExperiment():
         self.run_prediction_dir = Path(
             self.cfg.predictions_dir) / self.cfg.wandb.version / self.ckpt_name
         self.run_prediction_dir.mkdir(exist_ok=True, parents=True)
-        self.model = SPVCNN.load_from_checkpoint(str(self.ckpt_path))
+        self.model = self.load_model(str(self.ckpt_path))
 
         plots_dir = Path(self.cfg.plots_dir)
         self.plots_dir = plots_dir / self.wandb_version / self.ckpt_name
@@ -197,3 +198,10 @@ class BaseExperiment():
 
     def make_event(self, input_path, pred_path):
         return BaseEvent(input_path, pred_path, self.task)
+
+    def load_model(self, ckpt_path):
+        model_str = self.cfg.model.target._target_
+        comps = model_str.split('.')
+        module = importlib.import_module('.'.join(comps[:-1]))
+        cls = getattr(module, comps[-1])
+        return cls.load_from_checkpoint(str(ckpt_path))

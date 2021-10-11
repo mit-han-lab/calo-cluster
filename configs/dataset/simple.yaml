@@ -9,9 +9,13 @@ voxel_size: 0.05
 
 # dataset-specific fields (should not change):
 cluster_ignore_labels: [0,]
+instance_label: instance_label
+semantic_label: semantic_label
+weight: E
 
 # data location (modify as needed):
 data_dir: /data/simple
+raw_data_dir: /data/simple
 
 # config fields:
 feats: ['x', 'y', 'z', 'E']

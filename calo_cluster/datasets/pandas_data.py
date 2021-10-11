@@ -1,29 +1,20 @@
 import logging
 import multiprocessing as mp
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List
 
 import numpy as np
 import pandas as pd
-import pytorch_lightning as pl
-import torch
-import uproot
 from calo_cluster.datasets.base import BaseDataModule, BaseDataset
-from sklearn.utils import shuffle
-from torch.utils.data import DataLoader
-from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn
-from torchsparse.utils.quantize import sparse_quantize
 from tqdm import tqdm
 
 
 @dataclass
-class CaloDataset(BaseDataset):
-    "A generic calorimeter torch dataset."
-    feats: list
-    coords: list
+class PandasDataset(BaseDataset):
+    "A generic pandas torch dataset."
+    feats: List[str]
+    coords: List[str]
     weight: str
     semantic_label: str
     instance_label: str
@@ -32,32 +23,31 @@ class CaloDataset(BaseDataset):
         df = pd.read_pickle(self.files[index])
         return df
 
-    def _get_numpy(self, index: int) -> Tuple[np.array, np.array, Union[np.array, None], Union[np.array, None]]:
+    def _get_numpy(self, index: int) -> Dict[str, Any]:
+        breakpoint()
         df = self._get_df(index)
+
         #features = df[self.feats].to_numpy(dtype=np.half)
         features = df[self.feats].to_numpy(dtype=np.float32)
-        if self.task == 'panoptic':
-            labels = df[[self.semantic_label, self.instance_label]].to_numpy()
-        elif self.task == 'semantic':
-            labels = df[self.semantic_label].to_numpy()
-        elif self.task == 'instance':
-            labels = df[self.instance_label].to_numpy()
-        else:
-            raise RuntimeError(f'Unknown task = "{self.task}"')
         #coordinates = df[self.coords].to_numpy(dtype=np.half)
         coordinates = df[self.coords].to_numpy(dtype=np.float32)
 
+        return_dict = {'features': features, 'coordinates': coordinates}
+
+        if self.semantic_label:
+            return_dict['semantic_labels'] = df[self.semantic_label].to_numpy()
+        if self.instance_label:
+            return_dict['instance_labels'] = df[self.instance_label].to_numpy()
         if self.weight is not None:
-            #weights = df[self.weight].to_numpy(dtype=np.half)
-            weights = df[self.weight].to_numpy(dtype=np.float32)
-        else:
-            weights = None
-        return features, labels, weights, coordinates
+            #return_dict['weights'] = df[self.weight].to_numpy(dtype=np.half)
+            return_dict['weights'] = df[self.weight].to_numpy(dtype=np.float32)
+
+        return return_dict
 
 
 @dataclass
-class CaloDataModule(BaseDataModule):
-    """A generic calorimeter data module that handles common transformations.
+class PandasDataModule(BaseDataModule):
+    """A generic panda data module that handles common transformations.
 
     If you set self.transformed_data_dir != self.raw_data_dir in a subclass, and self._transformed_data_dir is empty
     or does not exist, then the function returned by self.get_transform_function will be applied to each raw event
@@ -71,6 +61,9 @@ class CaloDataModule(BaseDataModule):
 
     feats: List[str]
     coords: List[str]
+    weight: str
+    semantic_label: str
+    instance_label: str
 
     def __post_init__(self):
         super().__post_init__()
@@ -121,15 +114,17 @@ class CaloDataModule(BaseDataModule):
                 raise RuntimeError()
             self.make_transformed_data()
 
-    def get_transform_function(self):
+    def get_transform_function(self) -> Callable[[Path], None]:
         """In subclasses, should return a function that accepts an event path as its sole argument."""
         raise NotImplementedError()
 
     def make_dataset_kwargs(self) -> dict:
         kwargs = {
             'feats': self.feats,
-            'coords': self.coords
+            'coords': self.coords,
+            'weight': self.weight,
+            'semantic_label': self.semantic_label,
+            'instance_label': self.instance_label
         }
         kwargs.update(super().make_dataset_kwargs())
         return kwargs
-                

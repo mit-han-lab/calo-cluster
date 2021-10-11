@@ -1,0 +1,5 @@
+defaults:
+  - simple
+_target_: calo_cluster.datasets.simple.SimpleOffsetDataModule
+
+valid_labels: [1,]

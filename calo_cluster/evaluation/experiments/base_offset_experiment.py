@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from .base_experiment import BaseExperiment
 
+from calo_cluster.models.spvcnn_offset import SPVCNNOffset
 
 class BaseOffsetExperiment(BaseExperiment):
     def _save_predictions(self, model, datamodule, run_prediction_dir, cfg, batch_size=512, num_workers=32):

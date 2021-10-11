@@ -9,7 +9,11 @@ voxel_size: 0.1
 
 # dataset-specific fields (should not change):
 noise_id: -99
-cluster_ignore_label: [0,]
+cluster_ignore_labels: [0,]
+semantic_label: pf_hit
+instance_label: PFcluster0Id
+weight: energy
+
 
 # data location (modify as needed):
 data_dir: /data/hcal_Zll_jets
@@ -20,5 +24,5 @@ feats: ['x', 'y', 'z', 'time', 'energy']
 coords: ['x', 'y', 'z']
 min_hits_per_cluster: 0
 min_cluster_energy: 0.5
-instance_label: pf
+instance_target: pf
 

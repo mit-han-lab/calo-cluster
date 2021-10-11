@@ -1,0 +1,5 @@
+defaults:
+  - hcal_Zll_jets
+_target_: calo_cluster.datasets.hcal_Zll_jets.HCalZllJetsOffsetDataModule
+
+valid_labels: [1,]
