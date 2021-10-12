@@ -24,7 +24,6 @@ class PandasDataset(BaseDataset):
         return df
 
     def _get_numpy(self, index: int) -> Dict[str, Any]:
-        breakpoint()
         df = self._get_df(index)
 
         #features = df[self.feats].to_numpy(dtype=np.half)
