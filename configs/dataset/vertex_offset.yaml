@@ -1,0 +1,5 @@
+defaults:
+  - vertex
+_target_: calo_cluster.datasets.vertex.VertexOffsetDataModule
+
+valid_labels: [1,]

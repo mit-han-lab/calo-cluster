@@ -304,7 +304,7 @@ class SPVCNN(pl.LightningModule):
         targets = batch['labels'].F.long()
         outputs = self(inputs)
         subbatch_indices = inputs.C[..., -1]
-        weights = batch['weights']
+        weights = batch.get('weights')
         if type(weights) is SparseTensor:
             weights = weights.F
         else:

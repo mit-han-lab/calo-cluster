@@ -304,7 +304,7 @@ class SPVCNNOffset(pl.LightningModule):
         targets = batch['labels'].F.long()
         outputs = self(inputs)
         subbatch_indices = inputs.C[..., -1]
-        weights = batch['weights']
+        weights = batch.get('weights')
         offsets = batch['offsets'].F
         if type(weights) is SparseTensor:
             weights = weights.F
