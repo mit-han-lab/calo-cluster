@@ -19,6 +19,10 @@ class CaloDataModule(PandasDataModule):
 
     def __post_init__(self):
         super().__post_init__()
+        if type(self.min_eta) is str:
+            self.min_eta = None
+        if type(self.max_eta) is str:
+            self.max_eta = None
         if self.min_eta is None and self.max_eta is None:
             self.transformed_data_dir = transformed_data_dir = self.data_dir / \
                 f'min_energy_{self.min_cluster_energy}_min_hits_{self.min_hits_per_cluster}'
@@ -39,8 +43,10 @@ class CaloDataModule(PandasDataModule):
         event = event[event['PFcluster0Id'].isin(tracks['clusterId'])]
         event = event.reset_index(drop=True)
 
-        event = event[event['eta'] > min_eta]
-        event = event[event['eta'] < max_eta]
+        if min_eta is not None:
+            event = event[event['eta'] > min_eta]
+        if max_eta is not None:
+            event = event[event['eta'] < max_eta]
 
         out_path = transformed_data_dir / event_path.name
         if event.shape[0] > 0:
