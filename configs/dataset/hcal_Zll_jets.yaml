@@ -23,6 +23,8 @@ raw_data_dir: /data/hcal_Zll_jets/min_energy_0.0_min_hits_0
 feats: ['x', 'y', 'z', 'time', 'energy']
 coords: ['x', 'y', 'z']
 min_hits_per_cluster: 0
-min_cluster_energy: 0.5
+min_cluster_energy: 0.0
+min_eta: null
+max_eta: null
 instance_target: pf
 
