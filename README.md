@@ -41,7 +41,7 @@ If such an error occurs,
     raise RuntimeError('Pin memory thread exited unexpectedly')
 RuntimeError: Pin memory thread exited unexpectedly
 ```
-modify the parameter `pin_memory=False`, to `pin_memory=True` in `/calo_cluster/datasets/base.py` . 
+modify the parameter `pin_memory=True`, to `pin_memory=False` in `/calo_cluster/datasets/base.py` . 
 
 If such an error occurs,
 ```
