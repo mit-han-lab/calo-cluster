@@ -24,13 +24,31 @@ Then, run the following commands to create a conda environment with the necessar
 ```
 conda create -n calo_cluster python=3.8
 conda activate calo_cluster
-conda install numpy pandas plotly jupyter tqdm yaml matplotlib seaborn scitkit-learn
+conda install numpy pandas plotly jupyter tqdm yaml matplotlib seaborn scikit-learn
 conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
 conda install pytorch-lightning submitit uproot -c conda-forge
 pip install --upgrade git+https://github.com/mit-han-lab/torchsparse.git@v1.4.0
-pip install --upgrade --pre hydra-core
-pip install --upgrade wandb
+pip install hydra-core==1.1.0 wandb
+
+pip install -e .
+
 ```
+
+If such an error occurs, 
+
+```
+  File "/opt/conda/envs/calo_cluster_test/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 1147, in _get_data
+    raise RuntimeError('Pin memory thread exited unexpectedly')
+RuntimeError: Pin memory thread exited unexpectedly
+```
+modify the parameter `pin_memory=False`, to `pin_memory=True` in `/calo_cluster/datasets/base.py` . 
+
+If such an error occurs,
+```
+RuntimeError: Too many open files. Communication with the workers is no longer possible. Please increase the limit using `ulimit -n` in the shell or change the sharing strategy by calling `torch.multiprocessing.set_sharing_strategy('file_system')` at the beginning of your code
+```
+
+use `ulimit -n 10000`. 
 
 By default, all data should be in `/data` (check the dataset configs & modify if necessary -- you can run `sudo mkdir -m777 /data` to make this directory accessible to all users). You similarly may wish to modify the paths in configs/config.yaml.
 
