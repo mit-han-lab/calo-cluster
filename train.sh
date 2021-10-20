@@ -1,0 +1,11 @@
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 model=spvcnn_offset embed_criterion=offset ~semantic_criterion dataset.min_eta=-1.5 dataset.max_eta=1.5 wandb.name="hcal_Zll_offset_barrel"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 model=spvcnn_offset embed_criterion=offset ~semantic_criterion dataset.min_eta=1.8 dataset.max_eta=None wandb.name="hcal_Zll_offset_forward"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 model=spvcnn_offset ~embed_criterion dataset.min_eta=-1.5 dataset.max_eta=1.5 wandb.name="hcal_Zll_sem_barrel"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 model=spvcnn_offset ~embed_criterion dataset.min_eta=1.8 dataset.max_eta=None wandb.name="hcal_Zll_sem_forward"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 dataset.coords=[eta,phi] model=spvcnn_offset model.embed_dim=2 embed_criterion=offset ~semantic_criterion wandb.name="hcal_Zll_angular_offset"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 dataset.coords=[eta,phi] model=spvcnn_offset model.embed_dim=2 ~embed_criterion wandb.name="hcal_Zll_angular_sem"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 dataset.coords=[eta,phi] model=spvcnn_offset model.embed_dim=2 embed_criterion=offset ~semantic_criterion dataset.min_eta=-1.5 dataset.max_eta=1.5 wandb.name="hcal_Zll_angular_offset_barrel"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 dataset.coords=[eta,phi] model=spvcnn_offset model.embed_dim=2 embed_criterion=offset ~semantic_criterion dataset.min_eta=1.8 dataset.max_eta=None wandb.name="hcal_Zll_angular_offset_forward"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 dataset.coords=[eta,phi] model=spvcnn_offset model.embed_dim=2 ~embed_criterion dataset.min_eta=-1.5 dataset.max_eta=1.5 wandb.name="hcal_Zll_angular_sem_barrel"
+python train.py dataset=hcal_Zll_jets_offset dataset.event_frac=0.1 dataset.coords=[eta,phi] model=spvcnn_offset model.embed_dim=2 ~embed_criterion dataset.min_eta=1.8 dataset.max_eta=None wandb.name="hcal_Zll_angular_sem_forward"
+gcloud compute instances stop schuy-2-vm --zone us-west1-b

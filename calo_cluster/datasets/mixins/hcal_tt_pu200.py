@@ -1,5 +1,6 @@
 
 from dataclasses import dataclass
+from typing import List
 import pandas as pd
 import uproot
 from calo_cluster.datasets.mixins.calo import CaloDataModule

@@ -8,6 +8,7 @@ import numpy as np
 import pytorch_lightning as pl
 from calo_cluster.datasets.mixins.base import (AbstractBaseDataModule,
                                                AbstractBaseDataset)
+from hydra import compose, initialize_config_dir
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
@@ -71,6 +72,8 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
 
     num_classes -- the number of semantic classes
     num_features -- the number of features used as input to the ML model
+
+    data_dir -- the base data directory
     """
 
     seed: int
@@ -91,9 +94,15 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
     num_classes: int
     num_features: int
 
+    data_dir: str
+
     @property
     def files(self) -> List[Path]:
-        raise NotImplementedError()
+        if self._files is None:
+            self._files = []
+            self._files.extend(
+                sorted(self.data_dir.glob('*')))
+        return self._files
 
     def __post_init__(self):
         super().__init__()
@@ -155,3 +164,19 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
 
     def make_dataset_kwargs(self) -> Dict[str, Any]:
         return {}
+
+    @classmethod
+    def from_config(cls, overrides: List[str] = []):
+        config_dir = Path(__file__).parent.parent.parent / 'configs'
+        overrides.append('train.batch_size=1')
+        overrides = cls.fix_overrides(overrides)
+        with initialize_config_dir(config_dir=str(config_dir)):
+            cfg = compose(config_name='config', overrides=overrides)
+            dm = hydra.utils.instantiate(cfg.dataset, task='panoptic')
+        return dm
+
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=base_dataset')
+        return overrides

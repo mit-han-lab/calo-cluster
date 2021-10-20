@@ -32,9 +32,18 @@ class HCalTTPU200PFDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixi
         kwargs = self.make_dataset_kwargs()
         return HCalTTPU200PFDataset(files=files, **kwargs)
 
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=hcal_tt_pu200_pf')
+        return overrides
 
 @dataclass
 class HCalTTPU200PFOffsetDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, HCalTTPU200PFDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> HCalTTPU200PFOffsetDataset:
         kwargs = self.make_dataset_kwargs()
         return HCalTTPU200PFOffsetDataset(files=files, **kwargs)
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=hcal_tt_pu200_pf_offset')
+        return overrides

@@ -1,15 +1,11 @@
-from calo_cluster.datasets.mixins.calo import CaloDataModule
-from calo_cluster.datasets.pandas_data import PandasDataset
-import multiprocessing as mp
 from dataclasses import dataclass
-from functools import partial
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple, Union
 
-import numpy as np
 import pandas as pd
 import uproot
+from calo_cluster.datasets.mixins.calo import CaloDataModule
+from calo_cluster.datasets.pandas_data import PandasDataset
 from tqdm import tqdm
+
 
 @dataclass
 class HCalZllJetsMixin(PandasDataset):
@@ -28,7 +24,6 @@ class HCalZllJetsMixin(PandasDataset):
         else:
             raise RuntimeError()
         return super().__post_init__()
-
 
 
 @dataclass

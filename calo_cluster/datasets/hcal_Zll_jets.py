@@ -29,8 +29,18 @@ class HCalZllJetsDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin,
         kwargs = self.make_dataset_kwargs()
         return HCalZllJetsDataset(files=files, **kwargs)
 
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=hcal_Zll_jets')
+        return overrides
+
 @dataclass
 class HCalZllJetsOffsetDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, HCalZllJetsDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> HCalZllJetsOffsetDataset:
         kwargs = self.make_dataset_kwargs()
         return HCalZllJetsOffsetDataset(files=files, **kwargs)
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=hcal_Zll_jets_offset')
+        return overrides
