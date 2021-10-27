@@ -19,3 +19,4 @@ notebooks/wandb
 *.png
 *.txt
 hgcal_dev.egg-info/PKG-INFO
+train.sh

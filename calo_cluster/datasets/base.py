@@ -108,6 +108,8 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
         super().__init__()
 
         self._validate_fracs()
+        self._files = None
+        self.data_dir = Path(self.data_dir)
 
     def _validate_fracs(self):
         fracs = [self.event_frac, self.train_frac, self.test_frac]
@@ -173,6 +175,8 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
         with initialize_config_dir(config_dir=str(config_dir)):
             cfg = compose(config_name='config', overrides=overrides)
             dm = hydra.utils.instantiate(cfg.dataset, task='panoptic')
+        dm.prepare_data()
+        dm.setup('fit')
         return dm
 
 

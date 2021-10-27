@@ -1,7 +1,8 @@
 config_version: 2
-outputs_dir: /training_outputs
-predictions_dir: /predictions
-plots_dir: /plots
+outputs_dir: /global/cscratch1/sd/schuya/calo_cluster/training_outputs
+predictions_dir: /global/cscratch1/sd/schuya/calo_cluster/predictions
+plots_dir: /global/cscratch1/sd/schuya/calo_cluster/plots
+data_dir: /global/cscratch1/sd/schuya/calo_cluster/data
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -13,7 +14,7 @@ overfit: False
 log_level: INFO
 val_check_interval: 0.5
 defaults:
-  - train: distributed
+  - train: single_gpu
   - dataset: hcal_tt_pu200_pf
   - optimizer: adam
   - semantic_criterion: cross_entropy_loss

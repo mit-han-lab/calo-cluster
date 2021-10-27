@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 # %%
-root_data_path = Path('/data/hcal_Zll_jets')
+root_data_path = Path('/global/cscratch1/sd/schuya/calo_cluster/data/hcal/Zll_jets')
 raw_data_dir = root_data_path / 'min_energy_0.0_min_hits_0'
 
 

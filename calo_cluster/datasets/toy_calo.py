@@ -30,9 +30,18 @@ class ToyCaloDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, Sca
         kwargs = self.make_dataset_kwargs()
         return ToyCaloDataset(files=files, **kwargs)
 
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=toy_calo')
+        return overrides
 
 @dataclass
 class ToyCaloOffsetDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, ToyCaloDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> ToyCaloOffsetDataset:
         kwargs = self.make_dataset_kwargs()
         return ToyCaloOffsetDataset(files=files, **kwargs)
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=toy_calo_offset')
+        return overrides

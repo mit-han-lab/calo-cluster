@@ -12,7 +12,7 @@ cluster_ignore_labels: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 255]
 semantic_ignore_label: 255
 
 # data location (modify as needed):
-root: /data/semantic_kitti/dataset/sequences
+root: ${data_dir}/semantic_kitti/dataset/sequences
 
 # config fields:
 num_points: 80000

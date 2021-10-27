@@ -48,7 +48,7 @@ class HCalZllJetsDataModuleMixin(CaloDataModule):
                 data_dict[k.split('.')[1]] = v.array()
 
             for n in tqdm(range(len(data_dict[list(data_dict.keys())[0]]))):
-                df_dict = {k: data_dict[k][n] for k in data_dict.keys()}
+                df_dict = {k: data_dict[k][n].to_numpy() for k in data_dict.keys() if k != 'fBits'}
                 flat_event = pd.DataFrame(df_dict)
                 pf_noise_mask = (flat_event['PFcluster0Id'] == pf_noise_id)
                 flat_event['pf_hit'] = 0
