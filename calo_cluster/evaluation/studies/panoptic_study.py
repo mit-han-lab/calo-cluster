@@ -1,6 +1,6 @@
 from calo_cluster.evaluation.studies.semantic_study import SemanticStudy
 from calo_cluster.evaluation.studies.clustering_study import ClusteringStudy
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
 import numpy as np

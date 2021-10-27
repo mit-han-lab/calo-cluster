@@ -5,7 +5,7 @@ from calo_cluster.evaluation.experiments.kitti_offset_experiment import KITTIOff
 from calo_cluster.evaluation.metrics.classification import mIoU
 from calo_cluster.evaluation.metrics.instance import PanopticQuality
 from calo_cluster.clustering.meanshift import MeanShift
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -73,7 +73,7 @@ iou = mIoU(sem_evts, num_classes=20, ignore_index=19, semantic_label='label_id',
 print(iou.mean())
 
 # %%
-from tqdm import tqdm
+from tqdm.auto import tqdm
 bws = [0.2, 1.2, 1.7, 3.2]
 #bws = [0.2]
 rets = {}
@@ -96,7 +96,7 @@ fig = make_plot(ret['sq'][:-1], ret['rq'][:-1], ret['iou'], ret['pq'], title='pr
 fig.show()
 # %%
 # pred semantic labels, true instance labels
-from tqdm import tqdm
+from tqdm.auto import tqdm
 pq = PanopticQuality(num_classes=20, ignore_index=19, ignore_semantic_labels=(19,))
 for s_evt, i_evt in tqdm(zip(sem_evts, inst_evts)):
     mask = s_evt.input_event['label_id'] == 255
@@ -112,7 +112,7 @@ fig.show()
 
 # %%
 # pred semantic labels, true instance labels (w/ fix)
-from tqdm import tqdm
+from tqdm.auto import tqdm
 pq = PanopticQuality(num_classes=20, ignore_index=19, ignore_semantic_labels=(19,))
 for s_evt, i_evt in tqdm(zip(sem_evts, inst_evts)):
     pred_instance_labels = fix_instance_labels(s_evt.input_event['instance_id'].astype(int).to_numpy(), s_evt.pred_semantic_labels, labels_to_fix=np.array([8,9,10,11,12,13,14,15,16,17,18]))

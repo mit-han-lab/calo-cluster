@@ -7,7 +7,7 @@ import numpy as np
 import scipy
 from calo_cluster.datasets.base import BaseDataModule
 from calo_cluster.datasets.pandas_data import PandasDataset, PandasDataModuleMixin
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import pandas as pd
 from sklearn.datasets import make_blobs
 from pathlib import Path

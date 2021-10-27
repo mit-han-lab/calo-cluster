@@ -2,7 +2,7 @@
 from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 from pathlib import Path 
 from calo_cluster.clustering.meanshift import MeanShift
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from calo_cluster.evaluation.metrics.instance import PanopticQuality
 # %%
 # Load the trained model -- replace wandb_version as appropriate.

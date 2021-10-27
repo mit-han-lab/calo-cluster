@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List
 import numpy as np
 import pandas as pd
 from calo_cluster.datasets.base import BaseDataModule, BaseDataset
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 @dataclass

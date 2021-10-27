@@ -13,7 +13,7 @@ exp.save_predictions(batch_size=32)
 evts = exp.get_events('val', n=-1)
 
 # %%
-from tqdm import tqdm
+from tqdm.auto import tqdm
 clusterer = MeanShift(bandwidth=0.05, use_semantic=True, ignore_semantic_labels=(255,19))
 pq = PanopticQuality(num_classes=20, ignore_index=19, ignore_semantic_labels=(19,))
 for evt in tqdm(evts):

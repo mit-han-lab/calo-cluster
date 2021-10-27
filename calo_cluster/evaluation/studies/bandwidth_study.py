@@ -9,7 +9,7 @@ from calo_cluster.metrics.instance import PanopticQuality
 from calo_cluster.evaluation.experiment import Experiment
 from PyPDF2 import PdfFileMerger
 from scipy.optimize import basinhopping
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 def optimize_bandwidth(events: list, niter=200):

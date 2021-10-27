@@ -3,7 +3,7 @@ import logging
 
 import numpy as np
 from calo_cluster.datasets.pandas_data import PandasDataset, PandasDataModule
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import pandas as pd
 from sklearn.datasets import make_blobs
 

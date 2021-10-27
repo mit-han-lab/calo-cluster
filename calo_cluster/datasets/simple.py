@@ -15,7 +15,7 @@ from calo_cluster.datasets.mixins.simple import SimpleDataModuleMixin
 from calo_cluster.datasets.mixins.sparse import SparseDataModuleMixin, SparseDatasetMixin
 from numpy.random import default_rng
 from sklearn.datasets import make_blobs
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from calo_cluster.datasets.pandas_data import PandasDataset
 

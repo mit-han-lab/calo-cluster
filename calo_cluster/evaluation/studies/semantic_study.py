@@ -1,5 +1,5 @@
 from calo_cluster.evaluation.studies.base_study import BaseStudy
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from sklearn.metrics import confusion_matrix, f1_score
 import seaborn as sn
 import numpy as np

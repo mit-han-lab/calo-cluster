@@ -3,7 +3,7 @@ from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 from calo_cluster.evaluation.experiments.base_offset_experiment import BaseOffsetExperiment
 from pathlib import Path 
 from calo_cluster.clustering.meanshift import MeanShift
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from calo_cluster.evaluation.metrics.instance import PanopticQuality
 import numpy as np
 # %%
@@ -34,7 +34,7 @@ sem_evts[0].input_event.columns
 
 # %%
 # true semantic labels, pred instance labels from coordinates
-from tqdm import tqdm
+from tqdm.auto import tqdm
 bws = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0]
 #bws = [0.2]
 rets = {}
@@ -50,7 +50,7 @@ for bw in bws:
     print(f'(bw = {bw}) pq = {rets[bw]}')
 
 # %%
-from tqdm import tqdm
+from tqdm.auto import tqdm
 bws = [1.4]
 #bws = [0.2]
 rets = {}

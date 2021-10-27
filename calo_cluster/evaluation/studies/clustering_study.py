@@ -7,7 +7,7 @@ from calo_cluster.evaluation.metrics.instance import iou_match
 from calo_cluster.evaluation.studies.base_study import BaseStudy
 from calo_cluster.evaluation.utils import get_palette
 from scipy.optimize import basinhopping
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 

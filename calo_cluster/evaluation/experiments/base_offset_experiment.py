@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 import torch
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .base_experiment import BaseExperiment
 

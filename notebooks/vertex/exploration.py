@@ -1,7 +1,7 @@
 # %%
 from logging import root
 import uproot
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import multiprocessing as mp
 import pandas as pd
 from functools import partial

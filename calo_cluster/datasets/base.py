@@ -12,7 +12,7 @@ from hydra import compose, initialize_config_dir
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 @dataclass

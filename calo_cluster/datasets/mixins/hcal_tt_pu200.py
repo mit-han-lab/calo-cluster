@@ -4,7 +4,7 @@ from typing import List
 import pandas as pd
 import uproot
 from calo_cluster.datasets.mixins.calo import CaloDataModule
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 @dataclass

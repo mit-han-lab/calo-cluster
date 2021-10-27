@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchsparse import SparseTensor
 from torchsparse.utils.collate import sparse_collate_fn
 from torchsparse.utils.quantize import sparse_quantize
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from calo_cluster.datasets.mixins.combine_labels import CombineLabelsDataModuleMixin, CombineLabelsDatasetMixin
 from calo_cluster.datasets.mixins.sparse import SparseDataModuleMixin, SparseDatasetMixin

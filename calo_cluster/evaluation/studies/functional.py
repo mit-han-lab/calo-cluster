@@ -3,7 +3,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 from calo_cluster.evaluation.metrics.instance import PanopticQuality, iou_match
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 def cluster_width(events, clusterer, match_highest, num_classes):

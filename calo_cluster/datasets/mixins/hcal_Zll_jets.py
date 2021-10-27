@@ -4,7 +4,7 @@ import pandas as pd
 import uproot
 from calo_cluster.datasets.mixins.calo import CaloDataModule
 from calo_cluster.datasets.pandas_data import PandasDataset
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 @dataclass

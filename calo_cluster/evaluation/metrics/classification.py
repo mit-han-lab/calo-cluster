@@ -1,5 +1,5 @@
 from torchmetrics import IoU
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import torch
 
 def mIoU(evts, num_classes, semantic_label, ignore_index=None, absent_score=1.0, reduction='elementwise_mean'):

@@ -8,7 +8,7 @@ from calo_cluster.clustering.meanshift import MeanShift
 from calo_cluster.evaluation.metrics.instance import PanopticQuality
 from PyPDF2 import PdfFileMerger
 from scipy.optimize import basinhopping
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from ..utils import get_palette
 import yaml
 import logging

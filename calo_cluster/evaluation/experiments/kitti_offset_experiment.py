@@ -23,7 +23,7 @@ from calo_cluster.models.spvcnn import SPVCNN
 from omegaconf import OmegaConf
 from plotly.subplots import make_subplots
 from sklearn.metrics import auc, confusion_matrix, roc_curve
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 label_name_mapping = {

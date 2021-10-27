@@ -10,7 +10,7 @@ exp = SemanticKITTIExperiment(wandb_version, ckpt_name=ckpt_name)
 exp.save_predictions(batch_size=16)
 # %%
 evts = exp.get_events('val')
-from tqdm import tqdm
+from tqdm.auto import tqdm
 for evt in tqdm(evts):
     mask = evt.input_event['label_id'] == 255
     evt.input_event.loc[mask, 'label_id'] = 19

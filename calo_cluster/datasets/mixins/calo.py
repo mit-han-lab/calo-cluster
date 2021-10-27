@@ -7,7 +7,7 @@ import pandas as pd
 import uproot
 from calo_cluster.datasets.pandas_data import PandasDataModuleMixin
 from calo_cluster.datasets.transformed_data import TransformedDataModule
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 @dataclass
