@@ -47,18 +47,23 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, normalize, delta_d
         return loss
 
 class OffsetInstanceLoss(nn.Module):
-    def __init__(self, valid_labels: List[int] = None) -> None:
+    def __init__(self, valid_labels: List[int] = None, ignore_singleton: bool = False) -> None:
         super().__init__()
         if valid_labels is not None:
             self.valid_labels = torch.tensor(valid_labels)
+        self.ignore_singleton = ignore_singleton
 
     def forward(self, pt_offsets: torch.Tensor, gt_offsets: torch.Tensor, semantic_labels: torch.Tensor = None):
         if self.valid_labels is not None:
             if self.valid_labels.device != semantic_labels.device:
                 self.valid_labels = self.valid_labels.to(semantic_labels.device)
             valid = (semantic_labels[..., None] == self.valid_labels).any(-1)
+            
         else:
             valid = torch.ones_like(semantic_labels).type(torch.bool)
+        if self.ignore_singleton:
+            not_zero = (gt_offsets != 0).any(axis=1)
+            valid = valid & not_zero
         loss = offset_loss(pt_offsets, gt_offsets, valid)
         return loss
 

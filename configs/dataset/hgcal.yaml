@@ -10,7 +10,7 @@ voxel_size: 0.05
 # dataset-specific fields (should not change):
 
 # data location (modify as needed):
-data_dir: /data/hgcal
+data_dir: ${data_dir}/hgcal
 download: True
 
 # config fields:

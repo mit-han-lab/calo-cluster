@@ -5,12 +5,13 @@ from pathlib import Path
 
 import pandas as pd
 import uproot
-from calo_cluster.datasets.pandas_data import PandasDataModule
+from calo_cluster.datasets.pandas_data import PandasDataModuleMixin
+from calo_cluster.datasets.transformed_data import TransformedDataModule
 from tqdm import tqdm
 
 
 @dataclass
-class CaloDataModule(PandasDataModule):
+class CaloDataModule(PandasDataModuleMixin, TransformedDataModule):
     noise_id: int
     min_hits_per_cluster: int
     min_cluster_energy: float
@@ -57,9 +58,10 @@ class CaloDataModule(PandasDataModule):
         """Find [eta, phi] (weighted by constituent energy) of clusters in event."""
         event['weta'] = event['eta'] * event['energy']
         event['wphi'] = event['phi'] * event['energy']
+        event['wr'] = (event['x']**2 + event['y']**2)**(1/2) * event['energy']
         grouped_event = event.groupby([cluster_col])
         angle_agg = grouped_event[
-            ['weta', 'wphi']].agg(['sum'])
+            ['weta', 'wphi', 'wr']].agg(['sum'])
         energy_agg = grouped_event[
             ['energy']].agg(['sum', 'count'])
         energy = energy_agg[('energy', 'sum')]
@@ -70,7 +72,9 @@ class CaloDataModule(PandasDataModule):
         eta.name = 'eta'
         phi = angle_agg[('wphi', 'sum')] / energy
         phi.name = 'phi'
-        return pd.concat([energy, eta, phi, nconstituents], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
+        r = angle_agg[('wr', 'sum')] / energy
+        r.name = 'r'
+        return pd.concat([energy, eta, phi, r, nconstituents], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
 
     def get_transform_function(self):
         return partial(self._apply_transform, min_cluster_energy=self.min_cluster_energy, min_hits_per_cluster=self.min_hits_per_cluster, min_eta=self.min_eta, max_eta=self.max_eta, noise_id=self.noise_id, transformed_data_dir=self.transformed_data_dir)

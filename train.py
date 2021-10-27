@@ -57,7 +57,7 @@ def train(cfg: DictConfig) -> None:
     if is_rank_zero():
         config_path = Path(logger.experiment.dir) / '.hydra' / 'config.yaml'
         with config_path.open('r+') as f:
-            data = yaml.load(f)
+            data = yaml.load(f, Loader=yaml.CLoader)
             data['wandb']['version'] = cfg.wandb.version
             f.seek(0)
             yaml.dump(data, f)

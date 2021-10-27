@@ -1,6 +1,6 @@
 defaults:
   - semantic_kitti
-_target_: calo_cluster.datasets.semantic_kitti_offset.SemanticKITTIOffsetDataModule
+_target_: calo_cluster.datasets.semantic_kitti.SemanticKITTIOffsetDataModule
 
 # dataset-specific fields (should not change):
 valid_labels: [0, 1, 2, 3, 4, 5, 6, 7]

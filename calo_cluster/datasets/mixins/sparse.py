@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Dict, List
 import hydra
 
@@ -68,7 +69,7 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
         kwargs.update(super().make_dataset_kwargs())
         return kwargs
 
-    def _voxel_occupancy(self) -> np.array:
+    def voxel_occupancy(self) -> np.array:
         """Returns the average voxel occupancy for each batch in the train dataloader."""
         if not self.sparse:
             raise RuntimeError(
@@ -82,14 +83,3 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
                 batch['inverse_map'].C) / len(batch['features'].C)
 
         return voxel_occupancies
-
-    @staticmethod
-    def voxel_occupancy(voxel_size, dataset):
-        # NOTE: fix this for other users.
-        with initialize_config_dir(config_dir='/home/alexj/hgcal-dev/configs'):
-            cfg = compose(config_name='config', overrides=[
-                          f'dataset={dataset}', f'dataset.voxel_size={voxel_size}', 'dataset.sparse=True', 'train=single_gpu', 'dataset.num_workers=0'])
-            dm = hydra.utils.instantiate(cfg.dataset, task='instance')
-        dm.prepare_data()
-        dm.setup('fit')
-        return dm._voxel_occupancy()

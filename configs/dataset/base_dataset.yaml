@@ -3,7 +3,7 @@ num_epochs: ${train.num_epochs}
 batch_size: ${train.batch_size}
 sparse: ${model.sparse}
 
-num_workers: 64
+num_workers: 8
 
 # fraction of data to use (needs to be supported by dataset):
 event_frac: 1.0
@@ -31,3 +31,4 @@ batch_dim: 0
 num_classes: ???
 num_features: ???
 voxel_size: ???
+data_dir: ???

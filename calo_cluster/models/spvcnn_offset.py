@@ -225,7 +225,10 @@ class SPVCNNOffset(pl.LightningModule):
         y4 = self.e_up4[1](y4)
         z3 = voxel_to_point(y4, z2)
         z3.F = z3.F + self.e_point_transform(z2.F)
-        return self.e_lin(z3.F)
+        out = self.e_lin(z3.F)
+        if 'tanh_scale' in self.hparams.model and self.hparams.model.tanh_scale is not None:
+            out = torch.tanh(out) * self.hparams.model.tanh_scale
+        return out
 
     def weight_initialization(self):
         for m in self.modules():

@@ -14,8 +14,8 @@ semantic_label: semantic_label
 weight: E
 
 # data location (modify as needed):
-data_dir: /data/simple
-raw_data_dir: /data/simple
+data_dir: ${data_dir}/simple
+raw_data_dir: ${data_dir}/simple
 
 # config fields:
 feats: ['x', 'y', 'z', 'E']

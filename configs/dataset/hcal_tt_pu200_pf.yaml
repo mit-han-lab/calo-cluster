@@ -15,8 +15,8 @@ instance_label: PFcluster0Id
 weight: energy
 
 # data location (modify as needed):
-data_dir: /data/hcal_tt_pu200_pf
-raw_data_dir: /data/hcal_tt_pu200_pf/min_energy_0.0_min_hits_0
+data_dir: ${data_dir}/hcal_tt_pu200_pf
+raw_data_dir: ${data_dir}/hcal_tt_pu200_pf/min_energy_0.0_min_hits_0
 
 # config fields:
 feats: ['x', 'y', 'z', 'time', 'energy']

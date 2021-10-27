@@ -1,0 +1,26 @@
+defaults:
+  - base_dataset
+_target_: calo_cluster.datasets.toy_calo.ToyCaloDataModule
+
+# required fields:
+num_classes: 2
+num_features: 4
+voxel_size: 0.05
+
+# dataset-specific fields (should not change):
+cluster_ignore_labels: [0,]
+semantic_label: semantic_id
+instance_label: instance_id
+weight: null
+
+
+# data location (modify as needed):
+data_dir: ${data_dir}/toy_calo
+
+# config fields:
+feats: ['x', 'y', 'z', 'energy']
+coords: ['x', 'y', 'z']
+nc_mu: 5.0
+np_mu: 10.0
+p_s: 0.4
+include_noise: True
