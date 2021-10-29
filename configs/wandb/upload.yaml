@@ -3,4 +3,4 @@ project: hgcal-spvcnn
 entity: uw-hgcal
 version: null
 name: ${criterion}-${model}
-log_model: true
+log_model: false
