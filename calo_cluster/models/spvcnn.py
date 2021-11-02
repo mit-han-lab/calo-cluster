@@ -15,7 +15,7 @@ from torchsparse.tensor import PointTensor, SparseTensor
 from .utils import *
 
 __all__ = ['SPVCNN']
-
+torch.autograd.set_detect_anomaly(True)
 
 class BasicConvolutionBlock(nn.Module):
     def __init__(self, inc, outc, ks=3, stride=1, dilation=1):

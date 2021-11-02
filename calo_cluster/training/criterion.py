@@ -1,3 +1,4 @@
+from importlib.metadata import requires
 import random
 
 import torch
@@ -29,7 +30,7 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, normalize, delta_d
             subbatch_labels = labels[subbatch_mask]
 
             unique_labels = torch.unique(subbatch_labels)
-            mus = torch.zeros((unique_labels.shape[0], subbatch_outputs.shape[1]), device=subbatch_outputs.device)
+            mus = torch.empty((unique_labels.shape[0], subbatch_outputs.shape[1]), device=subbatch_outputs.device, requires_grad=False)
             M = unique_labels.shape[0]
 
             L_pull = 0.0

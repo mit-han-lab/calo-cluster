@@ -7,11 +7,11 @@ from pathlib import Path
 from calo_cluster.evaluation.utils import get_palette
 from calo_cluster.training.criterion import offset_loss
 # %%
-dm = ToyCaloOffsetDataModule.from_config()
+dm = ToyCaloOffsetDataModule.from_config(['dataset.np_mu=0.55'])
 dset = dm.train_dataset
 
 # %%
-n=9
+n=7
 c = dset[n]['features'].F
 plot_df = pd.DataFrame({'x': c[:, 0], 'y': c[:, 1], 'energy': c[:,2], 'id': dset[n]['labels'].F[:,1]})
 plot_df['id'] = plot_df['id'].astype(str)

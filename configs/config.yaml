@@ -15,13 +15,13 @@ log_level: INFO
 val_check_interval: 0.5
 defaults:
   - train: single_gpu
-  - dataset: hcal_tt_pu200_pf
+  - dataset: simple_offset
   - optimizer: adam
   - semantic_criterion: cross_entropy_loss
-  - embed_criterion: centroid_separate
+  - embed_criterion: offset
   - criterion: joint_centroid
   - scheduler: one_cycle_lr
-  - model: spvcnn
+  - model: spvcnn_offset
   - wandb: upload
   - checkpoint: all
   - swa: inactive

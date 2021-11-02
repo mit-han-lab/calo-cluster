@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pandas as pd
 import uproot
 from calo_cluster.datasets.base import BaseDataModule
-from calo_cluster.datasets.pandas_data import PandasDataset
+from calo_cluster.datasets.pandas_data import PandasDataModuleMixin, PandasDataset
 from tqdm.auto import tqdm
 
 
@@ -23,7 +23,7 @@ class VertexDatasetMixin(PandasDataset):
 
 
 @dataclass
-class VertexDataModuleMixin(BaseDataModule):
+class VertexDataModuleMixin(PandasDataModuleMixin, BaseDataModule):
     instance_target: str
 
     def make_dataset_kwargs(self) -> dict:

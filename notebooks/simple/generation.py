@@ -176,7 +176,7 @@ from tqdm.auto import tqdm
 dm = HCalZllJetsOffsetDataModule.from_config(['dataset.min_eta=-1.5', 'dataset.max_eta=1.5', 'dataset.coords=[eta,phi]', 'dataset.feats=[eta,phi,energy]', 'dataset.transform_coords=False', 'dataset.event_frac=1.0'])
 dset = dm.train_dataset
 # %%
-n=9
+n=10
 c = dset[n]['features'].F
 plot_df = pd.DataFrame({'eta': c[:, 0], 'phi': c[:, 1], 'energy': c[:,2], 'id': dset[n]['labels'].F[:,1]})
 plot_df['id'] = plot_df['id'].astype(str)
