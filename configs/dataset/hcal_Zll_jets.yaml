@@ -4,8 +4,8 @@ _target_: calo_cluster.datasets.hcal_Zll_jets.HCalZllJetsDataModule
 
 # required fields:
 num_classes: 2
-num_features: 5
-voxel_size: 0.1
+num_features: 6
+voxel_size: 0.2
 
 # dataset-specific fields (should not change):
 noise_id: -99
@@ -20,14 +20,10 @@ data_dir: ${data_dir}/hcal/Zll_jets
 raw_data_dir: ${data_dir}/hcal/Zll_jets/min_energy_0.0_min_hits_0
 
 # config fields:
-feats: ['x', 'y', 'z', 'time', 'energy']
-coords: ['x', 'y', 'z']
+feats: ['eta', 'phi', 'x', 'y', 'z', 'energy']
+coords: ['eta', 'phi',]
 min_hits_per_cluster: 0
 min_cluster_energy: 0.0
 min_eta: null
 max_eta: null
 instance_target: pf
-
-transform_coords: True
-coords_loc: [-2.2650774,  0.9025515, -5.4258814]
-coords_scale: [ 89.17557,  90.16204, 404.67374]

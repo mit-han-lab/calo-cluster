@@ -35,8 +35,18 @@ class SimpleDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, Scal
         kwargs = self.make_dataset_kwargs()
         return SimpleDataset(files=files, **kwargs)
 
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=simple')
+        return overrides
+
 @dataclass
 class SimpleOffsetDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, SimpleDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> SimpleOffsetDataset:
         kwargs = self.make_dataset_kwargs()
         return SimpleOffsetDataset(files=files, **kwargs)
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=simple_offset')
+        return overrides

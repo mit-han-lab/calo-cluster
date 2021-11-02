@@ -105,7 +105,7 @@ class BaseExperiment():
         config_path = Path(__file__).parent.parent.parent.parent / \
             'configs' / 'config.yaml'
         with config_path.open('r') as f:
-            config = yaml.load(f)
+            config = yaml.load(f, Loader=yaml.CLoader)
             outputs_dir = Path(config['outputs_dir'])
         wandb_dir = outputs_dir / 'wandb'
         for run_dir in wandb_dir.iterdir():
@@ -180,7 +180,9 @@ class BaseExperiment():
             input_paths = dataloader.dataset.files
         else:
             m = len(dataloader.dataset.files)
-            input_paths = dataloader.dataset.files[m-n:m]
+            if n > m:
+                n = m
+            input_paths = dataloader.dataset.files[:n]
 
         events = []
 

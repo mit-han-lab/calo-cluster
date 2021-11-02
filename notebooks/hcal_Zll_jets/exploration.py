@@ -15,13 +15,13 @@ dataset = dm.train_dataloader().dataset
 coords_list = []
 n = 100
 for i, batch in tqdm(enumerate(dm.train_dataloader())):
-    coords = batch['coordinates'].F
+    coords = batch['offsets'].F
     if i > n:
         break
     coords_list.append(coords)
 flat_coords = np.concatenate(coords_list)
 # %%
-mean = flat_coords.mean(axis=0)
+mean = np.median(np.abs(flat_coords[np.any(flat_coords!=0, axis=1)]), axis=0)
 std = flat_coords.std(axis=0)
 print(f'mean = {mean}')
 print(f'std = {std}')

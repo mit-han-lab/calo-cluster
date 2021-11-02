@@ -1,6 +1,7 @@
 import argparse
 
 from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
+from calo_cluster.evaluation.experiments.base_offset_experiment import BaseOffsetExperiment
 
 
 def main() -> None:
@@ -8,7 +9,7 @@ def main() -> None:
     parser.add_argument('wandb_version')
     parser.add_argument('--ckpt_name')
     args = parser.parse_args()
-    experiment = BaseExperiment(args.wandb_version, args.ckpt_name)
+    experiment = BaseOffsetExperiment(args.wandb_version, args.ckpt_name)
     experiment.save_predictions()
 
 

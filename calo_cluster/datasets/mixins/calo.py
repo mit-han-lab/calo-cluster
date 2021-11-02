@@ -54,27 +54,22 @@ class CaloDataModule(PandasDataModuleMixin, TransformedDataModule):
             event.to_pickle(out_path)
 
     @classmethod
-    def get_clusters(cls, event: pd.DataFrame, cluster_col='PFcluster0Id'):
+    def get_clusters(cls, event: pd.DataFrame, cluster_col='PFcluster0Id', coords=['eta', 'phi'], weight_name='energy'):
         """Find [eta, phi] (weighted by constituent energy) of clusters in event."""
-        event['weta'] = event['eta'] * event['energy']
-        event['wphi'] = event['phi'] * event['energy']
-        event['wr'] = (event['x']**2 + event['y']**2)**(1/2) * event['energy']
+        wc_names = [f'w{c}' for c in coords]
+        for wc, c in zip(wc_names, coords):
+            event[wc] = event[c] * event[weight_name]
         grouped_event = event.groupby([cluster_col])
-        angle_agg = grouped_event[
-            ['weta', 'wphi', 'wr']].agg(['sum'])
-        energy_agg = grouped_event[
-            ['energy']].agg(['sum', 'count'])
-        energy = energy_agg[('energy', 'sum')]
-        energy.name = 'energy'
-        nconstituents = energy_agg[('energy', 'count')]
+        coord_agg = grouped_event[wc_names].agg(['sum'])
+        weight_agg = grouped_event[[weight_name]].agg(['sum', 'count'])
+        weight_sum = weight_agg[(weight_name, 'sum')]
+        weight_sum.name = weight_name
+        nconstituents = weight_agg[(weight_name, 'count')]
         nconstituents.name = 'nconstituents'
-        eta = angle_agg[('weta', 'sum')] / energy
-        eta.name = 'eta'
-        phi = angle_agg[('wphi', 'sum')] / energy
-        phi.name = 'phi'
-        r = angle_agg[('wr', 'sum')] / energy
-        r.name = 'r'
-        return pd.concat([energy, eta, phi, r, nconstituents], axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
+        wcs = []
+        for wc in wc_names:
+            wcs.append(coord_agg[(wc, 'sum')] / weight_sum)
+        return pd.concat([weight_sum, nconstituents] + wcs, axis=1).reset_index().rename(columns={cluster_col: 'clusterId'})
 
     def get_transform_function(self):
         return partial(self._apply_transform, min_cluster_energy=self.min_cluster_energy, min_hits_per_cluster=self.min_hits_per_cluster, min_eta=self.min_eta, max_eta=self.max_eta, noise_id=self.noise_id, transformed_data_dir=self.transformed_data_dir)

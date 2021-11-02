@@ -5,31 +5,65 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from calo_cluster.evaluation.utils import get_palette
+from calo_cluster.training.criterion import offset_loss
 # %%
-p_s = 5
-dm = ToyCaloOffsetDataModule.from_config([f'dataset.p_s={p_s}', 'dataset.include_noise=True', 'dataset.voxel_size=0.2'])
+dm = ToyCaloOffsetDataModule.from_config()
 dset = dm.train_dataset
 
 # %%
-n=5
+n=9
 c = dset[n]['features'].F
-plot_df = pd.DataFrame({'x': c[:, 0], 'y': c[:, 1], 'z': c[:, 2], 'energy': c[:,3], 'id': dset[n]['labels'].F[:,1]})
+plot_df = pd.DataFrame({'x': c[:, 0], 'y': c[:, 1], 'energy': c[:,2], 'id': dset[n]['labels'].F[:,1]})
 plot_df['id'] = plot_df['id'].astype(str)
-px.scatter_3d(plot_df, x='x', y='y', z='z', color='id', color_discrete_sequence=get_palette(plot_df['id']), size='energy')
+px.scatter(plot_df, x='x', y='y', color='id', color_discrete_sequence=get_palette(plot_df['id']), size='energy')
 # %%
 c.shape
 # %%
-import tqdm
-p_s = 5
-figs = []
-for voxel_size in tqdm.tqdm([0.1, 1.0, 10, 100]):
-    dm = ToyCaloOffsetDataModule.from_config([f'dataset.p_s={p_s}', 'dataset.include_noise=False', f'dataset.voxel_size={voxel_size}', 'dataset.event_frac=0.1'])
-    occupancies = dm.voxel_occupancy()
-    figs.append(px.histogram(occupancies, title=f'{voxel_size}'))
+from tqdm.auto import tqdm
+voxel_sizes = [0.01, 0.1, 1.0]
+occupancies = {}
+for vx in tqdm(voxel_sizes):
+    dm = ToyCaloOffsetDataModule.from_config([f'dataset.voxel_size={vx}', 'dataset.event_frac=0.1'])
+    occupancies[vx] = dm.voxel_occupancy(only_different_labels=True, label_type='instance')
+# %%
+for vx in voxel_sizes:
+    print(f'mean occupancy (vx = {vx}): {occupancies[vx].mean()}')
+# %%
+px.histogram(occupancies)
 # %%
 for fig in figs:
     fig.show()
 # %%
 (occupancies<1.1).sum() / occupancies.shape[0]
 # %%
-dset[]
+coords_list = []
+for i, evt in enumerate(dm.train_dataloader().dataset):
+    coords = evt['coordinates'].F
+    coords_list.append(coords)
+
+# %%
+flat_coords = np.concatenate(coords_list)
+# %%
+flat_coords.mean(axis=0)
+# %%
+flat_coords.std(axis=0)
+# %%
+import torch
+import numpy as np
+losses = []
+for i, batch in enumerate(dm.val_dataloader()):
+    gt_offsets = batch['offsets'].F
+    pred_offsets = torch.zeros_like(gt_offsets)
+    valid_labels = torch.tensor([1,])
+    semantic_labels = batch['labels'].F[:, 0]
+    if valid_labels.device != semantic_labels.device:
+        valid_labels = valid_labels.to(semantic_labels.device)
+    valid = (semantic_labels[..., None] == valid_labels).any(-1)
+    loss = offset_loss(pred_offsets, gt_offsets, valid)
+    losses.append(loss)
+    if i > 100:
+        break
+losses = np.array(losses)
+# %%
+print(losses.mean())
+# %%

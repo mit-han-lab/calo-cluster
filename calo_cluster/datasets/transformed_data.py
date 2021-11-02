@@ -50,6 +50,7 @@ class TransformedDataModule(BaseDataModule):
 
     def make_transformed_data(self, ncpus=32):
         transform = self.get_transform_function()
+        transform(self.raw_files[0])
         logging.info(f'Making transformed data at {self.transformed_data_dir}')
         with mp.Pool(ncpus) as p:
             with tqdm(total=len(self.raw_files)) as pbar:

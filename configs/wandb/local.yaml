@@ -4,3 +4,4 @@ entity: uw-hgcal
 version: null
 name: ${criterion}-${model}
 log_model: false
+offline: true
