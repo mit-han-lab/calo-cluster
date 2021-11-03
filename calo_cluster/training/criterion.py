@@ -30,7 +30,7 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, normalize, delta_d
             subbatch_labels = labels[subbatch_mask]
 
             unique_labels = torch.unique(subbatch_labels)
-            mus = torch.empty((unique_labels.shape[0], subbatch_outputs.shape[1]), device=subbatch_outputs.device, requires_grad=False)
+            mus = torch.zeros((unique_labels.shape[0], subbatch_outputs.shape[1]), device=subbatch_outputs.device)
             M = unique_labels.shape[0]
 
             L_pull = 0.0
@@ -41,7 +41,9 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, normalize, delta_d
                 mus[m] = mu
                 L_pull += (F.relu(torch.norm(mu - subbatch_outputs[mask], p=1, dim=1) - delta_v)**2).sum() / (M * Nm)
             if M > 1:
-                L_push = (F.relu(2 * delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2)).fill_diagonal_(0)**2).sum() / (M * (M - 1))
+                dists = F.relu(2 * delta_d - torch.norm(mus.unsqueeze(1) - mus, p=1, dim=2))
+                mask = torch.ones_like(dists).fill_diagonal_(0)
+                L_push = ((dists*mask)**2).sum() / (M * (M - 1))
                 loss += (L_pull + L_push) / B
             else:
                 loss += L_pull / B
