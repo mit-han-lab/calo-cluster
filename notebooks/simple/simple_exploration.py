@@ -7,7 +7,7 @@ import hydra
 import plotly.express as px
 # %%
 with initialize_config_dir(config_dir='/home/alexj/hgcal-dev/configs'):
-    cfg = compose(config_name='config', overrides=['dataset=simple', '+criterion.task=panoptic'])
+    cfg = compose(config_name='config', overrides=['dataset=simple', '+task=panoptic'])
     dm = hydra.utils.instantiate(cfg.dataset, task='panoptic')
 # %%
 dm.prepare_data()

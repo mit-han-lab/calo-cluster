@@ -50,11 +50,12 @@ def centroid_instance_loss(outputs, labels, subbatch_indices, normalize, delta_d
         return loss
 
 class OffsetInstanceLoss(nn.Module):
-    def __init__(self, valid_labels: List[int] = None, ignore_singleton: bool = False) -> None:
+    def __init__(self, valid_labels: List[int] = None, ignore_singleton: bool = False, alpha: float = 1.0) -> None:
         super().__init__()
         if valid_labels is not None:
             self.valid_labels = torch.tensor(valid_labels)
         self.ignore_singleton = ignore_singleton
+        self.alpha = alpha
 
     def forward(self, pt_offsets: torch.Tensor, gt_offsets: torch.Tensor, semantic_labels: torch.Tensor = None):
         if self.valid_labels is not None:
@@ -67,11 +68,11 @@ class OffsetInstanceLoss(nn.Module):
         if self.ignore_singleton:
             not_zero = (gt_offsets != 0).any(axis=1)
             valid = valid & not_zero
-        loss = offset_loss(pt_offsets, gt_offsets, valid)
+        loss = self.alpha * offset_loss(pt_offsets, gt_offsets, valid)
         return loss
 
 class CentroidInstanceLoss(nn.Module):
-    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, normalize: bool = True, method: str = None, ignore_labels: List[int] = None) -> None:
+    def __init__(self, delta_v: float = 0.5, delta_d: float = 1.5, normalize: bool = True, method: str = None, ignore_labels: List[int] = None, alpha: float = 1.0) -> None:
         """ If method == 'all', make no distinction between semantic classes.
             If method == 'ignore', ignore any point with a semantic label equal to the given ignore_labels.
             If method == 'separate', do the same as for 'ignore', but also calculate the loss for each semantic class separately.
@@ -86,6 +87,7 @@ class CentroidInstanceLoss(nn.Module):
         if method in ['ignore', 'separate']:
             assert ignore_labels is not None
         self.ignore_labels = torch.tensor(ignore_labels)
+        self.alpha = alpha
 
     def forward(self, outputs: torch.Tensor, labels: torch.Tensor, subbatch_indices: torch.Tensor, weights: torch.Tensor = None, semantic_labels: torch.Tensor = None):
         if self.ignore_labels.device != outputs.device:
@@ -111,34 +113,4 @@ class CentroidInstanceLoss(nn.Module):
                 else:
                     s_subbatch_indices = None
                 loss += centroid_instance_loss(outputs[mask], labels[mask], s_subbatch_indices, self.normalize, self.delta_d, self.delta_v)
-        return loss
-
-def test_offset_loss():
-    criterion = OffsetInstanceLoss(ignore_labels=[10, 18, 20])
-    pt_offsets = torch.arange(15, dtype=float32).reshape((5, 3))
-    gt_offsets = torch.arange(15, dtype=float32).reshape((5, 3))
-    sem_labels = torch.Tensor([10, 0, 10, 0, 2])
-    print(criterion(pt_offsets, gt_offsets, sem_labels))
-
-def main():
-    criterion = CentroidInstanceLoss(normalize=False, method='all')
-    outputs = torch.arange(10, dtype=float32).reshape((5, 2))
-    labels = torch.Tensor([2, 0, 2, 1, 2])
-    subbatch_indices = torch.Tensor([0, 0, 0, 0, 0])
-    print(outputs)
-    print(labels)
-    #print(criterion(outputs, labels, subbatch_indices))
-
-    criterion = CentroidInstanceLoss(normalize=False, method='ignore', ignore_label=0)
-    outputs = torch.arange(10, dtype=float32).reshape((5, 2))
-    labels = torch.Tensor([2, 0, 2, 1, 2])
-    subbatch_indices = torch.Tensor([0, 0, 0, 0, 0])
-    semantic_labels = torch.Tensor([1, 1, 1, 0, 1])
-    print(outputs)
-    print(labels)
-    print(semantic_labels)
-    print(criterion(outputs, labels, subbatch_indices, semantic_labels=semantic_labels))
-
-if __name__ == "__main__":
-    test_offset_loss()
-    #main()
+        return self.alpha * loss

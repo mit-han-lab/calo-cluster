@@ -16,7 +16,6 @@ from torchsparse.utils.collate import sparse_collate_fn
 from torchsparse.utils.quantize import sparse_quantize
 from tqdm.auto import tqdm
 
-from calo_cluster.datasets.mixins.combine_labels import CombineLabelsDataModuleMixin, CombineLabelsDatasetMixin
 from calo_cluster.datasets.mixins.sparse import SparseDataModuleMixin, SparseDatasetMixin
 from calo_cluster.datasets.mixins.offset import OffsetDataModuleMixin, OffsetDatasetMixin
 from calo_cluster.datasets.mixins.scaled import ScaledDataModuleMixin, ScaledDatasetMixin
@@ -24,21 +23,21 @@ from calo_cluster.datasets.mixins.semantic_kitti import SemanticKITTIDataModuleM
 
 
 @dataclass
-class SemanticKITTIDataset(SparseDatasetMixin, CombineLabelsDatasetMixin, ScaledDatasetMixin, SemanticKITTIDatasetMixin):
+class SemanticKITTIDataset(SparseDatasetMixin, ScaledDatasetMixin, SemanticKITTIDatasetMixin):
     pass
 
 @dataclass
-class SemanticKITTIOffsetDataset(SparseDatasetMixin, CombineLabelsDatasetMixin, OffsetDatasetMixin, ScaledDatasetMixin, SemanticKITTIDatasetMixin):
+class SemanticKITTIOffsetDataset(SparseDatasetMixin, OffsetDatasetMixin, ScaledDatasetMixin, SemanticKITTIDatasetMixin):
     pass
 
 @dataclass
-class SemanticKITTIDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, ScaledDataModuleMixin, SemanticKITTIDataModuleMixin):
+class SemanticKITTIDataModule(SparseDataModuleMixin, ScaledDataModuleMixin, SemanticKITTIDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> SemanticKITTIDataset:
         kwargs = self.make_dataset_kwargs()
         return SemanticKITTIDataset(files=files, **kwargs)
 
 @dataclass
-class SemanticKITTIOffsetDataModule(SparseDataModuleMixin, CombineLabelsDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, SemanticKITTIDataModuleMixin):
+class SemanticKITTIOffsetDataModule(SparseDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, SemanticKITTIDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> SemanticKITTIOffsetDataset:
         kwargs = self.make_dataset_kwargs()
         return SemanticKITTIOffsetDataset(files=files, split=split, **kwargs)

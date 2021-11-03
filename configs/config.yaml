@@ -19,7 +19,6 @@ defaults:
   - optimizer: adam
   - semantic_criterion: cross_entropy_loss
   - embed_criterion: offset
-  - criterion: joint_centroid
   - scheduler: one_cycle_lr
   - model: spvcnn_offset
   - wandb: upload

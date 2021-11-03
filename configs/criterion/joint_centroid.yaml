@@ -1,6 +1,0 @@
-# @package _global_
-defaults:
-  - override /semantic_criterion: cross_entropy_loss
-  - override /embed_criterion: centroid_separate
-criterion:
-  alpha: 1.0

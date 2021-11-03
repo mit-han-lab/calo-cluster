@@ -41,39 +41,21 @@ def cluster_width(events, clusterer, match_highest, num_classes):
             yim_mask = yik == matched_truth[k][..., None]
             xim_mask = xik == matched_pred[k][..., None]
 
-def response(events, clusterer, match_highest, num_classes):
+def response(outputs, targets, weights, match_highest, num_classes, ignore_semantic_labels):
     responses = defaultdict(list)
     energies = defaultdict(list)
-    unmatched_true = defaultdict(lambda: np.zeros(len(events)))
-    unmatched_pred = defaultdict(lambda: np.zeros(len(events)))
-    for i, event in tqdm(enumerate(events)):
-        xi = clusterer.cluster(event)
-        yi = event.input_event[event.instance_label].values
-        if event.weight_name:
-            weights = event.input_event[event.weight_name].values
-        else:
-            weights = None
-        if clusterer.use_semantic:
-            xs = event.pred_semantic_labels
-            ys = event.input_event[event.semantic_label].values
-            outputs = (xs, xi)
-            targets = (ys, yi)
-        else:
-            outputs = xi
-            targets = yi
+    unmatched_true = defaultdict(lambda: np.zeros(len(outputs)))
+    unmatched_pred = defaultdict(lambda: np.zeros(len(outputs)))
+    for i in tqdm(range(len(outputs))):
         matched_pred, matched_truth, *_ = iou_match(
-            outputs, targets, weights=weights, ignore_semantic_labels=(clusterer.ignore_semantic_label,), semantic=clusterer.use_semantic, match_highest=match_highest, num_classes=num_classes)
+            outputs[i], targets[i], weights=weights[i], ignore_semantic_labels=ignore_semantic_labels, semantic=True, match_highest=match_highest, num_classes=num_classes)
         for k in matched_pred:
-            if clusterer.use_semantic:
-                yik = yi[ys == k]
-                xik = xi[xs == k]
-                weights_y = weights[ys == k]
-                weights_x = weights[xs == k]
-            else:
-                yik = yi
-                xik = xi
-                weights_y = weights
-                weights_x = weights
+            xs, xi = outputs[i]
+            ys, yi = targets[i]
+            yik = yi[ys == k]
+            xik = xi[xs == k]
+            weights_y = weights[i][ys == k]
+            weights_x = weights[i][xs == k]
             all_truth = np.unique(yik)
             all_pred = np.unique(xik)
             yim_mask = yik == matched_truth[k][..., None]
@@ -82,6 +64,8 @@ def response(events, clusterer, match_highest, num_classes):
             xim_mask = xik == matched_pred[k][..., None]
             matched_pred_energies = (weights_x * xim_mask.astype(int)).sum(axis=1)
             response = matched_pred_energies / matched_truth_energies
+            if np.isnan(response).any():
+                breakpoint()
             responses[k].append(response)
             energies[k].append(matched_truth_energies)
 

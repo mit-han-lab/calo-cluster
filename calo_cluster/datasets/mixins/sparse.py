@@ -85,10 +85,10 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
         if only_different_labels:
             if label_type == 'instance':
                 label = dataset.instance_label
-                label_idx = 1
+                batch_label = 'instance_labels'
             elif label_type == 'semantic':
                 label = dataset.semantic_label
-                label_idx = 0
+                batch_label = 'semantic_labels'
             else:
                 raise NotImplementedError()
         
@@ -96,7 +96,7 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
         for i, batch in tqdm(enumerate(dataloader), total=len(dataset)):
             if only_different_labels:
                 original = dataset._get_df(i)[label].values
-                sampled = batch['labels'].F[:,label_idx][batch['inverse_map'].F].numpy()
+                sampled = batch[batch_label].F[batch['inverse_map'].F].numpy()
                 mask = (original == sampled)
                 kept = mask.sum()
             else:

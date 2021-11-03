@@ -92,7 +92,7 @@ class SPVCNNOffset(pl.LightningModule):
         self.scheduler_factory = hydra.utils.instantiate(
             self.hparams.scheduler)
 
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         assert task in ('instance', 'semantic', 'panoptic')
         if task == 'instance' or task == 'panoptic':
             self.embed_criterion = hydra.utils.instantiate(
@@ -276,16 +276,10 @@ class SPVCNNOffset(pl.LightningModule):
         y3 = torchsparse.cat([y3, x1])
         y3 = self.up3[1](y3)
 
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         if task == 'semantic':
-            #tmp_out = self.classifier(y3, x0, z2)
-            #if torch.isnan(tmp_out).sum() != 0:
-            #    breakpoint()
             out = self.classifier(y3, x0, z2)
         elif task == 'instance':
-            #tmp_out = self.embedder(y3, x0, z2)
-            #if torch.isnan(tmp_out).sum() != 0:
-            #    breakpoint()
             out = self.embedder(y3, x0, z2)
         elif task == 'panoptic':
             out = (self.classifier(y3, x0, z2), self.embedder(y3, x0, z2))
@@ -303,44 +297,62 @@ class SPVCNNOffset(pl.LightningModule):
             return optimizer
 
     def step(self, batch, batch_idx, split):
-        inputs = batch['features']
-        targets = batch['labels'].F.long()
-        outputs = self(inputs)
-        subbatch_indices = inputs.C[..., -1]
-        weights = batch.get('weights')
-        offsets = batch['offsets'].F
-        if type(weights) is SparseTensor:
-            weights = weights.F
-        else:
-            weights = None
-        sync_dist = (split != 'train')
-
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         if task == 'semantic':
-            loss = self.semantic_criterion(outputs, targets)
-            self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
-            ret = {'loss': loss, 'class_loss': loss.detach()}
+            ret = self.semantic_step(batch, split)
         elif task == 'instance':
-            if self.hparams.criterion.requires_semantic:
-                loss = self.embed_criterion(outputs, offsets, semantic_labels=targets[:, 0])
-            else:
-                loss = self.embed_criterion(outputs, offsets)
-            self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
-            
-            ret = {'loss': loss, 'embed_loss': loss.detach()}
+            ret = self.instance_step(batch, split)
         elif task == 'panoptic':
-            class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
-            self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-            embed_loss = self.embed_criterion(outputs[1], offsets, semantic_labels=targets[:, 0])
-            self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
-            loss = class_loss + self.hparams.criterion.alpha * embed_loss
-            if type(class_loss) is not float and type(embed_loss) is not float:
-                ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
-            else:
-                ret = {'loss': loss}
+            ret = self.panoptic_step(batch, split)
         else:
             raise RuntimeError("invalid task!")
-        self.log(f'{split}_loss', loss, sync_dist=sync_dist)
+        self.log(f'{split}_loss', ret['loss'], sync_dist=(split != 'train'))
+        return ret
+
+    def semantic_step(self, batch, split):
+        inputs = batch['features']
+        outputs = self(inputs)
+        targets = batch['semantic_labels'].F.long()
+        sync_dist = (split != 'train')
+
+        loss = self.semantic_criterion(outputs, targets)
+        self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
+        ret = {'loss': loss, 'class_loss': loss.detach()}
+        return ret
+
+    def instance_step(self, batch, split):
+        inputs = batch['features']
+        outputs = self(inputs)
+        offsets = batch['offsets'].F
+        sync_dist = (split != 'train')
+
+        if self.hparams.requires_semantic:
+            semantic_labels = batch['semantic_labels'].F.long()
+            loss = self.embed_criterion(outputs, offsets, semantic_labels=semantic_labels)
+        else:
+            loss = self.embed_criterion(outputs, offsets)
+        self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
+        
+        ret = {'loss': loss, 'embed_loss': loss.detach()}
+        return ret
+
+    def panoptic_step(self, batch, split):
+        inputs = batch['features']
+        outputs = self(inputs)
+        offsets = batch['offsets'].F
+        semantic_targets = batch['semantic_labels'].F.long()
+        sync_dist = (split != 'train')
+
+        class_loss = self.semantic_criterion(outputs[0], semantic_targets)
+        self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
+        embed_loss = self.embed_criterion(outputs[1], offsets, semantic_labels=semantic_targets)
+        self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
+        loss = class_loss + embed_loss
+        if type(class_loss) is not float and type(embed_loss) is not float:
+            ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
+        else:
+            ret = {'loss': loss}
+        ret = {'loss': loss}
         return ret
 
     def training_step(self, batch, batch_idx):

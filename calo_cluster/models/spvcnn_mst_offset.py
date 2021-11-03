@@ -33,7 +33,7 @@ class SPVCNN(pl.LightningModule):
         self.scheduler_factory = hydra.utils.instantiate(
             self.hparams.scheduler)
 
-        assert self.hparams.criterion.task == 'panoptic'
+        assert self.hparams.task == 'panoptic'
         sem_model = SPVCNN_sem.load_from_checkpoint(cfg.model.sem_path)
         sem_model.freeze()
         self.backbone = sem_model.backbone

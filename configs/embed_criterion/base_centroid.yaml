@@ -3,3 +3,4 @@ delta_v: 0.5
 delta_d: 1.5
 normalize: True
 ignore_labels: ${dataset.cluster_ignore_labels}
+alpha: 1

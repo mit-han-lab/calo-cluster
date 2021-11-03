@@ -49,7 +49,7 @@ class DGCNN(pl.LightningModule):
         self.scheduler_factory = hydra.utils.instantiate(
             self.hparams.scheduler)
 
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         assert task in ('instance', 'semantic', 'panoptic')
         if task == 'instance' or task == 'panoptic':
             self.embed_criterion = hydra.utils.instantiate(
@@ -132,7 +132,7 @@ class DGCNN(pl.LightningModule):
         x = self.dp1(x)
 
 
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         if task == 'semantic':
             out = self.classifier(x)
         elif task == 'instance':
@@ -160,12 +160,12 @@ class DGCNN(pl.LightningModule):
         weights = None
         sync_dist = (split != 'train')
 
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
             ret = {'loss': loss}
         elif task == 'instance':
-            if self.hparams.criterion.requires_semantic:
+            if self.hparams.requires_semantic:
                 loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices=None, weights=weights, semantic_labels=targets[:, 0])
             else:
                 loss = self.embed_criterion(outputs, targets, subbatch_indices=None, weights=weights)
@@ -175,7 +175,7 @@ class DGCNN(pl.LightningModule):
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
             embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices=None, weights=weights, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
-            loss = class_loss + self.hparams.criterion.alpha * embed_loss
+            loss = class_loss + embed_loss
             ret = {'loss': loss, 'class_loss': class_loss, 'embed_loss': embed_loss}
         else:
             raise RuntimeError("invalid task!")

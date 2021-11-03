@@ -278,7 +278,7 @@ class SPVCNN_sem(pl.LightningModule):
         self.hparams.update(cfg)
         if is_rank_zero():
             self.save_hyperparameters(cfg)
-        assert self.hparams.criterion.task == 'semantic'
+        assert self.hparams.task == 'semantic'
 
         self.optimizer_factory = hydra.utils.instantiate(
             self.hparams.optimizer)
@@ -374,7 +374,7 @@ class SPVCNN_mst(pl.LightningModule):
         self.scheduler_factory = hydra.utils.instantiate(
             self.hparams.scheduler)
 
-        assert self.hparams.criterion.task == 'panoptic'
+        assert self.hparams.task == 'panoptic'
         sem_model = SPVCNN_sem.load_from_checkpoint(cfg.model.sem_path)
         sem_model.freeze()
         self.backbone = sem_model.backbone
@@ -419,13 +419,13 @@ class SPVCNN_mst(pl.LightningModule):
             weights = None
         sync_dist = (split != 'train')
 
-        task = self.hparams.criterion.task
+        task = self.hparams.task
         if task == 'semantic':
             loss = self.semantic_criterion(outputs, targets)
             self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
             ret = {'loss': loss, 'class_loss': loss.detach()}
         elif task == 'instance':
-            if self.hparams.criterion.requires_semantic:
+            if self.hparams.requires_semantic:
                 loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             else:
                 loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
@@ -437,7 +437,7 @@ class SPVCNN_mst(pl.LightningModule):
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
             embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
-            loss = class_loss + self.hparams.criterion.alpha * embed_loss
+            loss = class_loss + embed_loss
             if type(class_loss) is not float and type(embed_loss) is not float:
                 ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
             else:
