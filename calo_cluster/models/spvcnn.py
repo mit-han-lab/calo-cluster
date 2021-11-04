@@ -17,6 +17,7 @@ from .utils import *
 __all__ = ['SPVCNN']
 torch.autograd.set_detect_anomaly(True)
 
+
 class BasicConvolutionBlock(nn.Module):
     def __init__(self, inc, outc, ks=3, stride=1, dilation=1):
         super().__init__()
@@ -161,13 +162,12 @@ class SPVCNN(pl.LightningModule):
             )
         ])
 
-
         if task == 'semantic' or task == 'panoptic':
             self.c_up4 = nn.ModuleList([
                 BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
                 nn.Sequential(
                     ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                                dilation=1),
+                                  dilation=1),
                     ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
                 )
             ])
@@ -177,13 +177,13 @@ class SPVCNN(pl.LightningModule):
                 nn.ReLU(True),
             )
             self.c_lin = nn.Sequential(nn.Linear(cs[8],
-                                                      self.hparams.dataset.num_classes))
+                                                 self.hparams.dataset.num_classes))
         if task == 'instance' or task == 'panoptic':
             self.e_up4 = nn.ModuleList([
                 BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
                 nn.Sequential(
                     ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                                dilation=1),
+                                  dilation=1),
                     ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
                 )
             ])
@@ -193,7 +193,7 @@ class SPVCNN(pl.LightningModule):
                 nn.ReLU(True),
             )
             self.e_lin = nn.Sequential(nn.Linear(cs[8],
-                                                    self.hparams.model.embed_dim))
+                                                 self.hparams.model.embed_dim))
 
         self.point_transforms = nn.ModuleList([
             nn.Sequential(
@@ -287,53 +287,87 @@ class SPVCNN(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
         if self.scheduler_factory is not None:
-            scheduler = self.scheduler_factory(optimizer, self.num_training_steps())
-            scheduler = {'scheduler': scheduler, 'interval': 'step', 'frequency': 1}
+            scheduler = self.scheduler_factory(
+                optimizer, self.num_training_steps())
+            scheduler = {'scheduler': scheduler,
+                         'interval': 'step', 'frequency': 1}
             return [optimizer], [scheduler]
         else:
             return optimizer
 
     def step(self, batch, batch_idx, split):
+        task = self.hparams.task
+        if task == 'semantic':
+            ret = self.semantic_step(batch, split)
+        elif task == 'instance':
+            ret = self.instance_step(batch, split)
+        elif task == 'panoptic':
+            ret = self.panoptic_step(batch, split)
+        else:
+            raise RuntimeError("invalid task!")
+        self.log(f'{split}_loss', ret['loss'], sync_dist=(split != 'train'))
+        return ret
+
+    def semantic_step(self, batch, split):
         inputs = batch['features']
-        targets = batch['labels'].F.long()
         outputs = self(inputs)
+        targets = batch['semantic_labels'].F.long()
+        sync_dist = (split != 'train')
+
+        loss = self.semantic_criterion(outputs, targets)
+        self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
+        ret = {'loss': loss, 'class_loss': loss.detach()}
+        return ret
+
+    def instance_step(self, batch, split):
+        inputs = batch['features']
+        outputs = self(inputs)
+        sync_dist = (split != 'train')
+        subbatch_indices = inputs.C[..., -1]
+        weights = batch.get('weights')
+        instance_targets = batch['instance_labels'].F.long()
+        if type(weights) is SparseTensor:
+            weights = weights.F
+        else:
+            weights = None
+
+        if self.hparams.requires_semantic:
+            semantic_labels = batch['semantic_labels'].F.long()
+            loss = self.embed_criterion(
+                outputs, instance_targets, subbatch_indices, weights, semantic_labels=semantic_labels)
+        else:
+            loss = self.embed_criterion(
+                outputs, instance_targets, subbatch_indices, weights)
+        self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
+
+        ret = {'loss': loss, 'embed_loss': loss.detach()}
+        return ret
+
+    def panoptic_step(self, batch, split):
+        inputs = batch['features']
+        outputs = self(inputs)
+        semantic_targets = batch['semantic_labels'].F.long()
+        instance_targets = batch['instance_labels'].F.long()
+        sync_dist = (split != 'train')
         subbatch_indices = inputs.C[..., -1]
         weights = batch.get('weights')
         if type(weights) is SparseTensor:
             weights = weights.F
         else:
             weights = None
-        sync_dist = (split != 'train')
 
-        task = self.hparams.task
-        if task == 'semantic':
-            loss = self.semantic_criterion(outputs, targets)
-            self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
-            ret = {'loss': loss, 'class_loss': loss.detach()}
-        elif task == 'instance':
-            if self.hparams.requires_semantic:
-                loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
-            else:
-                loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
-            self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
-            
-            ret = {'loss': loss, 'embed_loss': loss.detach()}
-        elif task == 'panoptic':
-            breakpoint()
-            class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
-            self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-            # embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
-            # self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
-            # loss = class_loss + embed_loss
-            loss = class_loss
-            # if type(class_loss) is not float and type(embed_loss) is not float:
-            #     ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
-            # else:
-            #     ret = {'loss': loss}
-            ret = {'loss': loss, 'class_loss': loss.detach()}
+        class_loss = self.semantic_criterion(outputs[0], semantic_targets)
+        self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
+        embed_loss = self.embed_criterion(
+            outputs[1], instance_targets, subbatch_indices, weights, semantic_labels=semantic_targets)
+        self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
+        loss = class_loss + embed_loss
+        if type(class_loss) is not float and type(embed_loss) is not float:
+            ret = {'loss': loss, 'class_loss': class_loss.detach(),
+                   'embed_loss': embed_loss.detach()}
         else:
-            raise RuntimeError("invalid task!")
-        self.log(f'{split}_loss', loss, sync_dist=sync_dist)
+            ret = {'loss': loss}
+        ret = {'loss': loss, 'class_loss': loss.detach()}
         return ret
 
     def training_step(self, batch, batch_idx):
@@ -352,14 +386,15 @@ class SPVCNN(pl.LightningModule):
 
         limit_batches = self.trainer.limit_train_batches
         batches = len(self.train_dataloader())
-        batches = min(batches, limit_batches) if isinstance(limit_batches, int) else int(limit_batches * batches)     
+        batches = min(batches, limit_batches) if isinstance(
+            limit_batches, int) else int(limit_batches * batches)
 
         num_devices = max(1, self.trainer.num_gpus, self.trainer.num_processes)
         if self.trainer.tpu_cores:
             num_devices = max(num_devices, self.trainer.tpu_cores)
 
         effective_accum = self.trainer.accumulate_grad_batches * num_devices
-        num_steps = (batches // effective_accum) * self.trainer.max_epochs 
+        num_steps = (batches // effective_accum) * self.trainer.max_epochs
         num_steps += batches * self.trainer.max_epochs - num_steps * effective_accum
         print(f'num steps = {num_steps}')
         return num_steps
