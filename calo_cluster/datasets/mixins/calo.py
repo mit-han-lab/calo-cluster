@@ -5,10 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 import uproot
-from calo_cluster.datasets.pandas_data import PandasDataModuleMixin
+from calo_cluster.datasets.pandas_data import PandasDataModuleMixin, PandasDataset
 from calo_cluster.datasets.transformed_data import TransformedDataModule
 from tqdm.auto import tqdm
-
 
 @dataclass
 class CaloDataModule(PandasDataModuleMixin, TransformedDataModule):

@@ -26,3 +26,4 @@ weight_np_mu: False
 p_s: 0.1
 noise_dist: uniform
 center_dist: uniform
+aux: null

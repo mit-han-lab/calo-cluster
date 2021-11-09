@@ -1,4 +1,4 @@
 distributed_backend: ddp
 batch_size: 2
 num_epochs: 15
-gpus: 8
+gpus: 4

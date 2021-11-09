@@ -75,7 +75,7 @@ def train(cfg: DictConfig) -> None:
     trainer.fit(model=model, datamodule=datamodule)
 
 
-@hydra.main(config_path="configs", config_name="config")
+@hydra.main(config_path="train_configs", config_name="config")
 def hydra_main(cfg: DictConfig) -> None:
     # Set up python logging.
     logger = logging.getLogger()

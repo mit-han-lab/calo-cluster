@@ -18,6 +18,7 @@ class PandasDataset(BaseDataset):
     weight: str
     semantic_label: str
     instance_label: str
+    aux: List[str]
 
     def _get_df(self, index: int) -> pd.DataFrame:
         df = pd.read_pickle(self.files[index])
@@ -37,6 +38,9 @@ class PandasDataset(BaseDataset):
             return_dict['semantic_labels'] = df[self.semantic_label].to_numpy()
         if self.instance_label:
             return_dict['instance_labels'] = df[self.instance_label].to_numpy()
+        if self.aux:
+            for l in self.aux:
+                return_dict[l] = df[l].to_numpy()
         if self.weight is not None:
             #return_dict['weights'] = df[self.weight].to_numpy(dtype=np.half)
             return_dict['weights'] = df[self.weight].to_numpy(dtype=np.float32)
@@ -51,6 +55,7 @@ class PandasDataModuleMixin():
     weight: str
     semantic_label: str
     instance_label: str
+    aux: List[str]
 
     def make_dataset_kwargs(self) -> dict:
         kwargs = {
@@ -58,7 +63,8 @@ class PandasDataModuleMixin():
             'coords': self.coords,
             'weight': self.weight,
             'semantic_label': self.semantic_label,
-            'instance_label': self.instance_label
+            'instance_label': self.instance_label,
+            'aux': self.aux,
         }
         kwargs.update(super().make_dataset_kwargs())
         return kwargs
