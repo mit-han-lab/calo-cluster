@@ -18,3 +18,4 @@ feats: ['d0', 'z0', 'phi', 'theta', 'qp', 'time']
 coords: ['d0', 'z0', 'phi', 'theta', 'qp']
 # one of: {reco, truth}
 instance_label: reco
+aux: null

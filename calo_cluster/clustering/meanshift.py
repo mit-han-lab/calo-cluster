@@ -4,6 +4,8 @@ from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
 from calo_cluster.clustering.base_clusterer import BaseClusterer
 import numpy as np
 
+import ray
+
 class MeanShift(BaseClusterer):
     def __init__(self, *, use_gpu=True, use_semantic=False, ignore_semantic_labels=None, **kwargs):
         if use_gpu:
@@ -30,3 +32,6 @@ class MeanShift(BaseClusterer):
             self.clusterer.fit(embedding)
             cluster_labels = self.clusterer.labels_
         return cluster_labels
+
+    def copy(self):
+        return MeanShift()

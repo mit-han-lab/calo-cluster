@@ -1,0 +1,5 @@
+time: '1:00:00'
+cpus_per_task: 8
+gpus_per_node: ${train.gpus}
+nodes: 1
+account: atlas

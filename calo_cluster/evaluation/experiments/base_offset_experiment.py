@@ -16,7 +16,7 @@ class BaseOffsetExperiment(BaseExperiment):
         model.eval()
 
         for split, dataloader in zip(('test', 'val', 'train'), (datamodule.test_dataloader(), datamodule.val_dataloader(), datamodule.train_dataloader())):
-            if split != 'val':
+            if split == 'train':
                 continue
             output_dir = run_prediction_dir / split
             output_dir.mkdir(exist_ok=True, parents=True)

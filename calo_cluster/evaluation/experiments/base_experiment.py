@@ -58,7 +58,7 @@ class BaseEvent():
 
 
 class BaseExperiment():
-    def __init__(self, wandb_version, ckpt_name=None):
+    def __init__(self, wandb_version, ckpt_name=None, num_workers=8, batch_size=128):
         self.wandb_version = wandb_version
             
         self.run_path = self.get_run_path(self.wandb_version)
@@ -75,7 +75,7 @@ class BaseExperiment():
         plots_dir = Path(self.cfg.plots_dir)
         self.plots_dir = plots_dir / self.wandb_version / self.ckpt_name
 
-        self.datamodule = hydra.utils.instantiate(self.cfg.dataset)
+        self.datamodule = hydra.utils.instantiate(self.cfg.dataset, num_workers=num_workers, batch_size=batch_size, aux=['PFcluster0Id'])
         self.datamodule.prepare_data()
         self.datamodule.setup(stage=None)
 
@@ -103,7 +103,7 @@ class BaseExperiment():
 
     def get_run_path(self, wandb_version):
         config_path = Path(__file__).parent.parent.parent.parent / \
-            'configs' / 'config.yaml'
+            'train_configs' / 'config.yaml'
         with config_path.open('r') as f:
             config = yaml.load(f, Loader=yaml.CLoader)
             outputs_dir = Path(config['outputs_dir'])

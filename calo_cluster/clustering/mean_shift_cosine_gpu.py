@@ -181,7 +181,7 @@ def mean_shift_cosine(X, bandwidth=None, seeds=None,
     # adjusted=False
     n_samples, n_features = X.shape
     center_intensity_dict = {}
-    nbrs = NearestNeighbors(radius=bandwidth, metric='cosine').fit(X)
+    nbrs = NearestNeighbors(radius=bandwidth).fit(X)
     #NearestNeighbors(radius=bandwidth, n_jobs=n_jobs, metric='cosine').radius_neighbors()
 
     global SEED_NUM
@@ -212,7 +212,7 @@ def mean_shift_cosine(X, bandwidth=None, seeds=None,
             sorted_centers = np.array([tup[0] for tup in sorted_by_intensity])
             unique = np.ones(len(sorted_centers), dtype=np.bool)
             nbrs = NearestNeighbors(
-                radius=bandwidth, metric='cosine').fit(sorted_centers)
+                radius=bandwidth).fit(sorted_centers)
             for i, center in enumerate(sorted_centers):
                 if unique[i]:
                     neighbor_idxs = nbrs.radius_neighbors([center],
@@ -223,7 +223,7 @@ def mean_shift_cosine(X, bandwidth=None, seeds=None,
 
             # assign labels
             nbrs = NearestNeighbors(
-                n_neighbors=1, metric='cosine').fit(cluster_centers)
+                n_neighbors=1).fit(cluster_centers)
             labels = np.zeros(n_samples, dtype=np.int)
             distances, idxs = nbrs.kneighbors(X)
             if cluster_all:

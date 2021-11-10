@@ -381,7 +381,7 @@ class SPVCNN(pl.LightningModule):
 
     def num_training_steps(self) -> int:
         """Total training steps inferred from datamodule and devices."""
-        if self.trainer.max_steps:
+        if self.trainer.max_steps and self.trainer.max_steps != -1:
             return self.trainer.max_steps
 
         limit_batches = self.trainer.limit_train_batches

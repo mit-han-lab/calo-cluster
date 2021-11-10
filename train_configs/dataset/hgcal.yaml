@@ -15,3 +15,4 @@ download: True
 
 # config fields:
 noise_level: 1.0
+aux: null

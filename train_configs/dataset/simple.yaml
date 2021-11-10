@@ -19,3 +19,4 @@ data_dir: ${data_dir}/simple
 # config fields:
 feats: ['x', 'y', 'z', 'E']
 coords: ['x', 'y', 'z']
+aux: null

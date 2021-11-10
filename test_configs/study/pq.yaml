@@ -1,0 +1,13 @@
+_target_: calo_cluster.evaluation.studies.clustering_study.PQCallback
+clusterer:
+  _target_: calo_cluster.clustering.meanshift.MeanShift
+  use_gpu: False
+  bandwidth: 0.1
+  use_semantic: True
+  ignore_semantic_labels: [0]
+  n_jobs: 1
+pq:
+  _target_: calo_cluster.evaluation.metrics.instance.PanopticQuality
+  num_classes: 2
+  ignore_index: null
+  ignore_semantic_labels: [0]

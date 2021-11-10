@@ -1,0 +1,29 @@
+defaults:
+  - base_dataset
+_target_: calo_cluster.datasets.hcal_Zll_jets.HCalZllJetsDataModule
+
+# required fields:
+num_classes: 2
+num_features: 6
+voxel_size: 0.2
+
+# dataset-specific fields (should not change):
+noise_id: -99
+cluster_ignore_labels: [0,]
+semantic_label: pf_hit
+instance_label: PFcluster0Id
+weight: energy
+
+# data location (modify as needed):
+data_dir: ${data_dir}/hcal/Zll_jets
+raw_data_dir: ${data_dir}/hcal/Zll_jets/min_energy_0.0_min_hits_0
+
+# config fields:
+feats: ['eta', 'phi', 'x', 'y', 'z', 'energy']
+coords: ['eta', 'phi',]
+min_hits_per_cluster: 0
+min_cluster_energy: 0.0
+min_eta: null
+max_eta: null
+instance_target: pf
+aux: null

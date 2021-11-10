@@ -1,0 +1,15 @@
+outputs_dir: /global/cscratch1/sd/schuya/calo_cluster/training_outputs
+predictions_dir: /global/cscratch1/sd/schuya/calo_cluster/predictions
+plots_dir: /global/cscratch1/sd/schuya/calo_cluster/plots
+hydra:
+  run:
+    dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+seed: 1588147245
+deterministic: False
+log_level: INFO
+dataset: test
+n: 100
+profile: False
+defaults:
+  - experiment: base
+  - study: calo_cluster

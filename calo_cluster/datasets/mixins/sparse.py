@@ -40,6 +40,9 @@ class SparseDatasetMixin(AbstractBaseDataset):
         sparse_dict['inverse_map'] = inverse_map
         coordinates = SparseTensor(dense_dict['coordinates'][inds], coordinates_)
         sparse_dict['coordinates'] = coordinates
+        for k,v in dense_dict.items():
+            if k != 'coordinates':
+                sparse_dict[f'{k}_mapped'] = SparseTensor(v, coordinates_)
         return sparse_dict
 
     def __getitem__(self, index: int) -> Dict[str, Any]:

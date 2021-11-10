@@ -1,0 +1,6 @@
+_target_: calo_cluster.evaluation.experiments.base_offset_experiment.BaseOffsetExperiment
+
+wandb_version: ???
+ckpt_name: null
+batch_size: 128
+num_workers: 10
