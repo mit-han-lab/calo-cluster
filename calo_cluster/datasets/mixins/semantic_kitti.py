@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Any, Dict
 
 import numpy as np
-from calo_cluster.datasets.base import BaseDataset, BaseDataModule
+
+from calo_cluster.datasets.base import BaseDataModule, BaseDataset
 
 label_name_mapping = {
     0: 'unlabeled',

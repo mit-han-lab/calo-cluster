@@ -1,4 +1,4 @@
-from omegaconf import DictConfig, OmegaConf, open_dict
+from omegaconf import DictConfig, open_dict
 
 
 def fix_config(cfg: DictConfig) -> None:

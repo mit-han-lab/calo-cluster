@@ -1,11 +1,10 @@
 # Author Mengyang Zhao <Mengyang.Zhao@tufts.edu>
 
 import math
-import operator
 
 import numpy as np
 import torch
-from torch import exp, sqrt
+from torch import exp
 
 
 def cos_batch(a, b):

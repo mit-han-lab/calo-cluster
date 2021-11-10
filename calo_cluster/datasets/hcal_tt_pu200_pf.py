@@ -11,7 +11,6 @@ from calo_cluster.datasets.mixins.scaled import (ScaledDataModuleMixin,
 from calo_cluster.datasets.mixins.sparse import (SparseDataModuleMixin,
                                                  SparseDatasetMixin)
 from calo_cluster.datasets.pandas_data import PandasDataset
-from tqdm.auto import tqdm
 
 
 @dataclass

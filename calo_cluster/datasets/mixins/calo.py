@@ -4,10 +4,10 @@ from functools import partial
 from pathlib import Path
 
 import pandas as pd
-import uproot
-from calo_cluster.datasets.pandas_data import PandasDataModuleMixin, PandasDataset
+
+from calo_cluster.datasets.pandas_data import PandasDataModuleMixin
 from calo_cluster.datasets.transformed_data import TransformedDataModule
-from tqdm.auto import tqdm
+
 
 @dataclass
 class CaloDataModule(PandasDataModuleMixin, TransformedDataModule):
@@ -23,13 +23,25 @@ class CaloDataModule(PandasDataModuleMixin, TransformedDataModule):
             self.min_eta = None
         if type(self.max_eta) is str:
             self.max_eta = None
-        if self.min_eta is None and self.max_eta is None:
-            self.transformed_data_dir = transformed_data_dir = self.data_dir / \
-                f'min_energy_{self.min_cluster_energy}_min_hits_{self.min_hits_per_cluster}'
+        if type(self.min_cluster_energy) is str:
+            self.min_cluster_energy = None
+        if type(self.min_hits_per_cluster) is str:
+            self.min_hits_per_cluster = None
+        if self.min_eta is None and self.max_eta is None and self.min_cluster_energy is None and self.min_hits_per_cluster is None:
+            dir_name = 'raw'
         else:
-            self.transformed_data_dir = transformed_data_dir = self.data_dir / \
-                f'min_energy_{self.min_cluster_energy}_min_hits_{self.min_hits_per_cluster}_eta_{self.min_eta}_{self.max_eta}'
-        transformed_data_dir.mkdir(exist_ok=True, parents=True)
+            names = []
+            if self.min_cluster_energy is not None:
+                names.append(f'min_energy_{self.min_cluster_energy}')
+            if self.min_hits_per_cluster is not None:
+                names.append(f'min_hits_{self.min_hits_per_cluster}')
+            if self.min_eta is not None:
+                names.append(f'min_eta_{self.min_eta}')
+            if self.max_eta is not None:
+                names.append(f'max_eta_{self.max_eta}')
+            dir_name = '_'.join(names)
+        self.transformed_data_dir = self.data_dir / dir_name
+        self.transformed_data_dir.mkdir(exist_ok=True, parents=True)
 
     @classmethod
     def _apply_transform(cls, event_path: Path, min_cluster_energy: float, min_hits_per_cluster: int, noise_id: int, min_eta: float, max_eta: float, transformed_data_dir: Path):

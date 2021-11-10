@@ -1,23 +1,17 @@
-import argparse
-import logging
-from pathlib import Path
-import pstats
 import io
+import logging
+import pstats
 
 import hydra
+import pytorch_lightning as pl
 from omegaconf.dictconfig import DictConfig
 from omegaconf.omegaconf import OmegaConf
 
-from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
-from calo_cluster.evaluation.experiments.base_offset_experiment import BaseOffsetExperiment
 from calo_cluster.utils.comm import is_rank_zero
-import pytorch_lightning as pl
-from torch.utils.data import Subset
-import torch
-from pytorch_lightning.profiler import SimpleProfiler
+
 
 def test(cfg: DictConfig) -> None:
-    experiment = hydra.utils.instantiate(cfg.experiment, )
+    experiment = hydra.utils.instantiate(cfg.experiment)
     callbacks = []
     path = (experiment.plots_dir / cfg.study.path)
     path.mkdir(exist_ok=True, parents=True)

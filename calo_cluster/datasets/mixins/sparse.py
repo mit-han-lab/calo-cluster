@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable, Dict, List
-import hydra
 
 import numpy as np
-from calo_cluster.utils.quantize import sparse_quantize
-from hydra import compose, initialize_config_dir
+import plotly.express as px
 from torchsparse import SparseTensor
 from torchsparse.utils.collate import sparse_collate_fn
 from tqdm.auto import tqdm
+
+from calo_cluster.utils.quantize import sparse_quantize
 
 from .base import AbstractBaseDataModule, AbstractBaseDataset
 
@@ -16,7 +15,7 @@ from .base import AbstractBaseDataModule, AbstractBaseDataset
 @dataclass
 class SparseDatasetMixin(AbstractBaseDataset):
     """
-    
+
     Parameters:
     sparse -- whether the data should be provided as SparseTensors (for spvcnn), or not.
     voxel_size -- the length of a voxel along one coordinate dimension. """
@@ -38,9 +37,10 @@ class SparseDatasetMixin(AbstractBaseDataset):
                        for k, v in dense_dict.items() if k != 'coordinates'}
         inverse_map = SparseTensor(inverse_map, coordinates_)
         sparse_dict['inverse_map'] = inverse_map
-        coordinates = SparseTensor(dense_dict['coordinates'][inds], coordinates_)
+        coordinates = SparseTensor(
+            dense_dict['coordinates'][inds], coordinates_)
         sparse_dict['coordinates'] = coordinates
-        for k,v in dense_dict.items():
+        for k, v in dense_dict.items():
             if k != 'coordinates':
                 sparse_dict[f'{k}_mapped'] = SparseTensor(v, coordinates_)
         return sparse_dict
@@ -59,6 +59,7 @@ class SparseDatasetMixin(AbstractBaseDataset):
         else:
             return super().collate_fn
 
+
 @dataclass
 class SparseDataModuleMixin(AbstractBaseDataModule):
     sparse: bool
@@ -74,7 +75,7 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
 
     def voxel_occupancy(self, only_different_labels: bool = False, label_type: str = None) -> np.array:
         """Returns the average number of points in each occupied voxel for each file in the train dataset.
-        
+
         Parameters:
         only_different_labels: if true, only count the number of points with different labels.
         label_type: one of [None, instance, semantic] -- the type of label to use if only_different_labels is true.
@@ -94,7 +95,7 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
                 batch_label = 'semantic_labels'
             else:
                 raise NotImplementedError()
-        
+
         voxel_occupancies = np.zeros(len(dataset))
         for i, batch in tqdm(enumerate(dataloader), total=len(dataset)):
             if only_different_labels:
@@ -108,3 +109,17 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
             voxel_occupancies[i] = total / kept
 
         return voxel_occupancies
+
+    @classmethod
+    def occupancy_test(cls, voxel_sizes):
+        occupancies = {}
+        for vx in tqdm(voxel_sizes):
+            dm = cls.from_config(
+                ['dataset.event_frac=0.01', f'dataset.voxel_size={vx}'])
+            occupancies[vx] = dm.voxel_occupancy(
+                only_different_labels=True, label_type='instance')
+        # %%
+        for vx in voxel_sizes:
+            print(f'mean occupancy (vx = {vx}): {occupancies[vx].mean()}')
+        # %%
+        px.histogram(occupancies)

@@ -1,6 +1,3 @@
-import time
-from collections import OrderedDict
-from typing import Callable, List
 
 import hydra
 import pytorch_lightning as pl
@@ -8,10 +5,10 @@ import torch
 import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
-import torchsparse.nn.functional as spf
-from calo_cluster.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
 from torchsparse.tensor import PointTensor, SparseTensor
+
+from calo_cluster.utils.comm import is_rank_zero
 
 from .utils import *
 
@@ -318,7 +315,7 @@ class SPVCNN_sem(pl.LightningModule):
         inputs = batch['features']
         targets = batch['labels'].F.long()
         outputs = self(inputs)
-        subbatch_indices = inputs.C[..., -1]
+        inputs.C[..., -1]
         weights = batch.get('weights')
         if type(weights) is SparseTensor:
             weights = weights.F

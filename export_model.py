@@ -1,17 +1,6 @@
-from calo_cluster.evaluation.studies.clustering_study import ClusteringStudy
-from calo_cluster.evaluation.experiments.antikt_hcal_experiment import AntiKtHCalExperiment
-from calo_cluster.evaluation.experiments.hcal_pf_experiment import HCalPFExperiment
-from calo_cluster.evaluation.experiments.pf_hcal_pf_experiment import PFHCalPFExperiment
-from calo_cluster.evaluation.studies.panoptic_study import PanopticStudy
-from calo_cluster.clustering.meanshift import MeanShift
-from calo_cluster.clustering.identity_clusterer import IdentityClusterer
-from calo_cluster.datasets.hcal_pf import HCalPFDataModule
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import seaborn as sn
-from calo_cluster.evaluation.utils import get_palette
-from calo_cluster.evaluation.studies import functional as F
+
+from calo_cluster.evaluation.experiments.hcal_pf_experiment import \
+    HCalPFExperiment
 
 
 def main():

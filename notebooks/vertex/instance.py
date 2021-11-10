@@ -1,9 +1,11 @@
 # %%
-from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
-from pathlib import Path 
-from calo_cluster.clustering.meanshift import MeanShift
+
 from tqdm.auto import tqdm
+
+from calo_cluster.clustering.meanshift import MeanShift
+from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 from calo_cluster.evaluation.metrics.instance import PanopticQuality
+
 # %%
 # Load the trained model -- replace wandb_version as appropriate.
 wandb_version = '1ll9d8wi'
@@ -26,6 +28,7 @@ plot_df['pred_label'] = evts[0].pred_instance_labels
 plot_df['pred_label'] = plot_df['pred_label'].astype(str)
 plot_df['instance_label'] = plot_df['reco_vtxID'].astype(str)
 import plotly.express as px
+
 px.scatter_3d(plot_df, x='d0', y='z0', z='qp', color='pred_label')
 # %%
 px.scatter_3d(plot_df, x='d0', y='z0', z='qp', color='instance_label')

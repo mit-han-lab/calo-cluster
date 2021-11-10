@@ -1,5 +1,6 @@
 # %%
 import h5py
+
 # %%
 f = h5py.File('/global/cscratch1/sd/schuya/calo_cluster/data/garnet_hgcal/events_0.h5')
 
@@ -26,10 +27,10 @@ dset[0]
 # %%
 dset[0][1]
 # %%
+import pandas as pd
+# %%
 import plotly.express as px
 
-# %%
-import pandas as pd
 n = 2
 plot_df = pd.DataFrame({'x': dset[n, :, 0], 'y': dset[n, :, 1], 'z': dset[n, :, 2], 'energy': dset[n, :, 3]})
 px.scatter_3d(plot_df, x='x', y='y', z='z', size='energy')

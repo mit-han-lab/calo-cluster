@@ -1,5 +1,0 @@
-defaults:
-  - toy_calo
-_target_: calo_cluster.datasets.toy_calo.ToyCaloOffsetDataModule
-
-valid_labels: [1,]

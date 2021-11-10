@@ -1,25 +1,15 @@
-import logging
-import multiprocessing as mp
-import os
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import List
 
-import numpy as np
-import pandas as pd
-import pytorch_lightning as pl
-import uproot
-from torch.utils.data import DataLoader
-from torchsparse import SparseTensor
-from torchsparse.utils.collate import sparse_collate_fn
-from torchsparse.utils.quantize import sparse_quantize
-from tqdm.auto import tqdm
-
-from calo_cluster.datasets.mixins.sparse import SparseDataModuleMixin, SparseDatasetMixin
-from calo_cluster.datasets.mixins.offset import OffsetDataModuleMixin, OffsetDatasetMixin
-from calo_cluster.datasets.mixins.scaled import ScaledDataModuleMixin, ScaledDatasetMixin
-from calo_cluster.datasets.mixins.semantic_kitti import SemanticKITTIDataModuleMixin, SemanticKITTIDatasetMixin
+from calo_cluster.datasets.mixins.offset import (OffsetDataModuleMixin,
+                                                 OffsetDatasetMixin)
+from calo_cluster.datasets.mixins.scaled import (ScaledDataModuleMixin,
+                                                 ScaledDatasetMixin)
+from calo_cluster.datasets.mixins.semantic_kitti import (
+    SemanticKITTIDataModuleMixin, SemanticKITTIDatasetMixin)
+from calo_cluster.datasets.mixins.sparse import (SparseDataModuleMixin,
+                                                 SparseDatasetMixin)
 
 
 @dataclass

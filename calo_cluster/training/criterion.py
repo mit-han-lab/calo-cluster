@@ -1,11 +1,9 @@
-from importlib.metadata import requires
-import random
+from typing import List
 
 import torch
 from torch import nn
-from torch import float32
 from torch.nn import functional as F
-from typing import List
+
 
 # from DS-Net (https://github.com/hongfz16/DS-Net)
 def offset_loss(pt_offsets, gt_offsets, valid):

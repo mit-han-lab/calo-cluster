@@ -1,9 +1,9 @@
 from typing import Any, Optional
-from pytorch_lightning.callbacks import Callback
 
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import STEP_OUTPUT
 import torch
+from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 
 class PQCallback(Callback):

@@ -1,7 +1,10 @@
-from torch.optim.lr_scheduler import LambdaLR, OneCycleLR
 import functools
-from ..utils.comm import get_world_size
+
 import numpy as np
+from torch.optim.lr_scheduler import LambdaLR, OneCycleLR
+
+from ..utils.comm import get_world_size
+
 
 def lr_lambda(k, num_training_steps):
 

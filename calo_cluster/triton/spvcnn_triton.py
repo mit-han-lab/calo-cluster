@@ -3,10 +3,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
-from calo_cluster.models.spvcnn import SPVCNN
 from torchsparse.tensor import SparseTensor
 from torchsparse.utils import sparse_quantize
+
+from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
+from calo_cluster.models.spvcnn import SPVCNN
 
 
 class TritonSPVCNN:

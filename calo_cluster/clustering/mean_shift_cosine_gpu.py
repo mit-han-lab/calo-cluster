@@ -20,12 +20,13 @@ import math
 from random import shuffle
 
 import numpy as np
-from calo_cluster.clustering.batch_seed import meanshift_torch
 from sklearn.base import BaseEstimator, ClusterMixin
 from sklearn.metrics.pairwise import pairwise_distances_argmin
 from sklearn.neighbors import NearestNeighbors
 from sklearn.utils import check_array, check_random_state, gen_batches
 from sklearn.utils.validation import check_is_fitted
+
+from calo_cluster.clustering.batch_seed import meanshift_torch
 
 # seeds number intital
 SEED_NUM = 128

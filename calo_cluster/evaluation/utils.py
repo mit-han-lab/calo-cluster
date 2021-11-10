@@ -1,8 +1,8 @@
-from pathlib import Path
-import sys
 from typing import Union
+
 import colorcet as cc
 import numpy as np
+
 
 def get_palette(instances: Union[np.array, int]):
     if type(instances) is int:

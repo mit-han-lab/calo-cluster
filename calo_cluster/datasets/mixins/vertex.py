@@ -2,9 +2,11 @@ from dataclasses import dataclass
 
 import pandas as pd
 import uproot
-from calo_cluster.datasets.base import BaseDataModule
-from calo_cluster.datasets.pandas_data import PandasDataModuleMixin, PandasDataset
 from tqdm.auto import tqdm
+
+from calo_cluster.datasets.base import BaseDataModule
+from calo_cluster.datasets.pandas_data import (PandasDataModuleMixin,
+                                               PandasDataset)
 
 
 @dataclass

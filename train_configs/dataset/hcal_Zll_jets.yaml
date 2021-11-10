@@ -16,13 +16,13 @@ weight: energy
 
 # data location (modify as needed):
 data_dir: ${data_dir}/hcal/Zll_jets
-raw_data_dir: ${data_dir}/hcal/Zll_jets/min_energy_0.0_min_hits_0
+raw_data_dir: ${data_dir}/hcal/Zll_jets/raw
 
 # config fields:
 feats: ['eta', 'phi', 'x', 'y', 'z', 'energy']
 coords: ['eta', 'phi',]
-min_hits_per_cluster: 0
-min_cluster_energy: 0.0
+min_hits_per_cluster: null
+min_cluster_energy: null
 min_eta: null
 max_eta: null
 instance_target: pf

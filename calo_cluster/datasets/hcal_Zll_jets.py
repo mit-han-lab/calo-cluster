@@ -1,17 +1,15 @@
 from dataclasses import dataclass
-from functools import partial
 from pathlib import Path
 from typing import List
 
-import numpy as np
-import pandas as pd
-import uproot
-from tqdm.auto import tqdm
-
-from calo_cluster.datasets.mixins.sparse import SparseDataModuleMixin, SparseDatasetMixin
-from calo_cluster.datasets.mixins.offset import OffsetDataModuleMixin, OffsetDatasetMixin
-from calo_cluster.datasets.mixins.scaled import ScaledDataModuleMixin, ScaledDatasetMixin
-from calo_cluster.datasets.mixins.hcal_Zll_jets import HCalZllJetsDataModuleMixin, HCalZllJetsMixin
+from calo_cluster.datasets.mixins.hcal_Zll_jets import (
+    HCalZllJetsDataModuleMixin, HCalZllJetsMixin)
+from calo_cluster.datasets.mixins.offset import (OffsetDataModuleMixin,
+                                                 OffsetDatasetMixin)
+from calo_cluster.datasets.mixins.scaled import (ScaledDataModuleMixin,
+                                                 ScaledDatasetMixin)
+from calo_cluster.datasets.mixins.sparse import (SparseDataModuleMixin,
+                                                 SparseDatasetMixin)
 
 
 @dataclass

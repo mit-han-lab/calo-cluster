@@ -1,4 +1,3 @@
-from calo_cluster.utils.comm import is_rank_zero
 import logging
 import shutil
 from pathlib import Path
@@ -7,10 +6,12 @@ import hydra
 import pytorch_lightning as pl
 import submitit
 import yaml
-from omegaconf import DictConfig, OmegaConf, open_dict
-from calo_cluster.models.spvcnn import SPVCNN
+from omegaconf import DictConfig, OmegaConf
 
+from calo_cluster.models.spvcnn import SPVCNN
 from calo_cluster.training.config import fix_config
+from calo_cluster.utils.comm import is_rank_zero
+
 
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')

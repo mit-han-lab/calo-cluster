@@ -9,20 +9,14 @@ Modified by
 @Time: 2020/3/9 9:32 PM
 """
 
-import copy
-import math
-import os
-import sys
 
-import numpy as np
+import hydra
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.nn.init as init
-from calo_cluster.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
-import hydra
+
+from calo_cluster.utils.comm import is_rank_zero
 
 
 def knn(x, k):
@@ -102,7 +96,7 @@ class DGCNN(pl.LightningModule):
 
     def forward(self, x):
         x = x.permute(0, 2, 1)
-        batch_size = x.size(0)
+        x.size(0)
         num_points = x.size(2)
 
         x = self.get_graph_feature(x, k=self.hparams.model.k)   # (batch_size, 3, num_points) -> (batch_size, 4*2, num_points, k)

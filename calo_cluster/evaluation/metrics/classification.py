@@ -1,6 +1,7 @@
+import torch
 from torchmetrics import IoU
 from tqdm.auto import tqdm
-import torch
+
 
 def mIoU(evts, num_classes, semantic_label, ignore_index=None, absent_score=1.0, reduction='elementwise_mean'):
     assert ignore_index >= 0 and ignore_index < num_classes

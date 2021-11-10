@@ -1,6 +1,3 @@
-import time
-from collections import OrderedDict
-from typing import Callable, List
 
 import hydra
 import pytorch_lightning as pl
@@ -8,10 +5,11 @@ import torch
 import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
-import torchsparse.nn.functional as spf
-from calo_cluster.utils.comm import is_rank_zero
 from omegaconf import OmegaConf
 from torchsparse.tensor import PointTensor, SparseTensor
+
+from calo_cluster.utils.comm import is_rank_zero
+
 from .utils import *
 
 __all__ = ['SPVCNN']

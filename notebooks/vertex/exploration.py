@@ -1,11 +1,11 @@
 # %%
-from logging import root
+import multiprocessing as mp
+
+import pandas as pd
+import plotly.express as px
 import uproot
 from tqdm.auto import tqdm
-import multiprocessing as mp
-import pandas as pd
-from functools import partial
-import plotly.express as px
+
 # %%
 uproot_file = uproot.open('/data/vertex/vertexperformance_AMVF.root')
 # %%
@@ -75,6 +75,7 @@ coords = ['d0', 'z0', 'phi', 'theta', 'qp']
 plot_df[coords] /= scale
 
 import plotly.express as px
+
 px.scatter(plot_df, x='qp', y='z0', color='vtxID')
 # %%
 px.histogram(flat_df.loc[:5000, 'qp'])
@@ -82,7 +83,9 @@ px.histogram(flat_df.loc[:5000, 'qp'])
 reco_events[0].columns
 # %%
 from pathlib import Path
+
 from calo_cluster.datasets.vertex import VertexDataModule
+
 root_data_path = Path('/data/vertex')
 raw_data_dir = root_data_path / 'raw'
 #VertexDataModule.root_to_pickle(root_data_path, raw_data_dir)

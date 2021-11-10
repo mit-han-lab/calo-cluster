@@ -1,12 +1,13 @@
-from dataclasses import dataclass
 import logging
 
 import numpy as np
-from calo_cluster.datasets.base import BaseDataModule
-from calo_cluster.datasets.pandas_data import PandasDataModuleMixin, PandasDataset
-from tqdm.auto import tqdm
 import pandas as pd
 from sklearn.datasets import make_blobs
+from tqdm.auto import tqdm
+
+from calo_cluster.datasets.base import BaseDataModule
+from calo_cluster.datasets.pandas_data import PandasDataModuleMixin
+
 
 class SimpleDataModuleMixin(PandasDataModuleMixin, BaseDataModule):
     @staticmethod

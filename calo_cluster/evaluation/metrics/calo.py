@@ -1,9 +1,10 @@
 import warnings
+
 import numpy as np
+import plotly.express as px
 
 from calo_cluster.evaluation.metrics.instance import iou_match
 
-import plotly.express as px
 
 class Response:
 

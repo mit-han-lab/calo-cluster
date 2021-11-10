@@ -1,12 +1,13 @@
 # %%
-from calo_cluster.datasets.hcal_Zll_jets import HCalZllJetsOffsetDataModule
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
-from calo_cluster.evaluation.utils import get_palette
-import scipy
-import numpy as np
-import math
 from tqdm.auto import tqdm
+
+from calo_cluster.datasets.hcal_Zll_jets import HCalZllJetsOffsetDataModule
+from calo_cluster.evaluation.utils import get_palette
+
 # %%
 dm = HCalZllJetsOffsetDataModule.from_config(['dataset.instance_target=truth'])
 # %%
@@ -55,11 +56,13 @@ px.scatter(plot_df, x='eta', y='phi', color='id', size='energy', color_discrete_
 feats
 # %%
 dm.voxel_occupancy(n=1000)
+import numpy as np
 # %%
 # %%
 import torch
-import numpy as np
+
 from calo_cluster.training.criterion import offset_loss
+
 losses = []
 for i, batch in enumerate(dm.val_dataloader()):
     gt_offsets = batch['offsets'].F

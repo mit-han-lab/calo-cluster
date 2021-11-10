@@ -15,5 +15,5 @@ metric:
   ignore_semantic_labels: [0]
   threshold: 0.5
 path: ???
-use_target: True
+use_target: False
 target_instance_label_name: PFcluster0Id

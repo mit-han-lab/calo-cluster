@@ -6,13 +6,13 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 import hydra
 import numpy as np
 import pytorch_lightning as pl
-from calo_cluster.datasets.mixins.base import (AbstractBaseDataModule,
-                                               AbstractBaseDataset)
 from hydra import compose, initialize_config_dir
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
-from tqdm.auto import tqdm
+
+from calo_cluster.datasets.mixins.base import (AbstractBaseDataModule,
+                                               AbstractBaseDataset)
 
 
 @dataclass
@@ -169,12 +169,12 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
 
     @classmethod
     def from_config(cls, overrides: List[str] = []):
-        config_dir = Path(__file__).parent.parent.parent / 'configs'
+        config_dir = Path(__file__).parent.parent.parent / 'train_configs'
         overrides.append('train.batch_size=1')
         overrides = cls.fix_overrides(overrides)
         with initialize_config_dir(config_dir=str(config_dir)):
             cfg = compose(config_name='config', overrides=overrides)
-            dm = hydra.utils.instantiate(cfg.dataset, task='panoptic')
+            dm = hydra.utils.instantiate(cfg.dataset)
         dm.prepare_data()
         dm.setup('fit')
         return dm

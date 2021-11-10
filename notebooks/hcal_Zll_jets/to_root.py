@@ -1,7 +1,7 @@
 # %%
-from calo_cluster.datasets.hcal_Zll_jets import HCalZllJetsDataModule
 from pathlib import Path
 
+from calo_cluster.datasets.hcal_Zll_jets import HCalZllJetsDataModule
 
 # %%
 root_data_path = Path('/global/cscratch1/sd/schuya/calo_cluster/data/hcal/Zll_jets')

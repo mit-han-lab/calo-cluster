@@ -1,13 +1,10 @@
 import logging
 from typing import Any, Optional
-from pytorch_lightning.callbacks import Callback
 
 import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import STEP_OUTPUT
 import torch
-import multiprocessing as mp
-from calo_cluster.evaluation.metrics.calo import Response
-import ray
+from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 # @ray.remote
 # def cluster(embedding, semantic_labels):

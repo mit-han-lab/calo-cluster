@@ -6,14 +6,13 @@
 #           Martino Sorbaro <martino.sorbaro@ed.ac.uk>  
 
 import math
-import operator
 from random import shuffle
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 from sklearn.neighbors import NearestNeighbors
-from torch import exp, sqrt
+from torch import exp
 
 # seeds number intital
 SEED_NUM = 128

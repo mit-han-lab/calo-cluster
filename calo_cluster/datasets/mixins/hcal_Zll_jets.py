@@ -2,9 +2,10 @@ from dataclasses import dataclass
 
 import pandas as pd
 import uproot
+from tqdm.auto import tqdm
+
 from calo_cluster.datasets.mixins.calo import CaloDataModule
 from calo_cluster.datasets.pandas_data import PandasDataset
-from tqdm.auto import tqdm
 
 
 @dataclass

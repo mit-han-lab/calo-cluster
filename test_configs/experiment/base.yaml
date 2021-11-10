@@ -1,4 +1,4 @@
-_target_: calo_cluster.evaluation.experiments.base_offset_experiment.BaseOffsetExperiment
+_target_: calo_cluster.evaluation.experiments.base_experiment.BaseExperiment
 
 wandb_version: ???
 ckpt_name: null

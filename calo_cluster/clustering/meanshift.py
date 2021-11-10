@@ -1,10 +1,10 @@
   
-from sklearn import cluster
-from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
-from calo_cluster.clustering.base_clusterer import BaseClusterer
 import numpy as np
+from sklearn import cluster
 
-import ray
+from calo_cluster.clustering.base_clusterer import BaseClusterer
+from calo_cluster.clustering.mean_shift_cosine_gpu import MeanShiftCosine
+
 
 class MeanShift(BaseClusterer):
     def __init__(self, *, use_gpu=True, use_semantic=False, ignore_semantic_labels=None, **kwargs):
