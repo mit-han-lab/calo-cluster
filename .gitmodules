@@ -1,3 +1,0 @@
-[submodule "calo_cluster/evaluation/glasbey"]
-	path = calo_cluster/evaluation/glasbey
-	url = https://github.com/taketwo/glasbey
