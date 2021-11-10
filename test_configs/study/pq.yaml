@@ -11,3 +11,6 @@ pq:
   num_classes: 2
   ignore_index: null
   ignore_semantic_labels: [0]
+
+use_target: False
+target_instance_label_name: PFcluster0Id

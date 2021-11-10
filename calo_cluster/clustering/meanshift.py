@@ -32,6 +32,3 @@ class MeanShift(BaseClusterer):
             self.clusterer.fit(embedding)
             cluster_labels = self.clusterer.labels_
         return cluster_labels
-
-    def copy(self):
-        return MeanShift()
