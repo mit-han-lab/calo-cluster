@@ -29,6 +29,7 @@ class Response:
     def add(self, outputs, targets, energy):
         matched_pred, matched_truth, *_ = iou_match(
             outputs, targets, weights=energy, threshold=self.threshold, semantic=self.semantic, ignore_index=self.ignore_index, ignore_semantic_labels=self.ignore_semantic_labels, num_classes=self.num_classes)
+        
         for k in matched_pred:
             # x = predicted, y = truth; s = semantic, i = instance
             xs, xi = outputs
@@ -69,8 +70,8 @@ class Response:
             unmatched_truth = np.setdiff1d(
                 all_truth, matched_truth[k], assume_unique=True)
             unmatched_truth = unmatched_truth[unmatched_truth != -1]
-            xi_mask = xik == unmatched_truth[..., None]
-            unmatched_truth_energy = (ex * xi_mask.astype(int)).sum(axis=1)
+            yi_mask = yik == unmatched_truth[..., None]
+            unmatched_truth_energy = (ey * yi_mask.astype(int)).sum(axis=1)
             inds = np.digitize(unmatched_truth_energy, self.bins) - 1
             bins, n = np.unique(inds, return_counts=True)
             self.unmatched_truth[bins, k] += n
@@ -94,7 +95,6 @@ class Response:
             inds = np.digitize(matched_pred_energy, self.bins) - 1
             bins, n = np.unique(inds, return_counts=True)
             self.matched_pred[bins, k] += n
-
 
             
 
