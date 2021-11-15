@@ -9,12 +9,17 @@ from calo_cluster.clustering.base_clusterer import BaseClusterer
 
 class MeanShift2(BaseClusterer):
     def __init__(self, *, use_semantic, ignore_semantic_labels, bandwidth, seeds, cluster_all, max_iter, n_jobs):
+        if type(seeds) is str:
+            seeds = None
         self.meanshift = partial(mean_shift_cpu, bandwidth=bandwidth, seeds=seeds, cluster_all=cluster_all, max_iter=max_iter, n_jobs=n_jobs)
         super().__init__(use_semantic, ignore_semantic_labels)
 
     def cluster(self, embedding, semantic_labels=None):
         """Clusters hits in event. If self.use_semantic, clusters only within each predicted semantic subset. 
            If self.ignore_semantic_labels, ignores hits with the given semantic labels."""
+        embedding = embedding.cpu().numpy()
+        if semantic_labels is not None:
+            semantic_labels = semantic_labels.cpu().numpy()
         if self.use_semantic:
             cluster_labels = np.full_like(semantic_labels, fill_value=-1)
             unique_semantic_labels = np.unique(semantic_labels)
@@ -23,12 +28,12 @@ class MeanShift2(BaseClusterer):
                 if l in self.ignore_semantic_labels:
                     continue
                 mask = (semantic_labels == l)
-                self.meanshift(embedding[mask])
-                cluster_labels[mask] = self.clusterer.labels_ + i
-                i += np.unique(self.clusterer.labels_).shape[0]
+                _, labels = self.meanshift(embedding[mask])
+                cluster_labels[mask] = labels + i
+                i += np.unique(labels).shape[0]
         else:
-            self.meanshift(embedding)
-            cluster_labels = self.clusterer.labels_
+            _, labels = self.meanshift(embedding)
+            cluster_labels = labels
         return cluster_labels
 
 def mean_shift_cpu(

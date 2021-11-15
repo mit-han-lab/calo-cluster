@@ -1,0 +1,9 @@
+clusterer:
+  _target_: calo_cluster.clustering.meanshift2.MeanShift2
+  bandwidth: 0.1
+  use_semantic: True
+  ignore_semantic_labels: [0]
+  n_jobs: 1
+  seeds: null
+  cluster_all: True
+  max_iter: 300

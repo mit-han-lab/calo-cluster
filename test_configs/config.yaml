@@ -11,5 +11,6 @@ dataset: test
 n: 100
 profile: False
 defaults:
+  - clusterer: meanshift_2_cuda
   - experiment: base
   - study: calo_cluster

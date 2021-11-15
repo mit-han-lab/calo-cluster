@@ -83,12 +83,12 @@ def hydra_main(cfg: DictConfig) -> None:
     if is_rank_zero():
         logger.setLevel(cfg.log_level)
         logging.info(OmegaConf.to_yaml(cfg))
-    if 'slurm' in cfg.train:
+    if cfg.cluster.name == 'slurm':
         slurm_dir = Path.cwd() / 'slurm'
         slurm_dir.mkdir()
         executor = submitit.AutoExecutor(slurm_dir)
-        executor.update_parameters(slurm_gpus_per_node=cfg.train.slurm.gpus_per_node, slurm_nodes=cfg.train.slurm.nodes, slurm_ntasks_per_node=cfg.train.slurm.gpus_per_node,
-                                   slurm_cpus_per_task=cfg.train.slurm.cpus_per_task, slurm_time=cfg.train.slurm.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.train.slurm.account})
+        executor.update_parameters(slurm_gpus_per_node=cfg.cluster.gpus_per_node, slurm_nodes=cfg.cluster.nodes, slurm_ntasks_per_node=cfg.cluster.gpus_per_node,
+                                   slurm_cpus_per_task=cfg.cluster.cpus_per_task, slurm_time=cfg.cluster.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.cluster.account})
         job = executor.submit(train, cfg=cfg)
         logging.info(f'submitted job {job.job_id}.')
     else:

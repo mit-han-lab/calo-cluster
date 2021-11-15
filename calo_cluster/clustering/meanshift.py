@@ -17,6 +17,9 @@ class MeanShift(BaseClusterer):
     def cluster(self, embedding, semantic_labels=None):
         """Clusters hits in event. If self.use_semantic, clusters only within each predicted semantic subset. 
            If self.ignore_semantic_labels, ignores hits with the given semantic labels."""
+        embedding = embedding.cpu().numpy()
+        if semantic_labels is not None:
+            semantic_labels = semantic_labels.cpu().numpy()
         if self.use_semantic:
             cluster_labels = np.full_like(semantic_labels, fill_value=-1)
             unique_semantic_labels = np.unique(semantic_labels)

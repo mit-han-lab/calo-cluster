@@ -24,3 +24,4 @@ defaults:
   - wandb: upload
   - checkpoint: all
   - swa: inactive
+  - cluster: local

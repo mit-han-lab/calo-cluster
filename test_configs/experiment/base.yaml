@@ -4,4 +4,4 @@ wandb_version: ???
 ckpt_name: null
 batch_size: 128
 num_workers: 10
-aux: null
+aux: [PFcluster0Id]

@@ -14,7 +14,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 class ResponseCallback(Callback):
     def __init__(self, clusterer, metric, path, use_target, target_instance_label_name):
         super().__init__()
-        self.clusterer = clusterer
+        self.clusterer = clusterer['clusterer']
         self.metric = metric
         #ncpus = 5
         #ray.init(num_cpus=ncpus)
@@ -43,7 +43,7 @@ class ResponseCallback(Callback):
             if self.use_target:
                 pred_labels = batch[f'{self.target_instance_label_name}_mapped'].F[im_mask].cpu().numpy()
             else:
-                pred_labels = self.clusterer.cluster(embedding=embedding[mask][inverse_map[im_mask]].cpu().numpy(), semantic_labels=semantic_labels[mask][inverse_map[im_mask]].cpu().numpy())
+                pred_labels = self.clusterer.cluster(embedding=embedding[mask][inverse_map[im_mask]], semantic_labels=semantic_labels[mask][inverse_map[im_mask]])
             outputs = (semantic_labels_, pred_labels)
             energy_ = energy[im_mask].cpu().numpy()
             targets = (semantic_labels_, instance_labels_)
