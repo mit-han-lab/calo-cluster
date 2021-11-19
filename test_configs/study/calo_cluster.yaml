@@ -2,12 +2,14 @@ _target_: calo_cluster.evaluation.studies.calo_study.ResponseCallback
 clusterer: ${clusterer}
 metric:
   _target_: calo_cluster.evaluation.metrics.calo.Response
-  bins: [0, 0.5, 1, 2, 3, 6, 10]
+  bins: [0, 0.5, 1, 2, 3, 6, 10, 20, 50, 100]
   num_classes: 2
   semantic: True
   ignore_index: null
   ignore_semantic_labels: [0]
   threshold: 0.5
+  min_hits: 0
 path: ???
 use_target: False
+use_nn: True
 target_instance_label_name: PFcluster0Id

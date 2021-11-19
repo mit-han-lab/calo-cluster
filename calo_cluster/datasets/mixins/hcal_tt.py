@@ -11,16 +11,25 @@ from calo_cluster.datasets.pandas_data import PandasDataset
 @dataclass
 class HCalTTMixin(PandasDataset):
     instance_target: str
+    semantic_target: str
 
     def __post_init__(self):
         if self.instance_target == 'truth':
-            self.semantic_label = 'hit'
+            if self.semantic_target == 'hit':
+                self.semantic_label = 'hit'
+            elif self.semantic_target == 'hit_and_singleton':
+                self.semantic_label = 'singleton_hit'
+            else:
+                raise NotImplementedError()
             self.instance_label = 'trackId'
         elif self.instance_target == 'antikt':
             raise NotImplementedError()
             #instance_label = 'RHAntiKtCluster_reco'
         elif self.instance_target == 'pf':
-            self.semantic_label = 'pf_hit'
+            if self.semantic_target == 'hit':
+                self.semantic_label = 'pf_hit'
+            else:
+                raise NotImplementedError()
             self.instance_label = 'PFcluster0Id'
         else:
             raise RuntimeError()
@@ -30,10 +39,12 @@ class HCalTTMixin(PandasDataset):
 @dataclass
 class HCalTTDataModuleMixin(CaloDataModule):
     instance_target: str
+    semantic_target: str
 
     def make_dataset_kwargs(self) -> dict:
         kwargs = {
-            'instance_target': self.instance_target
+            'instance_target': self.instance_target,
+            'semantic_target': self.semantic_target
         }
         kwargs.update(super().make_dataset_kwargs())
         return kwargs

@@ -10,7 +10,7 @@ import hydra
 class PQCallback(Callback):
     def __init__(self, clusterer, pq, use_target, target_instance_label_name):
         super().__init__()
-        self.clusterer = clusterer['clusterer']
+        self.clusterer = clusterer
         self.pq = pq
         self.use_target = use_target
         self.target_instance_label_name = target_instance_label_name
@@ -33,7 +33,8 @@ class PQCallback(Callback):
             if self.use_target:
                 pred_labels = batch[f'{self.target_instance_label_name}_mapped'].F[im_mask].cpu().numpy()
             else:
-                pred_labels = self.clusterer.cluster(embedding=embedding[mask][inverse_map[im_mask]], semantic_labels=batch['semantic_labels'].F[mask][inverse_map[im_mask]])
+                #pred_labels = self.clusterer.cluster(embedding=embedding[mask][inverse_map[im_mask]], semantic_labels=batch['semantic_labels'].F[mask][inverse_map[im_mask]])
+                pred_labels = self.clusterer.cluster(embedding=coordinates[mask][inverse_map[im_mask]], semantic_labels=batch['semantic_labels'].F[mask][inverse_map[im_mask]])
             self.pq.add((semantic_labels_, pred_labels), (semantic_labels_, instance_labels_))
 
     def on_test_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:

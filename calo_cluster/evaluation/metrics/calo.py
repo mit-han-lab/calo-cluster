@@ -8,13 +8,14 @@ from calo_cluster.evaluation.metrics.instance import iou_match
 
 class Response:
 
-    def __init__(self, *, bins, num_classes, semantic, ignore_index, ignore_semantic_labels, threshold):
+    def __init__(self, *, bins, num_classes, semantic, ignore_index, ignore_semantic_labels, threshold, min_hits):
         self.bins = bins
         self.num_classes = num_classes
         self.semantic = semantic
         self.ignore_index = ignore_index
         self.ignore_semantic_labels = ignore_semantic_labels
         self.threshold = threshold
+        self.min_hits = min_hits
         np.seterr(all="ignore")
         warnings.filterwarnings('ignore', 'Degrees of freedom <= 0 for slice.')
         self.reset()
@@ -28,13 +29,22 @@ class Response:
         self.resolution = np.zeros((len(self.bins), self.num_classes), dtype=np.float32)
 
     def add(self, outputs, targets, energy):
+        # x = predicted, y = truth; s = semantic, i = instance
+        xs, xi = outputs
+        ys, yi = targets
+        l, counts = np.unique(yi, return_counts=True)
+        valid = (yi == l[counts >= self.min_hits][..., None]).any(axis=0)
+        xs = xs[valid]
+        xi = xi[valid]
+        ys = ys[valid]
+        yi = yi[valid]
+        energy = energy[valid]
+        outputs = (xs, xi)
+        targets = (ys, yi)
         matched_pred, matched_truth, *_ = iou_match(
             outputs, targets, weights=energy, threshold=self.threshold, semantic=self.semantic, ignore_index=self.ignore_index, ignore_semantic_labels=self.ignore_semantic_labels, num_classes=self.num_classes)
         
         for k in matched_pred:
-            # x = predicted, y = truth; s = semantic, i = instance
-            xs, xi = outputs
-            ys, yi = targets
             yik = yi[ys == k]
             xik = xi[xs == k]
             ey = energy[ys == k]
