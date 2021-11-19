@@ -1,0 +1,28 @@
+defaults:
+  - base_dataset
+_target_: calo_cluster.datasets.hgcal_taus.HGCalTausDataModule
+
+# required fields:
+num_classes: 2
+num_features: 8
+voxel_size: 1.0
+
+# dataset-specific fields (should not change):
+noise_id: -1
+cluster_ignore_labels: [0]
+semantic_label: hit
+instance_label: cluster_id
+weight: energy
+
+# data location (modify as needed):
+data_dir: ${data_dir}/hgcal/taus
+raw_data_dir: ${data_dir}/hgcal/taus/raw
+
+# config fields:
+feats: ['energy', 'eta', 'theta', 'r', 'x', 'y', 'z', 'time']
+coords: ['x', 'y', 'z']
+min_hits_per_cluster: null
+min_cluster_energy: null
+min_eta: null
+max_eta: null
+aux: null

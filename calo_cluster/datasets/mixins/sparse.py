@@ -121,5 +121,3 @@ class SparseDataModuleMixin(AbstractBaseDataModule):
         # %%
         for vx in voxel_sizes:
             print(f'mean occupancy (vx = {vx}): {occupancies[vx].mean()}')
-        # %%
-        px.histogram(occupancies)

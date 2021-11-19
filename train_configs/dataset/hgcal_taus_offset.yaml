@@ -1,0 +1,5 @@
+defaults:
+  - hgcal_taus
+_target_: calo_cluster.datasets.hgcal_taus.HGCalTausOffsetDataModule
+
+valid_labels: [1,]
