@@ -1,4 +1,5 @@
 import logging
+import os
 import shutil
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from calo_cluster.utils.comm import is_rank_zero
 import wandb
 
 
-def train(cfg: DictConfig) -> None:
+def train(cfg: DictConfig, code_dir: str) -> None:
     logging.info('Beginning training...')
 
     fix_task(cfg)
@@ -52,8 +53,15 @@ def train(cfg: DictConfig) -> None:
     logger = hydra.utils.instantiate(
         cfg.wandb, save_dir=cfg.outputs_dir, version=cfg.wandb.version, group=cfg.wandb.name)
     if is_rank_zero():
+        # wandb needs the cwd to be within the git repository to store the current git hash.
+        old_cwd = Path.cwd()
+        os.chdir(code_dir)
+        experiment_dir = Path(logger.experiment.dir) 
+        os.chdir(old_cwd)
+
+        # copy the .hydra files to the experiment dir.
         shutil.copytree(Path.cwd() / '.hydra',
-                        Path(logger.experiment.dir) / '.hydra')
+                        experiment_dir / '.hydra')
     cfg.wandb.version = logger.version
 
     if is_rank_zero():
@@ -81,6 +89,7 @@ def train(cfg: DictConfig) -> None:
 def hydra_main(cfg: DictConfig) -> None:
     # Set up python logging.
     logger = logging.getLogger()
+    code_dir = hydra.utils.get_original_cwd()
     if is_rank_zero():
         logger.setLevel(cfg.log_level)
         logging.info(OmegaConf.to_yaml(cfg))
@@ -93,10 +102,10 @@ def hydra_main(cfg: DictConfig) -> None:
         executor = submitit.AutoExecutor(slurm_dir)
         executor.update_parameters(slurm_gpus_per_node=cfg.cluster.gpus_per_node, slurm_nodes=cfg.cluster.nodes, slurm_ntasks_per_node=cfg.cluster.gpus_per_node,
                                    slurm_cpus_per_task=cfg.cluster.cpus_per_task, slurm_time=cfg.cluster.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.cluster.account, 'requeue': True})
-        job = executor.submit(train, cfg=cfg)
+        job = executor.submit(train, cfg=cfg, code_dir=code_dir)
         logging.info(f'submitted job {job.job_id}.')
     else:
-        train(cfg)
+        train(cfg, code_dir)
 
 
 if __name__ == '__main__':
