@@ -46,13 +46,18 @@ def is_main_process():
     return get_rank() == 0
 
 
-def is_rank_zero():
-    local_rank = int(os.environ.get("LOCAL_RANK", 0))
-    node_rank = int(os.environ.get("NODE_RANK", 0))
-    if local_rank == 0 and node_rank == 0:
-        return True
+def _get_rank() -> int:
+    rank_keys = ("RANK", "SLURM_PROCID", "LOCAL_RANK")
+    for key in rank_keys:
+        rank = os.environ.get(key)
+        if rank is not None:
+            return int(rank)
+    return 0
 
-    return False
+def is_rank_zero():
+    rank = _get_rank()
+    print(f'rank={rank}')
+    return rank == 0
 
 
 def synchronize():
