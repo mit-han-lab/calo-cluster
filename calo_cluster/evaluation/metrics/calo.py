@@ -1,21 +1,30 @@
+from dataclasses import dataclass
+from typing import List, Union
 import warnings
 
 import numpy as np
 import plotly.express as px
 
 from calo_cluster.evaluation.metrics.instance import iou_match
+from calo_cluster.evaluation.metrics.metric import Metric
+from calo_cluster.clustering.base_clusterer import BaseClusterer
 
+@dataclass
+class ResponseMetric(Metric):
+    bins: List[float]
+    num_classes: int
+    semantic: bool
+    ignore_index: int
+    ignore_semantic_labels: bool
+    threshold: float
+    min_hits: int
+    clusterer: BaseClusterer = None
+    use_target: bool = False
+    target_instance_label_name: Union[str, None] = None
 
-class Response:
-
-    def __init__(self, *, bins, num_classes, semantic, ignore_index, ignore_semantic_labels, threshold, min_hits):
-        self.bins = bins
-        self.num_classes = num_classes
-        self.semantic = semantic
-        self.ignore_index = ignore_index
-        self.ignore_semantic_labels = ignore_semantic_labels
-        self.threshold = threshold
-        self.min_hits = min_hits
+    
+    def __post_init__(self):
+        self.bins = np.array(self.bins)
         np.seterr(all="ignore")
         warnings.filterwarnings('ignore', 'Degrees of freedom <= 0 for slice.')
         self.reset()
@@ -133,7 +142,7 @@ class Response:
 
         return efficiency, fake_rate, response, resolution
 
-    def save(self, path):
+    def _save(self, path):
         efficiency, fake_rate, response, resolution = self.compute()
         for k in range(self.num_classes):
             if k in self.ignore_semantic_labels:
@@ -161,3 +170,21 @@ class Response:
 
             fig = px.scatter(x=x, y=response_, error_y=resolution_, title='response')
             fig.write_image(str(p / 'response.png'), scale=4)
+
+    def add_from_dict(self, subbatch):
+        coordinates = subbatch['coordinates']
+        pred_coordinates = subbatch['coordinates'] + subbatch['pred_offsets']
+        semantic_labels = subbatch['semantic_labels']
+        if self.use_target:
+            pred_labels = subbatch[f'{self.target_instance_label_name}_mapped'].F.cpu().numpy()
+        elif self.use_nn:
+            pred_labels = self.clusterer.cluster(embedding=pred_coordinates, semantic_labels=semantic_labels)
+        else:
+            pred_labels = self.clusterer.cluster(embedding=coordinates, semantic_labels=semantic_labels)
+
+        outputs = (subbatch['pred_semantic_labels'], pred_labels)
+        targets = (subbatch['semantic_labels_mapped'], subbatch['instance_labels_mapped'])
+        energy = subbatch['weights_mapped']
+
+        self.add(outputs, targets, energy)
+

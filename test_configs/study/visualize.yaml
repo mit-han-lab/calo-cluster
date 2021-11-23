@@ -1,0 +1,5 @@
+_target_: calo_cluster.evaluation.callbacks.metric_callback.MetricCallback
+metric:
+  _target_: calo_cluster.evaluation.metrics.visualize.Visualize
+  experiment: ${experiment}
+  name: ${name}

@@ -13,13 +13,7 @@ from calo_cluster.utils.comm import is_rank_zero
 def test(cfg: DictConfig) -> None:
     experiment = hydra.utils.instantiate(cfg.experiment)
     callbacks = []
-    if 'path' in cfg.study:
-        path = (experiment.plots_dir / cfg.study.path)
-        path.mkdir(exist_ok=True, parents=True)
-        logging.info(f'writing test data to {path}')
-        study_callback = hydra.utils.instantiate(cfg.study, path=path)
-    else:
-        study_callback = hydra.utils.instantiate(cfg.study)
+    study_callback = hydra.utils.instantiate(cfg.study)
     callbacks.append(study_callback)
     trainer = pl.Trainer(gpus=1, deterministic=True, callbacks=callbacks, precision=32)
     if cfg.n is not None:
@@ -40,7 +34,7 @@ def test(cfg: DictConfig) -> None:
     else:
         trainer.test(experiment.model, datamodule=experiment.datamodule)
 
-@ hydra.main(config_path="test_configs", config_name="config")
+@hydra.main(config_path="test_configs", config_name="config")
 def hydra_main(cfg: DictConfig) -> None:
     # Set up python logging.
     logger=logging.getLogger()

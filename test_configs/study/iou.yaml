@@ -1,0 +1,9 @@
+_target_: calo_cluster.evaluation.callbacks.metric_callback.MetricCallback
+metric:
+  _target_: calo_cluster.evaluation.metrics.classification.IoUMetric
+  experiment: ${experiment}
+  name: ${name}
+  num_classes: 2
+  ignore_index: null
+  absent_score: 1.0
+  reduction: elementwise_mean

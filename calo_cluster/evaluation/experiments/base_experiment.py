@@ -5,7 +5,7 @@ import hydra
 import yaml
 from omegaconf import OmegaConf
 
-from calo_cluster.training.config import fix_config
+from calo_cluster.training.config import fix_task
 
 
 class BaseExperiment():
@@ -15,7 +15,7 @@ class BaseExperiment():
         self.run_path = self.get_run_path(self.wandb_version)
         cfg_path = self.run_path / 'files' / '.hydra' / 'config.yaml'
         self.cfg = OmegaConf.load(cfg_path)
-        fix_config(self.cfg)
+        fix_task(self.cfg)
         self.ckpt_path, self.ckpt_name = self._get_ckpt(
             self.cfg, ckpt_name)
         self.model = self.load_model(str(self.ckpt_path))

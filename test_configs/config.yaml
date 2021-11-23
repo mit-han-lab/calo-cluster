@@ -10,6 +10,7 @@ log_level: INFO
 dataset: test
 n: 100
 profile: False
+name: null
 defaults:
   - clusterer: meanshift_2_cuda
   - experiment: base
