@@ -9,14 +9,15 @@ import yaml
 from omegaconf import DictConfig, OmegaConf
 
 from calo_cluster.models.spvcnn import SPVCNN
-from calo_cluster.training.config import fix_config
+from calo_cluster.training.config import add_wandb_version, fix_task
 from calo_cluster.utils.comm import is_rank_zero
+import wandb
 
 
 def train(cfg: DictConfig) -> None:
     logging.info('Beginning training...')
 
-    fix_config(cfg)
+    fix_task(cfg)
 
     if cfg.overfit:
         overfit_batches = 1
@@ -83,12 +84,15 @@ def hydra_main(cfg: DictConfig) -> None:
     if is_rank_zero():
         logger.setLevel(cfg.log_level)
         logging.info(OmegaConf.to_yaml(cfg))
+        wandb_version = wandb.util.generate_id()
+        add_wandb_version(cfg, wandb_version)
     if cfg.cluster.name == 'slurm':
         slurm_dir = Path.cwd() / 'slurm'
         slurm_dir.mkdir()
+        logging.info(f'Slurm logs: {slurm_dir}')
         executor = submitit.AutoExecutor(slurm_dir)
         executor.update_parameters(slurm_gpus_per_node=cfg.cluster.gpus_per_node, slurm_nodes=cfg.cluster.nodes, slurm_ntasks_per_node=cfg.cluster.gpus_per_node,
-                                   slurm_cpus_per_task=cfg.cluster.cpus_per_task, slurm_time=cfg.cluster.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.cluster.account})
+                                   slurm_cpus_per_task=cfg.cluster.cpus_per_task, slurm_time=cfg.cluster.time, slurm_additional_parameters={'constraint': 'gpu', 'account': cfg.cluster.account, 'requeue': True})
         job = executor.submit(train, cfg=cfg)
         logging.info(f'submitted job {job.job_id}.')
     else:
