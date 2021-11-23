@@ -275,14 +275,12 @@ class SPVCNNOffset(pl.LightningModule):
         y3 = self.up3[1](y3)
 
         task = self.hparams.task
-        if task == 'semantic':
-            out = self.classifier(y3, x0, z2)
-        elif task == 'instance':
-            out = self.embedder(y3, x0, z2)
-        elif task == 'panoptic':
-            out = (self.classifier(y3, x0, z2), self.embedder(y3, x0, z2))
-        else:
-            raise RuntimeError("invalid task!")
+        out = {}
+        if task == 'semantic' or task == 'panoptic':
+            out['pred_semantic_scores'] = self.classifier(y3, x0, z2)
+            out['pred_semantic_labels'] = out['pred_semantic_scores'].argmax(dim=1)
+        if task == 'instance' or task == 'panoptic':
+            out['pred_offsets'] = self.embedder(y3, x0, z2)
         return out
 
     def configure_optimizers(self):
@@ -309,7 +307,7 @@ class SPVCNNOffset(pl.LightningModule):
 
     def semantic_step(self, batch, split):
         inputs = batch['features']
-        outputs = self(inputs)
+        outputs = self(inputs)['pred_semantic_scores']
         targets = batch['semantic_labels'].F.long()
         sync_dist = (split != 'train')
 
@@ -320,7 +318,7 @@ class SPVCNNOffset(pl.LightningModule):
 
     def instance_step(self, batch, split):
         inputs = batch['features']
-        outputs = self(inputs)
+        outputs = self(inputs)['pred_offsets']
         offsets = batch['offsets'].F
         sync_dist = (split != 'train')
 
@@ -341,9 +339,9 @@ class SPVCNNOffset(pl.LightningModule):
         semantic_targets = batch['semantic_labels'].F.long()
         sync_dist = (split != 'train')
 
-        class_loss = self.semantic_criterion(outputs[0], semantic_targets)
+        class_loss = self.semantic_criterion(outputs['pred_semantic_scores'], semantic_targets)
         self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-        embed_loss = self.embed_criterion(outputs[1], offsets, semantic_labels=semantic_targets)
+        embed_loss = self.embed_criterion(outputs['pred_offsets'], offsets, semantic_labels=semantic_targets)
         self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
         loss = class_loss + embed_loss
         if type(class_loss) is not float and type(embed_loss) is not float:

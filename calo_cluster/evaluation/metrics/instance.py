@@ -1,15 +1,19 @@
+from dataclasses import dataclass
+from typing import List, Union
 import numpy as np
 
+from calo_cluster.evaluation.metrics.metric import Metric
 
-class PanopticQuality:
+@dataclass
+class PanopticQuality(Metric):
+    num_classes: Union[int, None]
+    semantic: bool
+    ignore_index: Union[int, None]
+    ignore_semantic_labels: Union[List[int], None]
 
-    def __init__(self, *, num_classes=1, ignore_index=None, semantic=True, ignore_semantic_labels=None):
-        if not semantic:
-            num_classes = 1
-        self.num_classes = num_classes
-        self.ignore_index = ignore_index
-        self.semantic = semantic
-        self.ignore_semantic_labels = ignore_semantic_labels
+    def __post_init__(self):
+        if not self.semantic:
+            self.num_classes = 1
         self.reset()
 
     def reset(self):
@@ -55,6 +59,29 @@ class PanopticQuality:
         sq[~m], rq[~m], tq[~m], wrq[~m], wtq[~m] = -1, -1, -1, -1, -1
 
         return {'sq': sq, 'rq': rq, 'pq': pq, 'tq': tq, 'wrq': wrq, 'wpq': wpq, 'wtq': wtq}
+
+    def add_from_dict(self, subbatch):
+        coordinates = subbatch['coordinates']
+        pred_coordinates = subbatch['coordinates'] + subbatch['pred_offsets']
+        semantic_labels = subbatch['semantic_labels']
+        if self.use_target:
+            pred_labels = subbatch[f'{self.target_instance_label_name}_mapped'].F.cpu().numpy()
+        elif self.use_nn:
+            pred_labels = self.clusterer.cluster(embedding=pred_coordinates, semantic_labels=semantic_labels)
+        else:
+            pred_labels = self.clusterer.cluster(embedding=coordinates, semantic_labels=semantic_labels)
+
+        if self.use_semantic:
+            outputs = (subbatch['pred_semantic_labels'], pred_labels)
+            targets = (subbatch['semantic_labels_mapped'], subbatch['instance_labels_mapped'])
+        else:
+            outputs = pred_labels
+            targets = subbatch['instance_labels_mapped']
+
+        self.add(outputs, targets)
+
+    def _save(self, path):
+        print(f'{self.compute()}')
 
 
 def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semantic=False, ignore_index=None, ignore_semantic_labels=None, match_highest=False):
@@ -168,6 +195,7 @@ def iou_match(outputs, targets, num_classes, weights=None, threshold=0.5, semant
         _intersections[k] = intersections
 
     return _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections
+
 
 
 if __name__ == '__main__':
