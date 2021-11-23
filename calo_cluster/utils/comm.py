@@ -56,7 +56,6 @@ def _get_rank() -> int:
 
 def is_rank_zero():
     rank = _get_rank()
-    print(f'rank={rank}')
     return rank == 0
 
 
