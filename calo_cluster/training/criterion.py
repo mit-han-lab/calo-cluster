@@ -242,15 +242,15 @@ def flatten_probas(probas, labels, ignore=None):
 
 
 class LovaszSoftmaxLoss(nn.Module):
-    def __init__(self, weight, classes, ignore_index):
+    def __init__(self, weight: float, classes: str, ignore_index: int):
         super().__init__()
         self.weight = weight
         self.classes = classes
         self.ignore_index = ignore_index
 
-    def forward(self, outputs, targets):
-        return self.weight * lovasz_softmax(F.softmax(outputs.F, 1),
-                              targets.F.int(),
+    def forward(self, outputs: torch.tensor, targets: torch.tensor):
+        return self.weight * lovasz_softmax(F.softmax(outputs, 1),
+                              targets.int(),
                               self.classes,
                               ignore=self.ignore_index)
 
@@ -262,5 +262,5 @@ class WeightedCrossEntropyLoss(nn.Module):
             class_weights = torch.tensor(class_weights)
         self.criterion = CrossEntropyLoss(weight=class_weights, ignore_index=ignore_index)
 
-    def forward(self, outputs, targets):
+    def forward(self, outputs: torch.tensor, targets: torch.tensor):
         return self.weight * self.criterion(outputs, targets)

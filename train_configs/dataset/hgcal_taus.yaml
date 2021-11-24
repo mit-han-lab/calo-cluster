@@ -26,3 +26,4 @@ min_cluster_energy: null
 min_eta: null
 max_eta: null
 aux: null
+class_weights: null

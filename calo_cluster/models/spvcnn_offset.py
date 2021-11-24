@@ -315,6 +315,7 @@ class SPVCNNOffset(pl.LightningModule):
         for name, criterion in self.semantic_criterion.items():
             loss = criterion(outputs, targets)
             self.log(f'{split}_{name}_loss', loss, sync_dist=sync_dist)
+            losses.append(loss)
         loss = sum(losses)
         self.log(f'{split}_semantic_loss', loss, sync_dist=sync_dist)
         ret = {'loss': loss, 'semantic_loss': loss.detach()}
