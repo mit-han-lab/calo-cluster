@@ -10,6 +10,7 @@ from hydra import compose, initialize_config_dir
 from sklearn.utils import shuffle
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
+from tqdm.auto import tqdm
 
 from calo_cluster.datasets.mixins.base import (AbstractBaseDataModule,
                                                AbstractBaseDataset)
@@ -169,6 +170,28 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
 
     def make_dataset_kwargs(self) -> Dict[str, Any]:
         return {}
+
+
+    def estimate_class_weights(self) -> np.array:
+        """Returns the average number of points in each occupied voxel for each file in the train dataset.
+        """
+        if not self.sparse:
+            raise RuntimeError(
+                'voxel_occupancy called, but dataset is not sparse!')
+        self.batch_size = 1
+        dataloader = self.train_dataloader()
+        dataset = dataloader.dataset
+
+        counts = np.zeros(self.num_classes, dtype=np.long)
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataset)):
+            for j in range(self.num_classes):
+                counts[j] += (batch['semantic_labels_mapped'].F.cpu().numpy() == j).sum()
+        
+        weights = 1. / counts
+        weights /= weights.min()
+        print(f'estimated class weights: {np.array2string(weights, precision=3, floatmode="maxprec", separator=", ")}')
+        return weights
+
 
     @classmethod
     def from_config(cls, overrides: List[str] = []):

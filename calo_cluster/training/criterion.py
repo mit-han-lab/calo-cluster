@@ -260,7 +260,10 @@ class WeightedCrossEntropyLoss(nn.Module):
         self.weight = weight
         if class_weights is not None:
             class_weights = torch.tensor(class_weights)
-        self.criterion = CrossEntropyLoss(weight=class_weights, ignore_index=ignore_index)
+        self.class_weights = class_weights
+        self.ignore_index = ignore_index
 
     def forward(self, outputs: torch.tensor, targets: torch.tensor):
-        return self.weight * self.criterion(outputs, targets)
+        if self.class_weights.device != outputs.device:
+            self.class_weights = self.class_weights.to(outputs.device)
+        return self.weight * F.cross_entropy(outputs, targets, weight=self.class_weights, ignore_index=self.ignore_index)
