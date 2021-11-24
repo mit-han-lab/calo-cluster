@@ -34,7 +34,7 @@ class SPVCNN(pl.LightningModule):
         cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
         self.embedder = SPVCNN_embedder_head(cs, self.hparams.model.embed_dim) 
 
-        self.embed_criterion = hydra.utils.instantiate(self.hparams.embed_criterion)
+        self.instance_criterion = hydra.utils.instantiate(self.hparams.instance_criterion)
 
     def num_inf_or_nan(self, x):
         return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
@@ -71,7 +71,7 @@ class SPVCNN(pl.LightningModule):
             weights = None
         sync_dist = (split != 'train')
 
-        embed_loss = self.embed_criterion(outputs[1], offsets, semantic_labels=targets[:, 0])
+        embed_loss = self.instance_criterion(outputs[1], offsets, semantic_labels=targets[:, 0])
         self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
         loss = embed_loss
         if type(embed_loss) is not float:

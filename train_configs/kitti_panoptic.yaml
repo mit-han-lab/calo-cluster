@@ -1,0 +1,30 @@
+config_version: 2
+outputs_dir: /global/cscratch1/sd/schuya/calo_cluster/training_outputs
+predictions_dir: /global/cscratch1/sd/schuya/calo_cluster/predictions
+plots_dir: /global/cscratch1/sd/schuya/calo_cluster/plots
+data_dir: /global/cscratch1/sd/schuya/calo_cluster/data
+hydra:
+  run:
+    dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+seed: 1588147245
+deterministic: False
+resume_ckpt: null
+init_ckpt: null
+overfit: False
+log_level: INFO
+val_check_interval: 0.5
+defaults:
+  - train: single_gpu
+  - dataset: kitti_offset
+  - optimizer: adam
+  - semantic_criterion: [cross_entropy_loss, lovasz]
+  - instance_criterion: offset
+  - scheduler: one_cycle_lr
+  - model: spvcnn_offset
+  - wandb: upload
+  - checkpoint: all
+  - swa: inactive
+  - cluster: local
+
+wandb:
+  name: kitti_panoptic

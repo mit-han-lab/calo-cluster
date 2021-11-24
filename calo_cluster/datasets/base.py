@@ -72,8 +72,10 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
 
     num_classes -- the number of semantic classes
     num_features -- the number of features used as input to the ML model
+    class_weights -- relative weights of semantic classes in this dataset
 
     data_dir -- the base data directory
+    
     """
 
     seed: int
@@ -93,6 +95,7 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
 
     num_classes: int
     num_features: int
+    class_weights: Union[List[float], None]
 
     data_dir: str
 

@@ -380,7 +380,7 @@ class SPVCNN_mst(pl.LightningModule):
         cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
         self.embedder = SPVCNN_embedder_head(cs, self.hparams.model.embed_dim) 
 
-        self.embed_criterion = hydra.utils.instantiate(self.hparams.embed_criterion)
+        self.instance_criterion = hydra.utils.instantiate(self.hparams.instance_criterion)
 
     def num_inf_or_nan(self, x):
         return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
@@ -423,16 +423,16 @@ class SPVCNN_mst(pl.LightningModule):
             ret = {'loss': loss, 'class_loss': loss.detach()}
         elif task == 'instance':
             if self.hparams.requires_semantic:
-                loss = self.embed_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
+                loss = self.instance_criterion(outputs, targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             else:
-                loss = self.embed_criterion(outputs, targets, subbatch_indices, weights)
+                loss = self.instance_criterion(outputs, targets, subbatch_indices, weights)
             self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
             
             ret = {'loss': loss, 'embed_loss': loss.detach()}
         elif task == 'panoptic':
             class_loss = self.semantic_criterion(outputs[0], targets[:, 0])
             self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-            embed_loss = self.embed_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
+            embed_loss = self.instance_criterion(outputs[1], targets[:, 1], subbatch_indices, weights, semantic_labels=targets[:, 0])
             self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
             loss = class_loss + embed_loss
             if type(class_loss) is not float and type(embed_loss) is not float:

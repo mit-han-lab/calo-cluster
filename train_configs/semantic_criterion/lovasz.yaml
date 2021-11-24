@@ -1,0 +1,5 @@
+lovasz:
+  _target_: calo_cluster.training.criterion.LovaszSoftmaxLoss
+  weight: 0.3
+  ignore_index: ${dataset.semantic_ignore_label}
+  classes: present

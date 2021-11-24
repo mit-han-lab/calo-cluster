@@ -5,7 +5,7 @@ from calo_cluster.evaluation.experiments.hcal_pf_experiment import \
 
 def main():
     exp = HCalPFExperiment(wandb_version='3bybg4l1')
-    del exp.model.embed_criterion
+    del exp.model.instance_criterion
     dataloader = exp.datamodule.val_dataloader()
     feats = dataloader.dataset[0]['features']
     onnx_path = exp.ckpt_path.parent.parent / 'model.onnx'

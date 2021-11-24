@@ -1,0 +1,18 @@
+defaults:
+  - base_dataset
+_target_: calo_cluster.datasets.kitti.KITTIDataModule
+
+# required fields:
+num_classes: 19
+num_features: 4
+voxel_size: 0.05
+
+# dataset-specific fields (should not change):
+cluster_ignore_labels: [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 255]
+semantic_ignore_label: 255
+
+# data location (modify as needed):
+data_dir: ${data_dir}/kitti/dataset/sequences
+
+# config fields:
+num_points: 80000

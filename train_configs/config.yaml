@@ -18,7 +18,7 @@ defaults:
   - dataset: simple_offset
   - optimizer: adam
   - semantic_criterion: cross_entropy_loss
-  - embed_criterion: offset
+  - instance_criterion: offset
   - scheduler: one_cycle_lr
   - model: spvcnn_offset
   - wandb: upload

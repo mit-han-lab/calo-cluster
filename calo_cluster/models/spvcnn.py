@@ -94,8 +94,8 @@ class SPVCNN(pl.LightningModule):
         task = self.hparams.task
         assert task in ('instance', 'semantic', 'panoptic')
         if task == 'instance' or task == 'panoptic':
-            self.embed_criterion = hydra.utils.instantiate(
-                self.hparams.embed_criterion)
+            self.instance_criterion = hydra.utils.instantiate(
+                self.hparams.instance_criterion)
         if task == 'semantic' or task == 'panoptic':
             self.semantic_criterion = hydra.utils.instantiate(
                 self.hparams.semantic_criterion)
@@ -331,10 +331,10 @@ class SPVCNN(pl.LightningModule):
 
         if self.hparams.requires_semantic:
             semantic_labels = batch['semantic_labels'].F.long()
-            loss = self.embed_criterion(
+            loss = self.instance_criterion(
                 outputs, instance_targets, subbatch_indices, weights, semantic_labels=semantic_labels)
         else:
-            loss = self.embed_criterion(
+            loss = self.instance_criterion(
                 outputs, instance_targets, subbatch_indices, weights)
         self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
 
@@ -356,7 +356,7 @@ class SPVCNN(pl.LightningModule):
 
         class_loss = self.semantic_criterion(outputs[0], semantic_targets)
         self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-        embed_loss = self.embed_criterion(
+        embed_loss = self.instance_criterion(
             outputs[1], instance_targets, subbatch_indices, weights, semantic_labels=semantic_targets)
         self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
         loss = class_loss + embed_loss

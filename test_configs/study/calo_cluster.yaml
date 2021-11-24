@@ -2,6 +2,7 @@ _target_: calo_cluster.evaluation.callbacks.metric_callback.MetricCallback
 
 metric:
   _target_: calo_cluster.evaluation.metrics.calo.Response
+  experiment: ${experiment}
   name: ${name}
   bins: [0, 0.5, 1, 2, 3, 6, 10, 20, 50, 100]
   num_classes: 2

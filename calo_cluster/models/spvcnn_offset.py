@@ -93,8 +93,8 @@ class SPVCNNOffset(pl.LightningModule):
         task = self.hparams.task
         assert task in ('instance', 'semantic', 'panoptic')
         if task == 'instance' or task == 'panoptic':
-            self.embed_criterion = hydra.utils.instantiate(
-                self.hparams.embed_criterion)
+            self.instance_criterion = hydra.utils.instantiate(
+                self.hparams.instance_criterion)
         if task == 'semantic' or task == 'panoptic':
             self.semantic_criterion = hydra.utils.instantiate(
                 self.hparams.semantic_criterion)
@@ -311,9 +311,13 @@ class SPVCNNOffset(pl.LightningModule):
         targets = batch['semantic_labels'].F.long()
         sync_dist = (split != 'train')
 
-        loss = self.semantic_criterion(outputs, targets)
-        self.log(f'{split}_class_loss', loss, sync_dist=sync_dist)
-        ret = {'loss': loss, 'class_loss': loss.detach()}
+        losses = []
+        for name, criterion in self.semantic_criterion.items():
+            loss = criterion(outputs, targets)
+            self.log(f'{split}_{name}_loss', loss, sync_dist=sync_dist)
+        loss = sum(losses)
+        self.log(f'{split}_semantic_loss', loss, sync_dist=sync_dist)
+        ret = {'loss': loss, 'semantic_loss': loss.detach()}
         return ret
 
     def instance_step(self, batch, split):
@@ -321,15 +325,16 @@ class SPVCNNOffset(pl.LightningModule):
         outputs = self(inputs)['pred_offsets']
         offsets = batch['offsets'].F
         sync_dist = (split != 'train')
+        semantic_labels = batch['semantic_labels'].F.long()
 
-        if self.hparams.requires_semantic:
-            semantic_labels = batch['semantic_labels'].F.long()
-            loss = self.embed_criterion(outputs, offsets, semantic_labels=semantic_labels)
-        else:
-            loss = self.embed_criterion(outputs, offsets)
-        self.log(f'{split}_embed_loss', loss, sync_dist=sync_dist)
-        
-        ret = {'loss': loss, 'embed_loss': loss.detach()}
+        losses = []
+        for name, criterion in self.instance_criterion.items():
+            loss = criterion(outputs, offsets, semantic_labels=semantic_labels)
+            self.log(f'{split}_{name}_loss', loss, sync_dist=sync_dist)
+            losses.append(loss)
+        loss = sum(losses)
+        self.log(f'{split}_instance_loss', loss, sync_dist=sync_dist)
+        ret = {'loss': loss, 'instance_loss': loss.detach()}
         return ret
 
     def panoptic_step(self, batch, split):
@@ -339,15 +344,23 @@ class SPVCNNOffset(pl.LightningModule):
         semantic_targets = batch['semantic_labels'].F.long()
         sync_dist = (split != 'train')
 
-        class_loss = self.semantic_criterion(outputs['pred_semantic_scores'], semantic_targets)
-        self.log(f'{split}_class_loss', class_loss, sync_dist=sync_dist)
-        embed_loss = self.embed_criterion(outputs['pred_offsets'], offsets, semantic_labels=semantic_targets)
-        self.log(f'{split}_embed_loss', embed_loss, sync_dist=sync_dist)
-        loss = class_loss + embed_loss
-        if type(class_loss) is not float and type(embed_loss) is not float:
-            ret = {'loss': loss, 'class_loss': class_loss.detach(), 'embed_loss': embed_loss.detach()}
-        else:
-            ret = {'loss': loss}
+        semantic_losses = []
+        for name, criterion in self.semantic_criterion.items():
+            semantic_loss = criterion(outputs['pred_semantic_scores'], semantic_targets)
+            self.log(f'{split}_{name}_loss', semantic_loss, sync_dist=sync_dist)
+            semantic_losses.append(semantic_loss)
+        semantic_loss = sum(semantic_losses)
+        self.log(f'{split}_semantic_loss', semantic_loss, sync_dist=sync_dist)
+
+        instance_losses = []
+        for name, criterion in self.instance_criterion.items():
+            instance_loss = criterion(outputs['pred_offsets'], offsets, semantic_labels=semantic_targets)
+            self.log(f'{split}_{name}_loss', instance_loss, sync_dist=sync_dist)
+            instance_losses.append(instance_loss)
+        instance_loss = sum(instance_losses)
+        self.log(f'{split}_instance_loss', instance_loss, sync_dist=sync_dist)
+
+        loss = semantic_loss + instance_loss
         ret = {'loss': loss}
         return ret
 
