@@ -15,7 +15,7 @@ def test(cfg: DictConfig) -> None:
     callbacks = []
     study_callback = hydra.utils.instantiate(cfg.study)
     callbacks.append(study_callback)
-    trainer = pl.Trainer(gpus=1, deterministic=True, callbacks=callbacks, precision=32)
+    trainer = pl.Trainer(devices=1, deterministic=True, callbacks=callbacks, precision=32)
     if cfg.n is not None:
         experiment.datamodule.test_dataset.files = experiment.datamodule.test_dataset.files[:cfg.n]
 

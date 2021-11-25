@@ -1,4 +1,5 @@
-distributed_backend: ddp
+accelerator: gpu
+strategy: ddp
+devices: 8
 batch_size: 2
 num_epochs: 15
-gpus: 4

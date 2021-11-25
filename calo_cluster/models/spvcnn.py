@@ -286,7 +286,7 @@ class SPVCNN(pl.LightningModule):
         optimizer = self.optimizer_factory(self.parameters())
         if self.scheduler_factory is not None:
             scheduler = self.scheduler_factory(
-                optimizer, self.num_training_steps())
+                optimizer, self.num_training_steps)
             scheduler = {'scheduler': scheduler,
                          'interval': 'step', 'frequency': 1}
             return [optimizer], [scheduler]

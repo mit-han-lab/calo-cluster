@@ -1,6 +1,6 @@
 time: '1:00:00'
 cpus_per_task: 10
-gpus_per_node: ${train.gpus}
+gpus_per_node: ${train.devices}
 nodes: 1
 account: atlas
 name: slurm

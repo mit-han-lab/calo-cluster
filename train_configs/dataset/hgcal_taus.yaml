@@ -5,7 +5,7 @@ _target_: calo_cluster.datasets.hgcal_taus.HGCalTausDataModule
 # required fields:
 num_classes: 2
 num_features: 8
-voxel_size: 1.0
+voxel_size: 5.0
 
 # dataset-specific fields (should not change):
 noise_id: -1

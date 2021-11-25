@@ -1,6 +1,7 @@
 
 import hydra
 import pytorch_lightning as pl
+from pytorch_lightning.utilities.warnings import rank_zero_warn
 import torch
 import torch.nn as nn
 import torchsparse
@@ -11,6 +12,7 @@ from torchsparse.tensor import PointTensor
 from calo_cluster.utils.comm import is_rank_zero
 
 from .utils import *
+import math
 
 __all__ = ['SPVCNNOffset']
 
@@ -286,7 +288,7 @@ class SPVCNNOffset(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
         if self.scheduler_factory is not None:
-            scheduler = self.scheduler_factory(optimizer, self.num_training_steps())
+            scheduler = self.scheduler_factory(optimizer, self.num_training_steps)
             scheduler = {'scheduler': scheduler, 'interval': 'step', 'frequency': 1}
             return [optimizer], [scheduler]
         else:
@@ -295,75 +297,69 @@ class SPVCNNOffset(pl.LightningModule):
     def step(self, batch, batch_idx, split):
         task = self.hparams.task
         if task == 'semantic':
-            ret = self.semantic_step(batch, split)
+            loss = self.semantic_step(batch, split)
         elif task == 'instance':
-            ret = self.instance_step(batch, split)
+            loss = self.instance_step(batch, split)
         elif task == 'panoptic':
-            ret = self.panoptic_step(batch, split)
+            loss = self.panoptic_step(batch, split)
         else:
             raise RuntimeError("invalid task!")
-        self.log(f'{split}_loss', ret['loss'], sync_dist=(split != 'train'))
-        return ret
+        self.log(f'{split}_loss', loss)
+        return loss
 
     def semantic_step(self, batch, split):
         inputs = batch['features']
         outputs = self(inputs)['pred_semantic_scores']
         targets = batch['semantic_labels'].F.long()
-        sync_dist = (split != 'train')
 
         losses = []
         for name, criterion in self.semantic_criterion.items():
             loss = criterion(outputs, targets)
-            self.log(f'{split}_{name}_loss', loss, sync_dist=sync_dist)
+            self.log(f'{split}_{name}_loss', loss)
             losses.append(loss)
         loss = sum(losses)
-        self.log(f'{split}_semantic_loss', loss, sync_dist=sync_dist)
-        ret = {'loss': loss, 'semantic_loss': loss.detach()}
-        return ret
+        self.log(f'{split}_semantic_loss', loss)
+        return loss
 
     def instance_step(self, batch, split):
         inputs = batch['features']
         outputs = self(inputs)['pred_offsets']
         offsets = batch['offsets'].F
-        sync_dist = (split != 'train')
         semantic_labels = batch['semantic_labels'].F.long()
 
         losses = []
         for name, criterion in self.instance_criterion.items():
             loss = criterion(outputs, offsets, semantic_labels=semantic_labels)
-            self.log(f'{split}_{name}_loss', loss, sync_dist=sync_dist)
+            self.log(f'{split}_{name}_loss', loss)
             losses.append(loss)
         loss = sum(losses)
-        self.log(f'{split}_instance_loss', loss, sync_dist=sync_dist)
-        ret = {'loss': loss, 'instance_loss': loss.detach()}
-        return ret
+        self.log(f'{split}_instance_loss', loss)
+        return loss
 
     def panoptic_step(self, batch, split):
         inputs = batch['features']
         outputs = self(inputs)
         offsets = batch['offsets'].F
         semantic_targets = batch['semantic_labels'].F.long()
-        sync_dist = (split != 'train')
 
         semantic_losses = []
         for name, criterion in self.semantic_criterion.items():
             semantic_loss = criterion(outputs['pred_semantic_scores'], semantic_targets)
-            self.log(f'{split}_{name}_loss', semantic_loss, sync_dist=sync_dist)
+            self.log(f'{split}_{name}_loss', semantic_loss)
             semantic_losses.append(semantic_loss)
         semantic_loss = sum(semantic_losses)
-        self.log(f'{split}_semantic_loss', semantic_loss, sync_dist=sync_dist)
+        self.log(f'{split}_semantic_loss', semantic_loss)
 
         instance_losses = []
         for name, criterion in self.instance_criterion.items():
             instance_loss = criterion(outputs['pred_offsets'], offsets, semantic_labels=semantic_targets)
-            self.log(f'{split}_{name}_loss', instance_loss, sync_dist=sync_dist)
+            self.log(f'{split}_{name}_loss', instance_loss)
             instance_losses.append(instance_loss)
         instance_loss = sum(instance_losses)
-        self.log(f'{split}_instance_loss', instance_loss, sync_dist=sync_dist)
+        self.log(f'{split}_instance_loss', instance_loss)
 
         loss = semantic_loss + instance_loss
-        ret = {'loss': loss}
-        return ret
+        return loss
 
     def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, split='train')
@@ -374,21 +370,29 @@ class SPVCNNOffset(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, split='test')
 
+    @property
     def num_training_steps(self) -> int:
         """Total training steps inferred from datamodule and devices."""
-        if self.trainer.max_steps:
-            return self.trainer.max_steps
+        if self.trainer.num_training_batches != float('inf'):
+            dataset_size = self.trainer.num_training_batches
+        else:
+            rank_zero_warn('Requesting dataloader...')
+            dataset_size = len(self.trainer._data_connector._train_dataloader_source.dataloader())
 
-        limit_batches = self.trainer.limit_train_batches
-        batches = len(self.train_dataloader())
-        batches = min(batches, limit_batches) if isinstance(limit_batches, int) else int(limit_batches * batches)     
+        if isinstance(self.trainer.limit_train_batches, int):
+            dataset_size = min(dataset_size, self.trainer.limit_train_batches)
+        else:
+            dataset_size = int(dataset_size * self.trainer.limit_train_batches)
 
-        num_devices = max(1, self.trainer.num_gpus, self.trainer.num_processes)
-        if self.trainer.tpu_cores:
-            num_devices = max(num_devices, self.trainer.tpu_cores)
+        accelerator_connector = self.trainer._accelerator_connector
+        if accelerator_connector.use_ddp2 or accelerator_connector.use_dp:
+            effective_devices = 1
+        else:
+            effective_devices = self.trainer.devices
 
-        effective_accum = self.trainer.accumulate_grad_batches * num_devices
-        num_steps = (batches // effective_accum) * self.trainer.max_epochs 
-        num_steps += batches * self.trainer.max_epochs - num_steps * effective_accum
-        print(f'num steps = {num_steps}')
-        return num_steps
+        effective_devices = effective_devices * self.trainer.num_nodes
+        effective_batch_size = self.trainer.accumulate_grad_batches * effective_devices
+        max_estimated_steps = math.ceil(dataset_size // effective_batch_size) * self.trainer.max_epochs
+
+        max_estimated_steps = min(max_estimated_steps, self.trainer.max_steps) if self.trainer.max_steps != -1 else max_estimated_steps
+        return max_estimated_steps

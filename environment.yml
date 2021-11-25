@@ -1,0 +1,33 @@
+name: calo_cluster
+channels:
+  - defaults
+dependencies:
+  - python=3.8
+  - seaborn
+  - numpy
+  - tqdm
+  - matplotlib
+  - jupyter
+  - yaml
+  - plotly=5.1
+  - pandas
+  - scikit-learn
+  - conda-forge::uproot=4.1
+  - conda-forge::pytorch-lightning=1.5
+  - conda-forge::submitit=1.2
+  - cudatoolkit=11.3
+  - pytorch::torchvision
+  - pytorch::pytorch=1.10
+  - pytorch::torchaudio
+  - h5py
+  - colorcet=2.0
+  - autopep8
+  - pytables
+  - conda-forge::python-kaleido=0.2
+  - flake8
+  - isort
+  - conda-forge::pre_commit
+  - conda-forge::autoflake
+  - conda-forge::wandb=0.12
+  - conda-forge::hydra-core=1.1
+prefix: /global/homes/s/schuya/miniconda3/envs/calo_cluster
