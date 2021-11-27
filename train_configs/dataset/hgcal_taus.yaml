@@ -9,10 +9,10 @@ voxel_size: 5.0
 
 # dataset-specific fields (should not change):
 noise_id: -1
-cluster_ignore_labels: [0]
 semantic_label: hit
 instance_label: cluster_id
 weight: energy
+valid_semantic_labels_for_clustering: [1]
 
 # data location (modify as needed):
 data_dir: ${data_dir}/hgcal/taus

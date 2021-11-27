@@ -9,17 +9,15 @@ from .base import AbstractBaseDataModule, AbstractBaseDataset
 @dataclass
 class OffsetDatasetMixin(AbstractBaseDataset):
     "A dataset that supports cluster offsets."
-    valid_labels: List[int]
 
     def __post_init__(self):
         super().__post_init__()
-        self.valid_labels = np.array(self.valid_labels, dtype=np.int64)
 
     def _get_offset(self, coordinates: np.array, semantic_labels: np.array, instance_labels: np.array):
         labels = (instance_labels.astype(np.int64) << 32) + semantic_labels.astype(np.int64)
         offsets = np.zeros_like(coordinates, dtype=np.float32)
         for i in np.unique(labels):
-            if (i & 0xFFFFFFFF) not in self.valid_labels:
+            if (i & 0xFFFFFFFF) not in self.valid_semantic_labels_for_clustering:
                 continue
             i_indices = (labels == i).reshape(-1)
             coordinates_i = coordinates[i_indices]
@@ -37,11 +35,4 @@ class OffsetDatasetMixin(AbstractBaseDataset):
 
 @dataclass
 class OffsetDataModuleMixin(AbstractBaseDataModule):
-    valid_labels: List[int]
-
-    def make_dataset_kwargs(self) -> Dict[str, Any]:
-        kwargs = {
-            'valid_labels': self.valid_labels,
-        }
-        kwargs.update(super().make_dataset_kwargs())
-        return kwargs
+    pass

@@ -30,7 +30,7 @@ class MetricCallback(Callback):
             for k,v in batch.items():
                 if k == 'inverse_map':
                     continue
-                if '_mapped' in k:
+                if '_raw' in k:
                     subbatch[k] = v.F[im_mask]
                 else:
                     subbatch[k] = v.F[mask][inverse_map[im_mask]]

@@ -1,5 +1,3 @@
 defaults:
   - hcal_tt_merged
 _target_: calo_cluster.datasets.hcal_tt.HCalTTOffsetDataModule
-
-valid_labels: [1,]

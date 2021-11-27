@@ -65,7 +65,7 @@ class PanopticQuality(Metric):
         pred_coordinates = subbatch['coordinates'] + subbatch['pred_offsets']
         semantic_labels = subbatch['semantic_labels']
         if self.use_target:
-            pred_labels = subbatch[f'{self.target_instance_label_name}_mapped'].F.cpu().numpy()
+            pred_labels = subbatch[f'{self.target_instance_label_name}_raw'].F.cpu().numpy()
         elif self.use_nn:
             pred_labels = self.clusterer.cluster(embedding=pred_coordinates, semantic_labels=semantic_labels)
         else:
@@ -73,10 +73,10 @@ class PanopticQuality(Metric):
 
         if self.use_semantic:
             outputs = (subbatch['pred_semantic_labels'], pred_labels)
-            targets = (subbatch['semantic_labels_mapped'], subbatch['instance_labels_mapped'])
+            targets = (subbatch['semantic_labels_raw'], subbatch['instance_labels_raw'])
         else:
             outputs = pred_labels
-            targets = subbatch['instance_labels_mapped']
+            targets = subbatch['instance_labels_raw']
 
         self.add(outputs, targets)
 

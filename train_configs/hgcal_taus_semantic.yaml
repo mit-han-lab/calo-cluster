@@ -24,9 +24,10 @@ defaults:
   - checkpoint: all
   - swa: inactive
   - cluster: local
+  - metrics: iou
 
 wandb:
   name: hgcal_taus_semantic
 
 train:
-  num_epochs: 5
+  num_epochs: 15

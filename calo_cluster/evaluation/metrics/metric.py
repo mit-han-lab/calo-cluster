@@ -4,21 +4,22 @@ import logging
 from pathlib import Path
 from typing import Union
 
+import torchmetrics
+from torchmetrics.metric import Metric
+
 from calo_cluster.evaluation.experiments.base_experiment import BaseExperiment
 
+
+
 @dataclass
-class Metric(ABC):
+class TestMetric:
     experiment: BaseExperiment
-    name: Union[str, Path, None]
+    metric: Metric
+    save_name: Union[str, Path, None]
 
-    @abstractmethod
-    def add(self):
-        """Add data."""
-        raise NotImplementedError()
-
-    @abstractmethod
     def add_from_dict(self, subbatch):
         """Add data from subbatch dict."""
+        self.metric()
     
     @abstractmethod
     def _save(self, path):
@@ -32,8 +33,8 @@ class Metric(ABC):
         self._save(path)
 
     def get_path(self):
-        if self.name is not None:
-            path = (self.experiment.plots_dir / self.name)
+        if self.save_name is not None:
+            path = (self.experiment.plots_dir / self.save_name)
             path.mkdir(exist_ok=True, parents=True)
             return path
         else:

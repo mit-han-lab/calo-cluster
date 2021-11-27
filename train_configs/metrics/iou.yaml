@@ -1,0 +1,7 @@
+iou:
+  _target_: calo_cluster.evaluation.metrics.classification.IoU
+  ignore_index: ${dataset.invalid_semantic_label_for_classification}
+  absent_score: 1.0
+  threshold: 0.5
+  num_classes: ${dataset.num_classes}
+  reduction: 'elementwise_mean'

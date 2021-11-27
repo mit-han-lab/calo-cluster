@@ -30,7 +30,7 @@ class Visualize(Metric):
 
     def add_from_dict(self, subbatch):
         """Add data from subbatch dict."""
-        self.add(coords=subbatch['coordinates'].cpu().numpy(), pred_labels=subbatch['pred_semantic_labels'].cpu().numpy(), labels=subbatch['semantic_labels_mapped'].cpu().numpy(), weights=subbatch['weights_mapped'].cpu().numpy())
+        self.add(coords=subbatch['coordinates'].cpu().numpy(), pred_labels=subbatch['pred_semantic_labels'].cpu().numpy(), labels=subbatch['semantic_labels_raw'].cpu().numpy(), weights=subbatch['weights_raw'].cpu().numpy())
 
     def _save(self, path):
         for i in tqdm(range(len(self.truth_figs))):

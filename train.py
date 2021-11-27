@@ -92,7 +92,6 @@ def hydra_main(cfg: DictConfig) -> None:
     code_dir = hydra.utils.get_original_cwd()
     if is_rank_zero():
         logger.setLevel(cfg.log_level)
-        logging.info(OmegaConf.to_yaml(cfg))
         wandb_version = wandb.util.generate_id()
         add_wandb_version(cfg, wandb_version)
     if cfg.cluster.name == 'slurm':

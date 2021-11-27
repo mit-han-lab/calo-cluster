@@ -1,28 +1,18 @@
-from dataclasses import dataclass
-import torch
-from torchmetrics import IoU
-from tqdm.auto import tqdm
+from typing import Any, List, Optional
+import torchmetrics
 
-from calo_cluster.evaluation.metrics.metric import Metric
-
-@dataclass
-class IoUMetric(Metric):
-    num_classes: int
-    ignore_index: int
-    absent_score: float
-    reduction: str
-
-
-    def __post_init__(self):
-        self.iou = IoU(self.num_classes, self.ignore_index, self.absent_score, self.reduction).to(torch.device("cuda", 0))
-
-    def add(self, pred_labels, labels):
-        """Add data."""
-        self.iou(pred_labels, labels)
-
-    def add_from_dict(self, subbatch):
+class IoU(torchmetrics.IoU):
+    def __init__(self, num_classes: int, ignore_index: Optional[int] = None, absent_score: float = 0, threshold: float = 0.5, reduction: str = "elementwise_mean", compute_on_step: bool = True, dist_sync_on_step: bool = False, process_group: Optional[Any] = None) -> None:
+        super().__init__(num_classes, ignore_index=None, absent_score=absent_score, threshold=threshold, reduction=reduction, compute_on_step=compute_on_step, dist_sync_on_step=dist_sync_on_step, process_group=process_group)
+    
+    def update(self, inputs_list: List[dict], outputs_list: List[dict]):
         """Add data from subbatch dict."""
-        self.add(pred_labels=subbatch['pred_semantic_labels'], labels=subbatch['semantic_labels_mapped'])
+        for inputs, outputs in zip(inputs_list, outputs_list):
+            target = inputs['semantic_labels_raw']
+            pred = outputs['pred_semantic_labels']
+            if self.ignore_index is not None:
+                mask = (pred != self.ignore_index)
+                pred = pred[mask]
+                target = target[mask]
+            super().update(pred, target)
 
-    def _save(self, path):
-        print(f'mIoU = {self.iou.compute()}')

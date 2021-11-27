@@ -1,4 +1,6 @@
 
+from collections import defaultdict
+from typing import List
 import hydra
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.warnings import rank_zero_warn
@@ -10,6 +12,7 @@ from omegaconf import OmegaConf
 from torchsparse.tensor import PointTensor
 
 from calo_cluster.utils.comm import is_rank_zero
+import time
 
 from .utils import *
 import math
@@ -78,28 +81,13 @@ class ResidualBlock(nn.Module):
         return out
 
 
-class SPVCNNOffset(pl.LightningModule):
+class SPVCNNBackbone(pl.LightningModule):
     def __init__(self, cfg: OmegaConf):
         super().__init__()
         self.hparams.update(cfg)
-        if is_rank_zero():
-            self.save_hyperparameters(cfg)
-
-        #self.hparams.optimizer._target_ = 'calo_cluster.training.optimizers.adam_factory'
-        #self.hparams.scheduler._target_ = 'calo_cluster.training.schedulers.one_cycle_lr_factory'
-        self.optimizer_factory = hydra.utils.instantiate(
-            self.hparams.optimizer)
-        self.scheduler_factory = hydra.utils.instantiate(
-            self.hparams.scheduler)
 
         task = self.hparams.task
         assert task in ('instance', 'semantic', 'panoptic')
-        if task == 'instance' or task == 'panoptic':
-            self.instance_criterion = hydra.utils.instantiate(
-                self.hparams.instance_criterion)
-        if task == 'semantic' or task == 'panoptic':
-            self.semantic_criterion = hydra.utils.instantiate(
-                self.hparams.semantic_criterion)
 
         cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
 
@@ -285,6 +273,110 @@ class SPVCNNOffset(pl.LightningModule):
             out['pred_offsets'] = self.embedder(y3, x0, z2)
         return out
 
+class SPVCNNOffset(pl.LightningModule):
+    def __init__(self, cfg: OmegaConf):
+        super().__init__()
+        self.hparams.update(cfg)
+        if is_rank_zero():
+            self.save_hyperparameters(cfg)
+
+        self.optimizer_factory = hydra.utils.instantiate(
+            self.hparams.optimizer)
+        self.scheduler_factory = hydra.utils.instantiate(
+            self.hparams.scheduler)
+
+        task = self.hparams.task
+        assert task in ('instance', 'semantic', 'panoptic')
+        if task == 'instance' or task == 'panoptic':
+            self.instance_criterion = hydra.utils.instantiate(
+                self.hparams.instance_criterion)
+        if task == 'semantic' or task == 'panoptic':
+            self.semantic_criterion = hydra.utils.instantiate(
+                self.hparams.semantic_criterion)
+
+        if task == 'instance' or task == 'panoptic':
+            self.clusterer = hydra.utils.instantiate(self.hparams.clusterer)
+
+        if 'metrics' in self.hparams:
+            self.metrics = nn.ModuleDict(hydra.utils.instantiate(self.hparams.metrics))
+        else:
+            self.metrics = {}
+
+        self.backbone = SPVCNNBackbone(cfg)
+
+    def num_inf_or_nan(self, x):
+        return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
+
+    def cluster(self, inputs, outputs):
+        pred_offsets = outputs['pred_offsets']
+        coordinates = inputs['coordinates']
+        if self.hparams.task == 'panoptic':
+            semantic_labels = outputs['pred_semantic_labels']
+        else:
+            semantic_labels = inputs['semantic_labels_raw']
+        pred_instance_labels = []
+        for i in len(pred_offsets):
+            pred_instance_labels_i = torch.full_like(semantic_labels[i], fill_value=-1)
+            valid = torch.isin(semantic_labels[i], self.hparams.dataset.valid_semantic_labels_for_clustering)
+            shifted_coordinates = coordinates[i][valid] + pred_offsets[i][valid]
+            pred_instance_labels_i[valid] = self.clusterer(shifted_coordinates)
+            pred_instance_labels.append(pred_instance_labels_i)
+
+        return pred_instance_labels
+
+    def unbatch(self, inputs, outputs, production=False):
+        subbatch_idx = inputs['features'].C[..., -1]
+        subbatch_im_idx = inputs['inverse_map'].C[..., -1]
+        inputs_list = []
+        outputs_list = []
+        for j in torch.unique(subbatch_idx):
+            mask = (subbatch_idx == j)
+            im_mask = (subbatch_im_idx == j)
+            inputs_j = {}
+            outputs_j = {}
+            for k,v in inputs.items():
+                if '_raw' in k or k == 'inverse_map':
+                    inputs_j[k] = v.F[im_mask]
+                else:
+                    inputs_j[k] = v.F[mask]
+            for k,v in outputs.items():
+                outputs_j[k] = v[mask]
+            inputs_list.append(inputs_j)
+            outputs_list.append(outputs_j)
+        return inputs_list, outputs_list
+
+    def devoxelize(self, inputs_list, outputs_list):
+        """If not training, devoxelize every input/output. For training, devoxelization is unnecessary, so do nothing."""
+        if self.training:
+            return {}, {}
+        inputs_devox = []
+        outputs_devox = []
+        for inputs, outputs in zip(inputs_list, outputs_list):
+            inverse_map = inputs['inverse_map']
+            inputs_devox_j = {}
+            outputs_devox_j = {}
+            for k,v in inputs.items():
+                if k == 'inverse_map':
+                    continue
+                if '_raw' in k:
+                    inputs_devox_j[k] = v
+                else:
+                    inputs_devox_j[k] = v[inverse_map]
+            for k,v in outputs.items():
+                outputs_devox_j[k] = v[inverse_map]
+            inputs_devox.append(inputs_devox_j)
+            outputs_devox.append(outputs_devox_j)
+        return inputs_devox, outputs_devox
+
+
+    def forward(self, inputs):
+        outputs = self.backbone(inputs['features'])
+        inputs_list, outputs_list = self.unbatch(inputs, outputs)
+        if not self.training and self.hparams.task in ('instance', 'panoptic'):
+            outputs_list['pred_instance_labels'] = self.cluster(inputs_list, outputs_list)
+        inputs_devoxelized, outputs_devoxelized = self.devoxelize(inputs_list, outputs_list)
+        return outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized
+
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
         if self.scheduler_factory is not None:
@@ -294,72 +386,62 @@ class SPVCNNOffset(pl.LightningModule):
         else:
             return optimizer
 
-    def step(self, batch, batch_idx, split):
+    def validation_epoch_end(self, ret) -> None:
+        for name, metric in self.metrics.items():
+            result = metric.compute()
+            if result.ndim == 0:
+                self.log(f'val_{name}', result)
+            metric.reset()
+
+    def step(self, inputs, batch_idx, split):
+        outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized = self(inputs)
         task = self.hparams.task
         if task == 'semantic':
-            loss = self.semantic_step(batch, split)
+            loss = self.semantic_step(inputs, outputs, split)
         elif task == 'instance':
-            loss = self.instance_step(batch, split)
+            loss = self.instance_step(inputs_list, outputs_list, split)
         elif task == 'panoptic':
-            loss = self.panoptic_step(batch, split)
+            loss = self.panoptic_step(inputs, outputs, inputs_list, outputs_list, split)
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss)
+
+        if split == 'val':
+            for metric in self.metrics.values():
+                metric(inputs_devoxelized, outputs_devoxelized)
+        
         return loss
 
-    def semantic_step(self, batch, split):
-        inputs = batch['features']
-        outputs = self(inputs)['pred_semantic_scores']
-        targets = batch['semantic_labels'].F.long()
+    def semantic_step(self, inputs, outputs, split):
+        targets = inputs['semantic_labels'].F.long()
 
         losses = []
         for name, criterion in self.semantic_criterion.items():
-            loss = criterion(outputs, targets)
+            loss = criterion(outputs['pred_semantic_scores'], targets)
             self.log(f'{split}_{name}_loss', loss)
             losses.append(loss)
         loss = sum(losses)
         self.log(f'{split}_semantic_loss', loss)
         return loss
 
-    def instance_step(self, batch, split):
-        inputs = batch['features']
-        outputs = self(inputs)['pred_offsets']
-        offsets = batch['offsets'].F
-        semantic_labels = batch['semantic_labels'].F.long()
-
-        losses = []
+    def instance_step(self, inputs_list, outputs_list, split):
+        losses = {}
         for name, criterion in self.instance_criterion.items():
-            loss = criterion(outputs, offsets, semantic_labels=semantic_labels)
-            self.log(f'{split}_{name}_loss', loss)
-            losses.append(loss)
-        loss = sum(losses)
+            for inputs, outputs in zip(inputs_list, outputs_list):
+                loss = criterion(outputs['pred_offsets'], inputs['offsets'], semantic_labels=outputs['semantic_labels'].long())
+                if name in losses:
+                    losses[name] += loss
+                else:
+                    losses[name] = loss
+            self.log(f'{split}_{name}_loss', losses[name])
+        loss = sum(losses.values())
         self.log(f'{split}_instance_loss', loss)
         return loss
 
-    def panoptic_step(self, batch, split):
-        inputs = batch['features']
-        outputs = self(inputs)
-        offsets = batch['offsets'].F
-        semantic_targets = batch['semantic_labels'].F.long()
-
-        semantic_losses = []
-        for name, criterion in self.semantic_criterion.items():
-            semantic_loss = criterion(outputs['pred_semantic_scores'], semantic_targets)
-            self.log(f'{split}_{name}_loss', semantic_loss)
-            semantic_losses.append(semantic_loss)
-        semantic_loss = sum(semantic_losses)
-        self.log(f'{split}_semantic_loss', semantic_loss)
-
-        instance_losses = []
-        for name, criterion in self.instance_criterion.items():
-            instance_loss = criterion(outputs['pred_offsets'], offsets, semantic_labels=semantic_targets)
-            self.log(f'{split}_{name}_loss', instance_loss)
-            instance_losses.append(instance_loss)
-        instance_loss = sum(instance_losses)
-        self.log(f'{split}_instance_loss', instance_loss)
-
-        loss = semantic_loss + instance_loss
-        return loss
+    def panoptic_step(self, inputs, outputs, inputs_list, outputs_list, split):
+        semantic_loss = self.semantic_step(inputs, outputs, split)
+        instance_loss = self.instance_step(inputs_list, outputs_list, split)
+        return semantic_loss + instance_loss
 
     def training_step(self, batch, batch_idx):
         return self.step(batch, batch_idx, split='train')

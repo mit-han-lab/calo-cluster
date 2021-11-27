@@ -9,7 +9,7 @@ voxel_size: 0.1
 
 # dataset-specific fields (should not change):
 noise_id: -99
-cluster_ignore_labels: [0,]
+valid_semantic_labels_for_clustering: [1]
 semantic_label: pf_hit
 instance_label: PFcluster0Id
 weight: energy

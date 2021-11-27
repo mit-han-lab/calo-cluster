@@ -24,9 +24,11 @@ class BaseDataset(AbstractBaseDataset, Dataset):
     1. override _get_numpy().
     2. override collate_fn if a different collate method is required for the dataset."""
     files: List[Path]
+    valid_semantic_labels_for_clustering: List[int]
 
     def __post_init__(self):
         super().__init__()
+        self.valid_semantic_labels_for_clustering = np.array(self.valid_semantic_labels_for_clustering, dtype=np.int64)
 
     def __len__(self):
         return len(self.files)
@@ -89,8 +91,8 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
     train_frac: float
     test_frac: float
 
-    cluster_ignore_labels: List[int]
-    semantic_ignore_label: Union[int, None]
+    valid_semantic_labels_for_clustering: List[int]
+    invalid_semantic_label_for_classification: Union[int, None]
 
     batch_dim: int
 
@@ -151,12 +153,13 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
             self.test_dataset = self.make_dataset(test_files, split='test')
 
     def dataloader(self, dataset: BaseDataset) -> DataLoader:
+        persistent_workers = (self.num_workers > 0)
         return DataLoader(
             dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=True,
-            persistent_workers=True,
+            persistent_workers=persistent_workers,
             collate_fn=dataset.collate_fn,
             worker_init_fn=lambda worker_id: np.random.seed(self.seed + worker_id))
 
@@ -170,7 +173,10 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
         return self.dataloader(self.test_dataset)
 
     def make_dataset_kwargs(self) -> Dict[str, Any]:
-        return {}
+        kwargs = {
+            'valid_semantic_labels_for_clustering': self.valid_semantic_labels_for_clustering,
+        }
+        return kwargs
 
 
     def estimate_class_weights(self) -> np.array:
@@ -186,7 +192,7 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
         counts = np.zeros(self.num_classes, dtype=np.long)
         for i, batch in tqdm(enumerate(dataloader), total=len(dataset)):
             for j in range(self.num_classes):
-                counts[j] += (batch['semantic_labels_mapped'].F.cpu().numpy() == j).sum()
+                counts[j] += (batch['semantic_labels_raw'].F.cpu().numpy() == j).sum()
         
         weights = 1. / counts
         weights /= weights.min()

@@ -1,4 +1,6 @@
+from collections import defaultdict
 import torch
+from torch import nn
 import torchsparse.nn.functional as F
 from torchsparse import PointTensor, SparseTensor
 from torchsparse.nn.utils import get_kernel_offsets

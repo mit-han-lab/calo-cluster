@@ -23,6 +23,7 @@ class SparseDatasetMixin(AbstractBaseDataset):
     voxel_size: float
 
     def _get_sparse_tensors(self, index: int) -> Dict[str, SparseTensor]:
+        """Keys with 'raw' indicate that the data is unmodified from the dense dict. All other data is the result of voxelization."""
         dense_dict = self._get_numpy(index)
         coordinates_ = dense_dict['coordinates']
         coordinates_ = np.round(coordinates_ / self.voxel_size)
@@ -34,15 +35,11 @@ class SparseDatasetMixin(AbstractBaseDataset):
 
         coordinates = coordinates_[inds]
         sparse_dict = {k: SparseTensor(v[inds], coordinates)
-                       for k, v in dense_dict.items() if k != 'coordinates'}
+                       for k, v in dense_dict.items()}
         inverse_map = SparseTensor(inverse_map, coordinates_)
         sparse_dict['inverse_map'] = inverse_map
-        coordinates = SparseTensor(
-            dense_dict['coordinates'][inds], coordinates_)
-        sparse_dict['coordinates'] = coordinates
         for k, v in dense_dict.items():
-            if k != 'coordinates':
-                sparse_dict[f'{k}_mapped'] = SparseTensor(v, coordinates_)
+            sparse_dict[f'{k}_raw'] = SparseTensor(v, coordinates_)
         return sparse_dict
 
     def __getitem__(self, index: int) -> Dict[str, Any]:

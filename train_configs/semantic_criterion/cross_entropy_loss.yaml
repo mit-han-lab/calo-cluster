@@ -1,5 +1,5 @@
 cross_entropy:
   _target_: calo_cluster.training.criterion.WeightedCrossEntropyLoss
   weight: 0.3
-  ignore_index: ${dataset.semantic_ignore_label}
+  ignore_index: ${dataset.invalid_semantic_label_for_classification}
   class_weights: ${dataset.class_weights}
