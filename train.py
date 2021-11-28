@@ -13,6 +13,9 @@ from calo_cluster.models.spvcnn import SPVCNN
 from calo_cluster.training.config import add_wandb_version, fix_task
 from calo_cluster.utils.comm import is_rank_zero
 import wandb
+import io
+import logging
+import pstats
 
 
 def train(cfg: DictConfig, code_dir: str) -> None:
@@ -82,7 +85,20 @@ def train(cfg: DictConfig, code_dir: str) -> None:
     trainer = pl.Trainer(devices=cfg.train.devices, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=cfg.deterministic, accelerator=cfg.train.accelerator, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=32, log_every_n_steps=1)
     if is_rank_zero():
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
-    trainer.fit(model=model, datamodule=datamodule)
+    if cfg.profile:
+        import cProfile
+        pr = cProfile.Profile()
+
+        # profiled method
+        pr = pr.runctx('trainer.fit(model=model, datamodule=datamodule)', {'trainer': trainer, 'model': model, 'datamodule': datamodule}, {})
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats('cumtime')
+        ps.print_stats()
+
+        with open('/global/homes/s/schuya/calo-cluster/profile.txt', 'w+') as f:
+            f.write(s.getvalue())
+    else:
+        trainer.fit(model=model, datamodule=datamodule)
 
 
 @hydra.main(config_path="train_configs", config_name="config")

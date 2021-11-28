@@ -19,7 +19,6 @@ defaults:
   - dataset: kitti_offset
   - optimizer: sgd
   - semantic_criterion: [cross_entropy_loss, lovasz]
-  - instance_criterion: offset
   - scheduler: cosine_schedule_with_warmup
   - model: spvcnn_offset
   - wandb: upload
@@ -29,4 +28,4 @@ defaults:
   - metrics: iou
 
 wandb:
-  name: kitti_panoptic
+  name: kitti_semantic

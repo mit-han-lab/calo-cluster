@@ -13,6 +13,7 @@ init_ckpt: null
 overfit: False
 log_level: INFO
 val_check_interval: 0.5
+profile: False
 defaults:
   - train: single_gpu
   - dataset: hgcal_taus_offset

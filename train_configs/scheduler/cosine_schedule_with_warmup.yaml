@@ -1,0 +1,2 @@
+_target_: calo_cluster.training.schedulers.cosine_schedule_with_warmup_factory
+devices: ${train.devices}
