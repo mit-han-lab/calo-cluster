@@ -1,5 +1,6 @@
 
 from collections import defaultdict
+import logging
 from typing import List
 import hydra
 import pytorch_lightning as pl
@@ -63,7 +64,11 @@ class BaseLightningModule(pl.LightningModule):
         valid = torch.isin(semantic_labels, self.valid_semantic_labels_for_clustering)
         shifted_coordinates = coordinates[valid] + pred_offsets[valid]
         pred_instance_labels = torch.full_like(semantic_labels, fill_value=-1)
-        pred_instance_labels[valid] = self.clusterer(shifted_coordinates)
+        try:
+            pred_instance_labels[valid] = self.clusterer(shifted_coordinates)
+        except:
+            pass
+            
 
         return pred_instance_labels
 
