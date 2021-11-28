@@ -129,9 +129,9 @@ class BaseLightningModule(pl.LightningModule):
         outputs = self.backbone(inputs)
         inputs_list, outputs_list = self.unbatch(inputs, outputs)
         if not self.training and self.hparams.task in ('instance', 'panoptic'):
-            for inputs, outputs in zip(inputs_list, outputs_list):
-                outputs['pred_instance_labels'] = self.cluster(inputs, outputs)
-                outputs['pred_semantic_labels'] = self.merge_instance_semantic(outputs['pred_semantic_labels'], outputs['pred_instance_labels'])
+            for inputs_i, outputs_i in zip(inputs_list, outputs_list):
+                outputs_i['pred_instance_labels'] = self.cluster(inputs_i, outputs_i)
+                outputs_i['pred_semantic_labels'] = self.merge_instance_semantic(outputs_i['pred_semantic_labels'], outputs_i['pred_instance_labels'])
         inputs_devoxelized, outputs_devoxelized = self.devoxelize(inputs_list, outputs_list)
         return outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized
 
