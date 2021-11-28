@@ -5,34 +5,18 @@ from sklearn.neighbors import NearestNeighbors
 
 import numpy as np
 import torch
-from calo_cluster.clustering.base_clusterer import BaseClusterer
+import pytorch_lightning as pl
 
-class MeanShiftCuda(BaseClusterer):
-    def __init__(self, *, use_semantic, valid_semantic_labels, bandwidth, seeds, cluster_all, max_iter):
+class MeanShiftCuda(pl.LightningModule):
+    def __init__(self, *, bandwidth, seeds, cluster_all, max_iter):
+        super().__init__()
         if type(seeds) is str:
             seeds = None
         self.meanshift = partial(mean_shift_cuda, bandwidth=bandwidth, seeds=seeds, cluster_all=cluster_all, max_iter=max_iter)
-        super().__init__(use_semantic, valid_semantic_labels)
 
-    def cluster(self, embedding, semantic_labels=None):
-        """Clusters hits in event. If self.use_semantic, clusters only within each predicted semantic subset. 
-           If self.valid_semantic_labels, ignores hits without the given semantic labels."""
-        if self.use_semantic:
-            cluster_labels = np.full(semantic_labels.shape[0], fill_value=-1)
-            unique_semantic_labels = torch.unique(semantic_labels)
-            i = 0
-            for l in unique_semantic_labels:
-                if l not in self.valid_semantic_labels:
-                    continue
-                mask = (semantic_labels == l)
-                _, labels = self.meanshift(embedding[mask])
-                labels += i
-                cluster_labels[mask.cpu().numpy()] = labels
-                i += np.unique(labels).shape[0]
-        else:
-            _, labels = self.meanshift(embedding)
-            cluster_labels = labels
-        return cluster_labels
+    def forward(self, embedding):
+        _, labels = self.meanshift(embedding)
+        return labels
 
 
 def mean_shift_cuda(
@@ -83,7 +67,7 @@ def mean_shift_cuda(
     distances, indices = nbrs.kneighbors(X.cpu().numpy())
     
     if cluster_all:
-        labels = indices.flatten()
+        labels = torch.tensor(indices.flatten(), device=X.device)
     else:
         labels = torch.full(X.shape[0], -1, dtype=np.int, device=X.device)
         mask = (distances.flatten() <= bandwidth)

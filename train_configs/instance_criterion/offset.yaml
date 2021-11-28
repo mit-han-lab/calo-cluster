@@ -1,5 +1,4 @@
 offset:
   _target_: calo_cluster.training.criterion.OffsetInstanceLoss
-  valid_labels: ${dataset.valid_semantic_labels_for_clustering}
   ignore_singleton: False
   weight: 0.4

@@ -15,6 +15,7 @@ import wandb
 import io
 import logging
 import pstats
+import warnings
 
 
 def train(cfg: DictConfig, code_dir: str) -> None:
@@ -78,8 +79,9 @@ def train(cfg: DictConfig, code_dir: str) -> None:
     model = hydra.utils.instantiate(cfg.model.target, cfg)
     
     # train
-    trainer = pl.Trainer(devices=cfg.train.devices, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=cfg.deterministic, accelerator=cfg.train.accelerator, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=32, log_every_n_steps=1)
+    trainer = pl.Trainer(devices=cfg.train.devices, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=cfg.deterministic, accelerator=cfg.train.accelerator, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=32, log_every_n_steps=1, num_sanity_val_steps=0)
     if is_rank_zero():
+        warnings.filterwarnings("ignore", category=UserWarning)
         trainer.logger.log_hyperparams(cfg._content)  # pylint: disable=no-member
     if cfg.profile:
         import cProfile

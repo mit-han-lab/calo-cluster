@@ -1,0 +1,6 @@
+_target_: calo_cluster.clustering.meanshift.MeanShift
+bandwidth: 1.2
+seeds: null
+cluster_all: True
+max_iter: 300
+n_jobs: null

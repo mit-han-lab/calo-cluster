@@ -16,6 +16,7 @@ import time
 
 from .utils import *
 import math
+from scipy import stats
 
 class BaseLightningModule(pl.LightningModule):
     def __init__(self, cfg: OmegaConf):
@@ -46,6 +47,7 @@ class BaseLightningModule(pl.LightningModule):
         else:
             self.metrics = {}
 
+        self.register_buffer('valid_semantic_labels_for_clustering', torch.tensor(self.hparams.dataset.valid_semantic_labels_for_clustering))
         self.backbone = hydra.utils.instantiate(self.hparams.model.backbone, cfg=cfg, _recursive_=False)
 
     def num_inf_or_nan(self, x):
@@ -58,9 +60,9 @@ class BaseLightningModule(pl.LightningModule):
             semantic_labels = outputs['pred_semantic_labels']
         else:
             semantic_labels = inputs['semantic_labels_raw']
-        pred_instance_labels = torch.full_like(semantic_labels, fill_value=-1)
-        valid = torch.isin(semantic_labels, self.hparams.dataset.valid_semantic_labels_for_clustering)
+        valid = torch.isin(semantic_labels, self.valid_semantic_labels_for_clustering)
         shifted_coordinates = coordinates[valid] + pred_offsets[valid]
+        pred_instance_labels = torch.full_like(semantic_labels, fill_value=-1)
         pred_instance_labels[valid] = self.clusterer(shifted_coordinates)
 
         return pred_instance_labels
@@ -109,6 +111,19 @@ class BaseLightningModule(pl.LightningModule):
             outputs_devox.append(outputs_devox_j)
         return inputs_devox, outputs_devox
 
+    def merge_instance_semantic(self, sem, ins):
+        if len(self.valid_semantic_labels_for_clustering) == 1:
+            return sem
+        sem = sem.clone()
+        ins_ids = torch.unique(ins)
+        for id in ins_ids:
+            if id == -1: # id==-1 means stuff classes
+                continue
+            ind = (ins == id)
+            sub_sem = sem[ind]
+            mode_sem_id = torch.mode(sub_sem)[0]
+            sem[ind] = mode_sem_id
+        return sem
 
     def forward(self, inputs):
         outputs = self.backbone(inputs)
@@ -116,6 +131,7 @@ class BaseLightningModule(pl.LightningModule):
         if not self.training and self.hparams.task in ('instance', 'panoptic'):
             for inputs, outputs in zip(inputs_list, outputs_list):
                 outputs['pred_instance_labels'] = self.cluster(inputs, outputs)
+                outputs['pred_semantic_labels'] = self.merge_instance_semantic(outputs['pred_semantic_labels'], outputs['pred_instance_labels'])
         inputs_devoxelized, outputs_devoxelized = self.devoxelize(inputs_list, outputs_list)
         return outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized
 
@@ -170,7 +186,12 @@ class BaseLightningModule(pl.LightningModule):
         losses = {}
         for name, criterion in self.instance_criterion.items():
             for inputs, outputs in zip(inputs_list, outputs_list):
-                loss = criterion(outputs['pred_offsets'], inputs['offsets'], semantic_labels=outputs['semantic_labels'].long())
+                if self.hparams.task == 'panoptic':
+                    semantic_labels = outputs['pred_semantic_labels']
+                else:
+                    semantic_labels = inputs['semantic_labels']
+                valid = torch.isin(semantic_labels, self.valid_semantic_labels_for_clustering)
+                loss = criterion(outputs['pred_offsets'], inputs['offsets'], valid)
                 if name in losses:
                     losses[name] += loss
                 else:

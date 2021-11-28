@@ -3,38 +3,20 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 import numpy as np
+import pytorch_lightning as pl
 
-from calo_cluster.clustering.base_clusterer import BaseClusterer
 
-
-class MeanShift(BaseClusterer):
-    def __init__(self, *, use_semantic, valid_semantic_labels, bandwidth, seeds, cluster_all, max_iter, n_jobs):
+class MeanShift(pl.LightningModule):
+    def __init__(self, *, bandwidth, seeds, cluster_all, max_iter, n_jobs):
+        super().__init__()
         if type(seeds) is str:
             seeds = None
         self.meanshift = partial(mean_shift_cpu, bandwidth=bandwidth, seeds=seeds, cluster_all=cluster_all, max_iter=max_iter, n_jobs=n_jobs)
-        super().__init__(use_semantic, valid_semantic_labels)
 
-    def cluster(self, embedding, semantic_labels=None):
-        """Clusters hits in event. If self.use_semantic, clusters only within each predicted semantic subset. 
-           If self.valid_semantic_labels, ignores hits without the given semantic labels."""
+    def forward(self, embedding):
         embedding = embedding.cpu().numpy()
-        if semantic_labels is not None:
-            semantic_labels = semantic_labels.cpu().numpy()
-        if self.use_semantic:
-            cluster_labels = np.full_like(semantic_labels, fill_value=-1)
-            unique_semantic_labels = np.unique(semantic_labels)
-            i = 0
-            for l in unique_semantic_labels:
-                if l not in self.valid_semantic_labels:
-                    continue
-                mask = (semantic_labels == l)
-                _, labels = self.meanshift(embedding[mask])
-                cluster_labels[mask] = labels + i
-                i += np.unique(labels).shape[0]
-        else:
-            _, labels = self.meanshift(embedding)
-            cluster_labels = labels
-        return cluster_labels
+        _, labels = self.meanshift(embedding)
+        return labels
 
 def mean_shift_cpu(
     X,
