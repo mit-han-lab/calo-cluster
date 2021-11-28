@@ -9,7 +9,6 @@ hydra:
 seed: 1588147245
 deterministic: False
 resume_ckpt: null
-init_ckpt: null
 overfit: False
 log_level: INFO
 val_check_interval: 0.5
@@ -20,7 +19,7 @@ defaults:
   - semantic_criterion: cross_entropy_loss
   - instance_criterion: offset
   - scheduler: one_cycle_lr
-  - model: spvcnn_offset
+  - model: spvcnn
   - wandb: upload
   - checkpoint: all
   - swa: inactive

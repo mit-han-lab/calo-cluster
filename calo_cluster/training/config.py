@@ -15,8 +15,14 @@ def fix_task(cfg: DictConfig) -> None:
             raise RuntimeError('semantic_criterion and/or instance_criterion must be set!')
 
         if instance:
-            requires_semantic = ('method' not in cfg.instance_criterion) or cfg.instance_criterion.method in ['ignore', 'separate']
+            requires_semantic = ('offset' in cfg.instance_criterion) or cfg.instance_criterion.centroid.method in ['ignore', 'separate']
             cfg.requires_semantic = requires_semantic
+            if 'offset' in cfg.instance_criterion and 'embed_dim' not in cfg.model:
+                if 'coords' in cfg.dataset:
+                    cfg.model.embed_dim = len(cfg.dataset.coords)
+                else:
+                    cfg.model.embed_dim = 3
+
 
 def add_wandb_version(cfg: DictConfig, wandb_version):
     with open_dict(cfg):

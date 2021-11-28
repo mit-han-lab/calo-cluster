@@ -26,7 +26,7 @@ class SparseDatasetMixin(AbstractBaseDataset):
         """Keys with 'raw' indicate that the data is unmodified from the dense dict. All other data is the result of voxelization."""
         dense_dict = self._get_numpy(index)
         coordinates_ = dense_dict['coordinates']
-        coordinates_ = np.round(coordinates_ / self.voxel_size)
+        coordinates_ = np.round(coordinates_ / self.voxel_size).astype(np.int32)
         coordinates_ -= coordinates_.min(0, keepdims=1)
 
         _, inds, inverse_map = sparse_quantize(coordinates_,

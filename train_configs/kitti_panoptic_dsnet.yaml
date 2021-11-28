@@ -9,7 +9,6 @@ hydra:
 seed: 1588147245
 deterministic: False
 resume_ckpt: null
-init_ckpt: null
 overfit: False
 log_level: INFO
 val_check_interval: 0.5
@@ -21,12 +20,17 @@ defaults:
   - semantic_criterion: [cross_entropy_loss, lovasz]
   - instance_criterion: offset
   - scheduler: cosine_schedule_with_warmup
-  - model: spvcnn_offset
-  - wandb: upload
+  - model: dsnet
+  - wandb: local
   - checkpoint: all
   - swa: inactive
   - cluster: local
   - metrics: iou
+  - clusterer: meanshift_cuda
+  - _self_
 
 wandb:
-  name: kitti_panoptic
+  name: kitti_panoptic_dsnet
+
+clusterer:
+  bandwidth: 1.2
