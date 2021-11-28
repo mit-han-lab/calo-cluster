@@ -1,0 +1,8 @@
+clusterer:
+  _target_: calo_cluster.clustering.meanshift_cuda.MeanShiftCuda
+  bandwidth: 1.2
+  use_semantic: True
+  valid_semantic_labels: ${dataset.valid_semantic_labels_for_clustering}
+  seeds: null
+  cluster_all: True
+  max_iter: 300

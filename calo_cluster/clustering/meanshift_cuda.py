@@ -7,22 +7,22 @@ import numpy as np
 import torch
 from calo_cluster.clustering.base_clusterer import BaseClusterer
 
-class MeanShift2Cuda(BaseClusterer):
-    def __init__(self, *, use_semantic, ignore_semantic_labels, bandwidth, seeds, cluster_all, max_iter):
+class MeanShiftCuda(BaseClusterer):
+    def __init__(self, *, use_semantic, valid_semantic_labels, bandwidth, seeds, cluster_all, max_iter):
         if type(seeds) is str:
             seeds = None
         self.meanshift = partial(mean_shift_cuda, bandwidth=bandwidth, seeds=seeds, cluster_all=cluster_all, max_iter=max_iter)
-        super().__init__(use_semantic, ignore_semantic_labels)
+        super().__init__(use_semantic, valid_semantic_labels)
 
     def cluster(self, embedding, semantic_labels=None):
         """Clusters hits in event. If self.use_semantic, clusters only within each predicted semantic subset. 
-           If self.ignore_semantic_labels, ignores hits with the given semantic labels."""
+           If self.valid_semantic_labels, ignores hits without the given semantic labels."""
         if self.use_semantic:
             cluster_labels = np.full(semantic_labels.shape[0], fill_value=-1)
             unique_semantic_labels = torch.unique(semantic_labels)
             i = 0
             for l in unique_semantic_labels:
-                if l in self.ignore_semantic_labels:
+                if l not in self.valid_semantic_labels:
                     continue
                 mask = (semantic_labels == l)
                 _, labels = self.meanshift(embedding[mask])
