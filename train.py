@@ -16,7 +16,7 @@ import io
 import logging
 import pstats
 import warnings
-
+from pytorch_lightning.callbacks import RichProgressBar
 
 def train(cfg: DictConfig, code_dir: str) -> None:
     logging.info('Beginning training...')
@@ -47,6 +47,10 @@ def train(cfg: DictConfig, code_dir: str) -> None:
         resume_from_checkpoint = None
     checkpoint_callback = hydra.utils.instantiate(cfg.checkpoint)
     callbacks.append(checkpoint_callback)
+
+    # add rich progress bar
+    if cfg.cluster.name == 'local':
+        callbacks.append(RichProgressBar())
 
     # Set up learning rate monitor.
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')

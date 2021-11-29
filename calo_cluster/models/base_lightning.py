@@ -242,7 +242,7 @@ class BaseLightningModule(pl.LightningModule):
 
         effective_devices = effective_devices * self.trainer.num_nodes
         effective_batch_size = self.trainer.accumulate_grad_batches * effective_devices
-        max_estimated_steps = math.ceil(dataset_size // effective_batch_size) * self.trainer.max_epochs
+        max_estimated_steps = math.ceil((dataset_size + effective_batch_size - 1) // effective_batch_size) * self.trainer.max_epochs
 
         max_estimated_steps = min(max_estimated_steps, self.trainer.max_steps) if self.trainer.max_steps != -1 else max_estimated_steps
         return max_estimated_steps

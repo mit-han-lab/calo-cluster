@@ -30,4 +30,5 @@ dependencies:
   - conda-forge::autoflake
   - conda-forge::wandb=0.12
   - conda-forge::hydra-core=1.1
+  - conda-forge::rich
 prefix: /global/homes/s/schuya/miniconda3/envs/calo_cluster
