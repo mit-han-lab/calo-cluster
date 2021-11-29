@@ -25,7 +25,7 @@ defaults:
   - checkpoint: all
   - swa: inactive
   - cluster: local
-  - metrics: iou
+  - metrics: [iou, pq]
   - clusterer: meanshift_cuda
   - _self_
 

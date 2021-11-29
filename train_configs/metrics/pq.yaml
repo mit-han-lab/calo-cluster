@@ -1,0 +1,6 @@
+pq:
+  _target_: calo_cluster.evaluation.metrics.instance.PanopticQuality
+  num_classes: ${dataset.num_classes}
+  semantic: True
+  invalid_semantic_label_for_classification: ${dataset.invalid_semantic_label_for_classification}
+  valid_semantic_labels_for_clustering: ${dataset.valid_semantic_labels_for_clustering}
