@@ -54,7 +54,6 @@ kept_labels = [
 @dataclass
 class KITTIDatasetMixin(BaseDataset):
     split: str
-    num_points: int
     label_map: np.array
 
     def __post_init__(self):
@@ -68,15 +67,15 @@ class KITTIDatasetMixin(BaseDataset):
         with open(self.files[index], 'rb') as b:
             block_ = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
         block = np.zeros_like(block_)
-
         if 'train' in self.split:
-            theta = np.random.uniform(0, 2 * np.pi)
-            scale_factor = np.random.uniform(0.95, 1.05)
-            rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
-                                [-np.sin(theta),
-                                 np.cos(theta), 0], [0, 0, 1]])
+            # theta = np.random.uniform(0, 2 * np.pi)
+            # scale_factor = np.random.uniform(0.95, 1.05)
+            # rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
+            #                     [-np.sin(theta),
+            #                      np.cos(theta), 0], [0, 0, 1]])
 
-            block[:, :3] = np.dot(block_[:, :3], rot_mat) * scale_factor
+            # block[:, :3] = np.dot(block_[:, :3], rot_mat) * scale_factor
+            block[...] = block_[...]
         else:
             theta = self.angle
             transform_mat = np.array([[np.cos(theta),
@@ -100,13 +99,6 @@ class KITTIDatasetMixin(BaseDataset):
                 np.int32)
         instance_labels = ((all_labels >> 16) & 0xFFFF).astype(np.int32)
 
-        if 'train' in self.split and len(block) > self.num_points:
-            inds = np.random.choice(
-                np.arange(len(block)), self.num_points, replace=False)
-            block = block[inds]
-            semantic_labels = semantic_labels[inds]
-            instance_labels = instance_labels[inds]
-
         return_dict = {'features': block, 'coordinates': block[:, :3], 'semantic_labels': semantic_labels, 'instance_labels': instance_labels}
         return return_dict
 
@@ -114,7 +106,6 @@ class KITTIDatasetMixin(BaseDataset):
 @dataclass
 class KITTIDataModuleMixin(BaseDataModule):
     data_dir: str
-    num_points: int
 
     def __post_init__(self):
         reverse_label_name_mapping = {}
@@ -172,7 +163,6 @@ class KITTIDataModuleMixin(BaseDataModule):
 
     def make_dataset_kwargs(self) -> dict:
         kwargs = {
-            'num_points': self.num_points,
             'label_map': self.label_map
         }
         kwargs.update(super().make_dataset_kwargs())

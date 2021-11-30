@@ -26,8 +26,18 @@ class KITTIDataModule(SparseDataModuleMixin, ScaledDataModuleMixin, KITTIDataMod
         kwargs = self.make_dataset_kwargs()
         return KITTIDataset(files=files, **kwargs)
 
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=kitti')
+        return overrides
+
 @dataclass
 class KITTIOffsetDataModule(SparseDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, KITTIDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> KITTIOffsetDataset:
         kwargs = self.make_dataset_kwargs()
         return KITTIOffsetDataset(files=files, split=split, **kwargs)
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=kitti_offset')
+        return overrides
