@@ -20,7 +20,7 @@ defaults:
   - semantic_criterion: [cross_entropy_loss, lovasz]
   - instance_criterion: offset
   - scheduler: cosine_schedule_with_warmup
-  - model: dsnet
+  - model: minknet
   - wandb: upload
   - checkpoint: all
   - swa: inactive
@@ -30,7 +30,7 @@ defaults:
   - _self_
 
 wandb:
-  name: kitti_panoptic_dsnet
+  name: kitti_panoptic_minknet
 
 clusterer:
   bandwidth: 1.2

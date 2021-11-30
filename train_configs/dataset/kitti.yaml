@@ -15,5 +15,4 @@ invalid_semantic_label_for_classification: 255
 data_dir: ${data_dir}/kitti/dataset/sequences
 
 # config fields:
-num_points: 80000
 class_weights: [2.293, 85.756, 71.511, 31.596, 35.624, 74.761, 88.722, 96.389, 1.00, 6.362, 1.00, 20.387, 1.00, 1.363, 1.00, 14.214, 1.263, 25.936, 61.896]

@@ -73,7 +73,7 @@ class ResidualBlock(nn.Module):
 def conv3x3(in_planes, out_planes, stride=1):  # no padding now
     return spnn.Conv3d(in_planes, out_planes, kernel_size=3, stride=stride, bias=True)
 
-class DSNetBackbone(pl.LightningModule):
+class MinkNetBackbone(pl.LightningModule):
     def __init__(self, cfg: OmegaConf):
         super().__init__()
         self.hparams.update(cfg)

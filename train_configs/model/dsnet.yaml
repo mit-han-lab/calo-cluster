@@ -8,4 +8,4 @@ seed: ${seed}
 sparse: True
 tanh_scale: null
 backbone:
-  _target_: calo_cluster.models.dsnet.DSNetBackbone
+  _target_: calo_cluster.models.minknet.MinkNetBackbone

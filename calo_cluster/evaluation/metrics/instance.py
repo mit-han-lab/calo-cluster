@@ -131,9 +131,13 @@ def iou_match(outputs, targets, num_classes, threshold=0.5, semantic=False, inva
             indices = indices.astype(bool)
         else:
             indices = ious > threshold
-
-        xmatched[[xmapping[k] for k in xyxinstances[indices].cpu().numpy()]] = True
-        ymatched[[ymapping[k] for k in xyyinstances[indices].cpu().numpy()]] = True
+        
+        try:
+            xmatched[[xmapping[k] for k in xyxinstances[indices].cpu().numpy()]] = True
+            ymatched[[ymapping[k] for k in xyyinstances[indices].cpu().numpy()]] = True
+        except:
+            breakpoint()
+        
 
         _xyxinstances[k] = xyxinstances[indices]
         _xyyinstances[k] = xyyinstances[indices]

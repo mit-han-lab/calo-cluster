@@ -9,13 +9,40 @@ import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
 from omegaconf import OmegaConf
-from torchsparse.tensor import PointTensor
+from torchsparse.tensor import PointTensor, SparseTensor
 
 from calo_cluster.utils.comm import is_rank_zero
 import time
 
 from .utils import *
 import math
+
+def conv3x3(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=3, stride=stride, bias=True)
+
+
+def conv1x3(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 3, 3), stride=stride, bias=True)
+
+
+def conv1x1x3(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 1, 3), stride=stride, bias=True)
+
+
+def conv1x3x1(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(1, 3, 1), stride=stride, bias=True)
+
+
+def conv3x1x1(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(3, 1, 1), stride=stride, bias=True)
+
+
+def conv3x1(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=(3, 1, 1), stride=stride, bias=True)
+
+
+def conv1x1(in_planes, out_planes, stride=1):  # no padding now
+    return spnn.Conv3d(in_planes, out_planes, kernel_size=1, stride=stride, bias=True)
 
 
 class BasicConvolutionBlock(nn.Module):
@@ -147,39 +174,37 @@ class SPVCNNBackbone(pl.LightningModule):
             )
         ])
 
+        self.up4 = nn.ModuleList([
+            BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
+            nn.Sequential(
+                ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
+                              dilation=1),
+                ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
+            )
+        ])
 
         if task == 'semantic' or task == 'panoptic':
-            self.c_up4 = nn.ModuleList([
-                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
-                nn.Sequential(
-                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                                dilation=1),
-                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
-                )
-            ])
-            self.c_point_transform = nn.Sequential(
-                nn.Linear(cs[6], cs[8]),
-                nn.BatchNorm1d(cs[8]),
-                nn.ReLU(True),
-            )
-            self.c_lin = nn.Sequential(nn.Linear(cs[8],
-                                                      self.hparams.dataset.num_classes))
+            self.logits = conv3x3(cs[8], self.hparams.dataset.num_classes)
+
+        # instance
         if task == 'instance' or task == 'panoptic':
-            self.e_up4 = nn.ModuleList([
-                BasicDeconvolutionBlock(cs[7], cs[8], ks=2, stride=2),
-                nn.Sequential(
-                    ResidualBlock(cs[8] + cs[0], cs[8], ks=3, stride=1,
-                                dilation=1),
-                    ResidualBlock(cs[8], cs[8], ks=3, stride=1, dilation=1),
-                )
-            ])
-            self.e_point_transform = nn.Sequential(
-                nn.Linear(cs[6], cs[8]),
+            self.conv1 = conv3x3(cs[8], cs[8])
+            self.bn1 = spnn.BatchNorm(cs[8])
+            self.act1 = spnn.LeakyReLU()
+            self.conv2 = conv3x3(cs[8], 2 * cs[8])
+            self.bn2 = spnn.BatchNorm(2 * cs[8])
+            self.act2 = spnn.LeakyReLU()
+            self.conv3 = conv3x3(2 * cs[8], cs[8])
+            self.bn3 = spnn.BatchNorm(cs[8])
+            self.act3 = spnn.LeakyReLU()
+
+            embed_dim = self.hparams.model.embed_dim
+            self.offset = nn.Sequential(
+                nn.Linear(cs[8] + embed_dim, cs[8], bias=True),
                 nn.BatchNorm1d(cs[8]),
-                nn.ReLU(True),
+                nn.ReLU()
             )
-            self.e_lin = nn.Sequential(nn.Linear(cs[8],
-                                                    self.hparams.model.embed_dim))
+            self.offset_linear = nn.Linear(cs[8], embed_dim, bias=True)
 
         self.point_transforms = nn.ModuleList([
             nn.Sequential(
@@ -191,30 +216,31 @@ class SPVCNNBackbone(pl.LightningModule):
                 nn.Linear(cs[4], cs[6]),
                 nn.BatchNorm1d(cs[6]),
                 nn.ReLU(True),
+            ),
+            nn.Sequential(
+                nn.Linear(cs[6], cs[8]),
+                nn.BatchNorm1d(cs[8]),
+                nn.ReLU(True),
             )
         ])
 
         self.weight_initialization()
         self.dropout = nn.Dropout(0.3, True)
 
-    def classifier(self, y3, x0, z2):
-        y4 = self.c_up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
-        y4 = self.c_up4[1](y4)
-        z3 = voxel_to_point(y4, z2)
-        z3.F = z3.F + self.c_point_transform(z2.F)
-        return self.c_lin(z3.F)
+    def classifier(self, x):
+        logits = self.logits(x)
+        return logits.F
 
-    def embedder(self, y3, x0, z2):
-        y4 = self.e_up4[0](y3)
-        y4 = torchsparse.cat([y4, x0])
-        y4 = self.e_up4[1](y4)
-        z3 = voxel_to_point(y4, z2)
-        z3.F = z3.F + self.e_point_transform(z2.F)
-        out = self.e_lin(z3.F)
-        if 'tanh_scale' in self.hparams.model and self.hparams.model.tanh_scale is not None:
-            out = torch.tanh(out) * self.hparams.model.tanh_scale
-        return out
+    def instance(self, x: SparseTensor, coordinates: torch.tensor):
+        x = self.conv1(x)
+        x = self.act1(self.bn1(x))
+        x = self.conv2(x)
+        x = self.act2(self.bn2(x))
+        x = self.conv3(x)
+        x = self.act3(self.bn3(x))
+
+        x = self.offset_linear(self.offset(torch.cat([x.F, coordinates], dim=1)))
+        return x
 
     def weight_initialization(self):
         for m in self.modules():
@@ -263,11 +289,18 @@ class SPVCNNBackbone(pl.LightningModule):
         y3 = torchsparse.cat([y3, x1])
         y3 = self.up3[1](y3)
 
+        y4 = self.up4[0](y3)
+        y4 = torchsparse.cat([y4, x0])
+        y4 = self.up4[1](y4)
+        z3 = voxel_to_point(y4, z2)
+        z3.F = z3.F + self.point_transforms[2](z2.F)
+        z3 = SparseTensor(z3.F, x.C)
+
         task = self.hparams.task
         out = {}
         if task == 'semantic' or task == 'panoptic':
-            out['pred_semantic_scores'] = self.classifier(y3, x0, z2)
+            out['pred_semantic_scores'] = self.classifier(z3)
             out['pred_semantic_labels'] = out['pred_semantic_scores'].argmax(dim=1)
         if task == 'instance' or task == 'panoptic':
-            out['pred_offsets'] = self.embedder(y3, x0, z2)
+            out['pred_offsets'] = self.instance(z3, inputs['coordinates'].F)
         return out

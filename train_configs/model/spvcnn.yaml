@@ -3,7 +3,7 @@ target:
 pres: 1.0
 vres: 1.0
 cr: 1.0
-cs: [32, 32, 64, 128, 256, 256, 128, 96, 96]
+cs: [32, 32, 64, 128, 256, 256, 128, 96, 32]
 seed: ${seed}
 sparse: True
 tanh_scale: null

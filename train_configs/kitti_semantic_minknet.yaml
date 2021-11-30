@@ -1,0 +1,32 @@
+config_version: 2
+outputs_dir: /global/cscratch1/sd/schuya/calo_cluster/training_outputs
+predictions_dir: /global/cscratch1/sd/schuya/calo_cluster/predictions
+plots_dir: /global/cscratch1/sd/schuya/calo_cluster/plots
+data_dir: /global/cscratch1/sd/schuya/calo_cluster/data
+hydra:
+  run:
+    dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}
+seed: 1588147245
+deterministic: True
+resume_ckpt: null
+overfit: False
+log_level: INFO
+val_check_interval: 0.5
+profile: False
+defaults:
+  - train: single_gpu
+  - dataset: kitti_offset
+  - optimizer: sgd
+  - semantic_criterion: [cross_entropy_loss, lovasz]
+  - scheduler: cosine_schedule_with_warmup
+  - model: minknet
+  - wandb: upload
+  - checkpoint: all
+  - swa: inactive
+  - cluster: local
+  - metrics: iou
+  - clusterer: meanshift_cuda
+  - _self_
+
+wandb:
+  name: kitti_semantic_minknet

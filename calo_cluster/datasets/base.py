@@ -144,7 +144,7 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
         train_files, val_files, test_files = self.train_val_test_split()
 
         logging.debug(f'setting seed={self.seed}')
-        pl.seed_everything(self.seed)
+        pl.seed_everything(self.seed, workers=True)
 
         if stage == 'fit' or stage is None:
             self.train_dataset = self.make_dataset(train_files, split='train')
