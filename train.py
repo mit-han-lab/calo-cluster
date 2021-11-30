@@ -49,8 +49,8 @@ def train(cfg: DictConfig, code_dir: str) -> None:
     callbacks.append(checkpoint_callback)
 
     # add rich progress bar
-    if cfg.cluster.name == 'local':
-        callbacks.append(RichProgressBar())
+    # if cfg.cluster.name == 'local':
+    #     callbacks.append(RichProgressBar())
 
     # Set up learning rate monitor.
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval='step')

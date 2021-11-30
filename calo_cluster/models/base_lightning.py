@@ -58,7 +58,7 @@ class BaseLightningModule(pl.LightningModule):
 
     def cluster(self, inputs, outputs):
         pred_offsets = outputs['pred_offsets']
-        coordinates = inputs['coordinates']
+        coordinates = inputs['coordinates_raw']
         if self.hparams.task == 'panoptic':
             semantic_labels = outputs['pred_semantic_labels']
         else:
@@ -69,12 +69,14 @@ class BaseLightningModule(pl.LightningModule):
         try:
             pred_instance_labels[valid] = self.clusterer(shifted_coordinates)
         except:
-            pass
+            logging.warning(f'{valid.sum()} points could not be clustered due to GPU memory constraint.')
             
 
         return pred_instance_labels
 
-    def unbatch(self, inputs, outputs):
+    def devoxelize(self, inputs, outputs):
+        subbatch_idx = inputs['features'].C[..., -1]
+        subbatch_im_idx = inputs['inverse_map'].C[..., -1]
         subbatch_idx = inputs['features'].C[..., -1]
         subbatch_im_idx = inputs['inverse_map'].C[..., -1]
         inputs_list = []
@@ -82,38 +84,21 @@ class BaseLightningModule(pl.LightningModule):
         for j in torch.unique(subbatch_idx):
             mask = (subbatch_idx == j)
             im_mask = (subbatch_im_idx == j)
+            inverse_map = inputs['inverse_map'].F[im_mask]
             inputs_j = {}
             outputs_j = {}
-            for k,v in inputs.items():
-                if '_raw' in k or k == 'inverse_map':
-                    inputs_j[k] = v.F[im_mask]
-                else:
-                    inputs_j[k] = v.F[mask]
-            for k,v in outputs.items():
-                outputs_j[k] = v[mask]
-            inputs_list.append(inputs_j)
-            outputs_list.append(outputs_j)
-        return inputs_list, outputs_list
-
-    def devoxelize(self, inputs_list, outputs_list):
-        inputs_devox = []
-        outputs_devox = []
-        for inputs, outputs in zip(inputs_list, outputs_list):
-            inverse_map = inputs['inverse_map']
-            inputs_devox_j = {}
-            outputs_devox_j = {}
             for k,v in inputs.items():
                 if k == 'inverse_map':
                     continue
                 if '_raw' in k:
-                    inputs_devox_j[k] = v
+                    inputs_j[k] = v.F[im_mask]
                 else:
-                    inputs_devox_j[k] = v[inverse_map]
+                    inputs_j[k] = v.F[mask][inverse_map]
             for k,v in outputs.items():
-                outputs_devox_j[k] = v[inverse_map]
-            inputs_devox.append(inputs_devox_j)
-            outputs_devox.append(outputs_devox_j)
-        return inputs_devox, outputs_devox
+                outputs_j[k] = v[mask][inverse_map]
+            inputs_list.append(inputs_j)
+            outputs_list.append(outputs_j)
+        return inputs_list, outputs_list
 
     def merge_instance_semantic(self, sem, ins):
         if len(self.valid_semantic_labels_for_clustering) == 1:
@@ -131,15 +116,14 @@ class BaseLightningModule(pl.LightningModule):
 
     def forward(self, inputs):
         outputs = self.backbone(inputs)
-        inputs_list, outputs_list = self.unbatch(inputs, outputs)
-        inputs_devoxelized, outputs_devoxelized = self.devoxelize(inputs_list, outputs_list)
-        self.offset_concat(inputs_devoxelized, outputs_devoxelized)
+        inputs_list, outputs_list = self.devoxelize(inputs, outputs)
+        self.offset_concat(inputs_list, outputs_list)
         if not self.training and self.hparams.task in ('instance', 'panoptic'):
-            for inputs_i, outputs_i in zip(inputs_devoxelized, outputs_devoxelized):
+            for inputs_i, outputs_i in zip(inputs_list, outputs_list):
                 outputs_i['pred_instance_labels'] = self.cluster(inputs_i, outputs_i)
                 if self.hparams.task == 'panoptic':
                     outputs_i['pred_semantic_labels'] = self.merge_instance_semantic(outputs_i['pred_semantic_labels'], outputs_i['pred_instance_labels'])
-        return outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized
+        return outputs, inputs_list, outputs_list
 
     def configure_optimizers(self):
         optimizer = self.optimizer_factory(self.parameters())
@@ -158,21 +142,22 @@ class BaseLightningModule(pl.LightningModule):
             metric.reset()
 
     def step(self, inputs, batch_idx, split):
-        outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized = self(inputs)
+        outputs, inputs_list, outputs_list = self(inputs)
         task = self.hparams.task
         if task == 'semantic':
             loss = self.semantic_step(inputs, outputs, split)
         elif task == 'instance':
-            loss = self.instance_step(inputs_devoxelized, outputs_devoxelized, split)
+            loss = self.instance_step(inputs_list, outputs_list, split)
         elif task == 'panoptic':
-            loss = self.panoptic_step(inputs, outputs, inputs_devoxelized, outputs_devoxelized, split)
+            loss = self.panoptic_step(inputs, outputs, inputs_list, outputs_list, split)
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss)
 
         if split == 'val':
-            for metric in self.metrics.values():
-                metric(inputs_devoxelized, outputs_devoxelized)
+            for inputs, outputs in zip(inputs_list, outputs_list):
+                for metric in self.metrics.values():
+                    metric(inputs, outputs)
         
         return loss
 

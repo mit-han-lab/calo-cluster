@@ -21,23 +21,23 @@ class PanopticQuality(Metric):
         self.add_state('fns', torch.zeros(self.num_classes, dtype=float))
         self.add_state('ious', torch.zeros(self.num_classes, dtype=float))
 
-    def update(self, inputs_list, outputs_list):
-        for inputs, outputs in zip(inputs_list, outputs_list):
-            if self.semantic:
-                targets = (inputs['semantic_labels_raw'], inputs['instance_labels_raw'])
-                outputs = (outputs['pred_semantic_labels'], outputs['pred_instance_labels'])
-            else:
-                targets = inputs['instance_labels_raw']
-                outputs = outputs['pred_instance_labels']
-            _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(
-                outputs, targets, threshold=0.5, semantic=self.semantic, invalid_semantic_label_for_classification=self.invalid_semantic_label_for_classification, valid_semantic_labels_for_clustering=self.valid_semantic_labels_for_clustering, num_classes=self.num_classes)
-            for k in range(self.num_classes):
-                if k in _xyxinstances:
-                    self.tps[k] += _xyxinstances[k].shape[0]
-                    self.ious[k] += torch.sum(_ious[k])
+    def update(self, inputs: dict, outputs: dict):
+        if self.semantic:
+            targets = (inputs['semantic_labels_raw'], inputs['instance_labels_raw'])
+            outputs = (outputs['pred_semantic_labels'], outputs['pred_instance_labels'])
+        else:
+            targets = inputs['instance_labels_raw']
+            outputs = outputs['pred_instance_labels']
+        _xyxinstances, _xyyinstances, _ious, _xmatched, _ymatched, _xareas, _yareas, _xmapping, _ymapping, _intersections = iou_match(
+            outputs, targets, threshold=0.5, semantic=self.semantic, invalid_semantic_label_for_classification=self.invalid_semantic_label_for_classification, valid_semantic_labels_for_clustering=self.valid_semantic_labels_for_clustering, num_classes=self.num_classes)
+        for k in range(self.num_classes):
+            if k in _xyxinstances:
+                self.tps[k] += _xyxinstances[k].shape[0]
+                self.ious[k] += torch.sum(_ious[k])
 
-                    self.fps[k] += torch.sum(_xmatched[k] == False)
-                    self.fns[k] += torch.sum(_ymatched[k] == False)
+                self.fps[k] += torch.sum(_xmatched[k] == False)
+                self.fns[k] += torch.sum(_ymatched[k] == False)
+            
 
     def compute(self):
         sq = self.ious / torch.maximum(self.tps, torch.tensor(1e-15))
@@ -62,6 +62,11 @@ def iou_match(outputs, targets, num_classes, threshold=0.5, semantic=False, inva
     else:
         xs, xi = outputs
         ys, yi = targets
+
+    xi = xi.long()
+    yi = yi.long()
+    xs = xs.long()
+    ys = ys.long()
 
 
     mask = (ys != invalid_semantic_label_for_classification)
@@ -132,11 +137,9 @@ def iou_match(outputs, targets, num_classes, threshold=0.5, semantic=False, inva
         else:
             indices = ious > threshold
         
-        try:
-            xmatched[[xmapping[k] for k in xyxinstances[indices].cpu().numpy()]] = True
-            ymatched[[ymapping[k] for k in xyyinstances[indices].cpu().numpy()]] = True
-        except:
-            breakpoint()
+        
+        xmatched[[xmapping[k] for k in xyxinstances[indices].cpu().numpy()]] = True
+        ymatched[[ymapping[k] for k in xyyinstances[indices].cpu().numpy()]] = True
         
 
         _xyxinstances[k] = xyxinstances[indices]
