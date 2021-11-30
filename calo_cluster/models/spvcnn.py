@@ -198,14 +198,6 @@ class SPVCNNBackbone(pl.LightningModule):
             self.bn3 = spnn.BatchNorm(cs[8])
             self.act3 = spnn.LeakyReLU()
 
-            embed_dim = self.hparams.model.embed_dim
-            self.offset = nn.Sequential(
-                nn.Linear(cs[8] + embed_dim, cs[8], bias=True),
-                nn.BatchNorm1d(cs[8]),
-                nn.ReLU()
-            )
-            self.offset_linear = nn.Linear(cs[8], embed_dim, bias=True)
-
         self.point_transforms = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(cs[0], cs[4]),
@@ -231,16 +223,14 @@ class SPVCNNBackbone(pl.LightningModule):
         logits = self.logits(x)
         return logits.F
 
-    def instance(self, x: SparseTensor, coordinates: torch.tensor):
+    def instance(self, x: SparseTensor):
         x = self.conv1(x)
         x = self.act1(self.bn1(x))
         x = self.conv2(x)
         x = self.act2(self.bn2(x))
         x = self.conv3(x)
         x = self.act3(self.bn3(x))
-
-        x = self.offset_linear(self.offset(torch.cat([x.F, coordinates], dim=1)))
-        return x
+        return x.F
 
     def weight_initialization(self):
         for m in self.modules():
@@ -302,5 +292,5 @@ class SPVCNNBackbone(pl.LightningModule):
             out['pred_semantic_scores'] = self.classifier(z3)
             out['pred_semantic_labels'] = out['pred_semantic_scores'].argmax(dim=1)
         if task == 'instance' or task == 'panoptic':
-            out['pred_offsets'] = self.instance(z3, inputs['coordinates'].F)
+            out['pred_instance_features'] = self.instance(z3)
         return out

@@ -50,6 +50,8 @@ class BaseLightningModule(pl.LightningModule):
 
         self.register_buffer('valid_semantic_labels_for_clustering', torch.tensor(self.hparams.dataset.valid_semantic_labels_for_clustering))
         self.backbone = hydra.utils.instantiate(self.hparams.model.backbone, cfg=cfg, _recursive_=False)
+        if task == 'instance' or task == 'panoptic':
+            self.offset_concat = OffsetConcat(cfg)
 
     def num_inf_or_nan(self, x):
         return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
@@ -94,9 +96,6 @@ class BaseLightningModule(pl.LightningModule):
         return inputs_list, outputs_list
 
     def devoxelize(self, inputs_list, outputs_list):
-        """If not training, devoxelize every input/output. For training, devoxelization is unnecessary, so do nothing."""
-        if self.training:
-            return {}, {}
         inputs_devox = []
         outputs_devox = []
         for inputs, outputs in zip(inputs_list, outputs_list):
@@ -133,11 +132,13 @@ class BaseLightningModule(pl.LightningModule):
     def forward(self, inputs):
         outputs = self.backbone(inputs)
         inputs_list, outputs_list = self.unbatch(inputs, outputs)
-        if not self.training and self.hparams.task in ('instance', 'panoptic'):
-            for inputs_i, outputs_i in zip(inputs_list, outputs_list):
-                outputs_i['pred_instance_labels'] = self.cluster(inputs_i, outputs_i)
-                outputs_i['pred_semantic_labels'] = self.merge_instance_semantic(outputs_i['pred_semantic_labels'], outputs_i['pred_instance_labels'])
         inputs_devoxelized, outputs_devoxelized = self.devoxelize(inputs_list, outputs_list)
+        self.offset_concat(inputs_devoxelized, outputs_devoxelized)
+        if not self.training and self.hparams.task in ('instance', 'panoptic'):
+            for inputs_i, outputs_i in zip(inputs_devoxelized, outputs_devoxelized):
+                outputs_i['pred_instance_labels'] = self.cluster(inputs_i, outputs_i)
+                if self.hparams.task == 'panoptic':
+                    outputs_i['pred_semantic_labels'] = self.merge_instance_semantic(outputs_i['pred_semantic_labels'], outputs_i['pred_instance_labels'])
         return outputs, inputs_list, outputs_list, inputs_devoxelized, outputs_devoxelized
 
     def configure_optimizers(self):
@@ -162,9 +163,9 @@ class BaseLightningModule(pl.LightningModule):
         if task == 'semantic':
             loss = self.semantic_step(inputs, outputs, split)
         elif task == 'instance':
-            loss = self.instance_step(inputs_list, outputs_list, split)
+            loss = self.instance_step(inputs_devoxelized, outputs_devoxelized, split)
         elif task == 'panoptic':
-            loss = self.panoptic_step(inputs, outputs, inputs_list, outputs_list, split)
+            loss = self.panoptic_step(inputs, outputs, inputs_devoxelized, outputs_devoxelized, split)
         else:
             raise RuntimeError("invalid task!")
         self.log(f'{split}_loss', loss)
@@ -191,10 +192,7 @@ class BaseLightningModule(pl.LightningModule):
         losses = {}
         for name, criterion in self.instance_criterion.items():
             for inputs, outputs in zip(inputs_list, outputs_list):
-                if self.hparams.task == 'panoptic':
-                    semantic_labels = outputs['pred_semantic_labels']
-                else:
-                    semantic_labels = inputs['semantic_labels']
+                semantic_labels = inputs['semantic_labels']
                 valid = torch.isin(semantic_labels, self.valid_semantic_labels_for_clustering)
                 loss = criterion(outputs['pred_offsets'], inputs['offsets'], valid)
                 if name in losses:
@@ -246,3 +244,32 @@ class BaseLightningModule(pl.LightningModule):
 
         max_estimated_steps = min(max_estimated_steps, self.trainer.max_steps) if self.trainer.max_steps != -1 else max_estimated_steps
         return max_estimated_steps
+
+
+
+class OffsetConcat(pl.LightningModule):
+    def __init__(self, cfg: OmegaConf) -> None:
+        super().__init__()
+        self.hparams.update(cfg)
+        cs = [int(self.hparams.model.cr * x) for x in self.hparams.model.cs]
+        embed_dim = self.hparams.model.embed_dim
+        self.offset = nn.Sequential(
+            nn.Linear(cs[8] + embed_dim, cs[8], bias=True),
+            nn.BatchNorm1d(cs[8]),
+            nn.ReLU()
+        )
+        self.offset_linear = nn.Linear(cs[8], embed_dim, bias=True)
+
+        self.weight_initialization()
+
+    def weight_initialization(self):
+        for m in self.modules():
+            if isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        
+    def forward(self, inputs_list, outputs_list):
+        for inputs, outputs in zip(inputs_list, outputs_list):
+            x = outputs['pred_instance_features']
+            coordinates = inputs['coordinates_raw']
+            outputs['pred_offsets'] = self.offset_linear(self.offset(torch.cat([x, coordinates], dim=1)))

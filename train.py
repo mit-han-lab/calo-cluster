@@ -81,7 +81,8 @@ def train(cfg: DictConfig, code_dir: str) -> None:
 
     datamodule = hydra.utils.instantiate(cfg.dataset)
     model = hydra.utils.instantiate(cfg.model.target, cfg)
-    
+
+    #count_parameters(model)
     # train
     trainer = pl.Trainer(devices=cfg.train.devices, logger=logger, max_epochs=cfg.train.num_epochs, resume_from_checkpoint=resume_from_checkpoint, deterministic=cfg.deterministic, accelerator=cfg.train.accelerator, overfit_batches=overfit_batches, val_check_interval=cfg.val_check_interval, callbacks=callbacks, precision=32, log_every_n_steps=1, num_sanity_val_steps=0)
     if is_rank_zero():
@@ -102,6 +103,19 @@ def train(cfg: DictConfig, code_dir: str) -> None:
     else:
         trainer.fit(model=model, datamodule=datamodule)
 
+from prettytable import PrettyTable
+
+def count_parameters(model):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        param = parameter.numel()
+        table.add_row([name, param])
+        total_params+=param
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
 
 @hydra.main(config_path="train_configs", config_name="config")
 def hydra_main(cfg: DictConfig) -> None:
