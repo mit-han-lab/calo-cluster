@@ -68,14 +68,13 @@ class KITTIDatasetMixin(BaseDataset):
             block_ = np.fromfile(b, dtype=np.float32).reshape(-1, 4)
         block = np.zeros_like(block_)
         if 'train' in self.split:
-            # theta = np.random.uniform(0, 2 * np.pi)
-            # scale_factor = np.random.uniform(0.95, 1.05)
-            # rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
-            #                     [-np.sin(theta),
-            #                      np.cos(theta), 0], [0, 0, 1]])
+            theta = np.random.uniform(0, 2 * np.pi)
+            scale_factor = np.random.uniform(0.95, 1.05)
+            rot_mat = np.array([[np.cos(theta), np.sin(theta), 0],
+                                [-np.sin(theta),
+                                 np.cos(theta), 0], [0, 0, 1]])
 
-            # block[:, :3] = np.dot(block_[:, :3], rot_mat) * scale_factor
-            block[...] = block_[...]
+            block[:, :3] = np.dot(block_[:, :3], rot_mat) * scale_factor
         else:
             theta = self.angle
             transform_mat = np.array([[np.cos(theta),
