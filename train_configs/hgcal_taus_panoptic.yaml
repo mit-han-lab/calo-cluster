@@ -15,12 +15,12 @@ val_check_interval: 0.5
 profile: False
 defaults:
   - train: single_gpu
-  - dataset: kitti_offset
+  - dataset: hgcal_taus_offset
   - optimizer: sgd
   - semantic_criterion: [cross_entropy_loss, lovasz]
   - instance_criterion: offset
   - scheduler: cosine_schedule_with_warmup
-  - model: minknet
+  - model: spvcnn
   - wandb: upload
   - checkpoint: all
   - swa: inactive
@@ -30,7 +30,14 @@ defaults:
   - _self_
 
 wandb:
-  name: kitti_panoptic_minknet
+  name: hgcal_taus_panoptic
 
 clusterer:
   bandwidth: 1.2
+
+train:
+  num_epochs: 50
+
+instance_criterion:
+  offset:
+    weight: 0.003

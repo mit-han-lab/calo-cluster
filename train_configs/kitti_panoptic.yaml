@@ -11,7 +11,7 @@ deterministic: False
 resume_ckpt: null
 overfit: False
 log_level: INFO
-val_check_interval: 0.5
+val_check_interval: 1.0
 profile: False
 defaults:
   - train: single_gpu
