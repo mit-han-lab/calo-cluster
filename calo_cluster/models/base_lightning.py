@@ -53,6 +53,24 @@ class BaseLightningModule(pl.LightningModule):
         if task == 'instance' or task == 'panoptic':
             self.offset_concat = OffsetConcat(cfg)
 
+        self.weight_initialization()
+
+    def weight_initialization(self):
+        for m in self.modules():
+            # if hasattr(m, 'kernel') and m.kernel is not None:
+            #     nn.init.constant_(m.kernel, 0.01)
+            # if hasattr(m, 'weight') and m.weight is not None:
+            #     nn.init.constant_(m.weight, 0.01)
+            # if hasattr(m, 'bias') and m.bias is not None:
+            #     nn.init.constant_(m.bias, 0)
+            if isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+    
+        # print(self.backbone.conv1.kernel)
+        # print(self.offset_concat.offset[0].weight)
+        
+
     def num_inf_or_nan(self, x):
         return (torch.isinf(x.F).sum(), torch.isnan(x.F).sum())
 
@@ -174,16 +192,21 @@ class BaseLightningModule(pl.LightningModule):
         return loss
 
     def instance_step(self, inputs_list, outputs_list, split):
+        semantic_labels = []
+        pred_offsets = []
+        offsets = []
+        for inputs, outputs in zip(inputs_list, outputs_list):
+            semantic_labels.append(inputs['semantic_labels_raw'])
+            pred_offsets.append(outputs['pred_offsets'])
+            offsets.append(inputs['offsets_raw'])
+        semantic_labels = torch.cat(semantic_labels)
+        pred_offsets = torch.cat(pred_offsets)
+        offsets = torch.cat(offsets)
+        valid = torch.isin(semantic_labels, self.valid_semantic_labels_for_clustering)
         losses = {}
         for name, criterion in self.instance_criterion.items():
-            for inputs, outputs in zip(inputs_list, outputs_list):
-                semantic_labels = inputs['semantic_labels']
-                valid = torch.isin(semantic_labels, self.valid_semantic_labels_for_clustering)
-                loss = criterion(outputs['pred_offsets'], inputs['offsets'], valid)
-                if name in losses:
-                    losses[name] += loss
-                else:
-                    losses[name] = loss
+            loss = criterion(pred_offsets, offsets, valid)
+            losses[name] = loss
             self.log(f'{split}_{name}_loss', losses[name])
         loss = sum(losses.values())
         self.log(f'{split}_instance_loss', loss)
@@ -244,14 +267,6 @@ class OffsetConcat(pl.LightningModule):
             nn.ReLU()
         )
         self.offset_linear = nn.Linear(cs[8], embed_dim, bias=True)
-
-        self.weight_initialization()
-
-    def weight_initialization(self):
-        for m in self.modules():
-            if isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
         
     def forward(self, inputs_list, outputs_list):
         for inputs, outputs in zip(inputs_list, outputs_list):
