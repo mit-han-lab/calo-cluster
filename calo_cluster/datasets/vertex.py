@@ -28,9 +28,20 @@ class VertexDataModule(SparseDataModuleMixin, ScaledDataModuleMixin, VertexDataM
         kwargs = self.make_dataset_kwargs()
         return VertexDataset(files=files, **kwargs)
 
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=vertex')
+        return overrides
+
 
 @dataclass
 class VertexOffsetDataModule(SparseDataModuleMixin, OffsetDataModuleMixin, ScaledDataModuleMixin, VertexDataModuleMixin):
     def make_dataset(self, files: List[Path], split: str) -> VertexOffsetDataset:
         kwargs = self.make_dataset_kwargs()
-        return VertexOffsetDataset(files=files, split=split, **kwargs)
+        return VertexOffsetDataset(files=files, **kwargs)
+
+    @staticmethod
+    def fix_overrides(overrides: List[str]):
+        overrides.append('dataset=vertex_offset')
+        return overrides
+        

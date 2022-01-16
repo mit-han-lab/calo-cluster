@@ -4,7 +4,7 @@ _target_: calo_cluster.datasets.vertex.VertexDataModule
 
 # required fields:
 num_classes: 2
-num_features: 6
+num_features: 5
 voxel_size: 0.05
 
 # dataset-specific fields (should not change):
@@ -14,7 +14,10 @@ cluster_ignore_labels: [-1,]
 data_dir: ${data_dir}/vertex/raw
 
 # config fields:
-feats: ['d0', 'z0', 'phi', 'theta', 'qp', 'time']
+feats: ['d0', 'z0', 'phi', 'theta', 'qp']
 coords: ['d0', 'z0', 'phi', 'theta', 'qp']
 # one of: {reco, truth}
-instance_label: reco
+instance_label: truth
+instance_target: truth
+semantic_label: truth_semantic_label
+weight: null

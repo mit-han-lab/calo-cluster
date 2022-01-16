@@ -1,8 +1,8 @@
 config_version: 2
-outputs_dir: /global/cscratch1/sd/schuya/calo_cluster/training_outputs
-predictions_dir: /global/cscratch1/sd/schuya/calo_cluster/predictions
-plots_dir: /global/cscratch1/sd/schuya/calo_cluster/plots
-data_dir: /global/cscratch1/sd/schuya/calo_cluster/data
+outputs_dir: /global/cscratch1/sd/hrzhao/calo_cluster/training_outputs
+predictions_dir: /global/cscratch1/sd/hrzhao/calo_cluster/predictions
+plots_dir: /global/cscratch1/sd/hrzhao/calo_cluster/plots
+data_dir: /global/cscratch1/sd/hrzhao/calo_cluster/data
 hydra:
   run:
     dir: ${outputs_dir}/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}

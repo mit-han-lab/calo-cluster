@@ -174,7 +174,7 @@ class BaseDataModule(AbstractBaseDataModule, pl.LightningDataModule):
         overrides = cls.fix_overrides(overrides)
         with initialize_config_dir(config_dir=str(config_dir)):
             cfg = compose(config_name='config', overrides=overrides)
-            dm = hydra.utils.instantiate(cfg.dataset, task='panoptic')
+            dm = hydra.utils.instantiate(cfg.dataset)
         dm.prepare_data()
         dm.setup('fit')
         return dm

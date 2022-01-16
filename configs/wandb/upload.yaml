@@ -1,5 +1,5 @@
 _target_: pytorch_lightning.loggers.WandbLogger
-project: hgcal-spvcnn
+project: vertex-spvcnn
 entity: uw-hgcal
 version: null
 name: ${criterion}-${model}

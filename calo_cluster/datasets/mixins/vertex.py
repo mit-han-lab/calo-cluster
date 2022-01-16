@@ -16,7 +16,8 @@ class VertexDatasetMixin(PandasDataset):
             self.semantic_label = 'semantic_label'
             self.instance_label = 'reco_vtxID'
         elif self.instance_target == 'truth':
-            raise NotImplementedError()
+            self.semantic_label = 'truth_semantic_label'
+            self.instance_label = 'truth_vtxID'
         else:
             raise RuntimeError()
         return super().__post_init__()
